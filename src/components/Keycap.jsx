@@ -71,6 +71,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const globalLegendColor = useStore(s => s.globalLegendColor);
   const globalLegendText = useStore(s => s.globalLegendText);
   const globalFont = useStore(s => s.globalFont);
+  const globalLegendPosition = useStore(s => s.globalLegendPosition);
   const materialPreset = useStore(s => s.materialPreset);
   const soundEnabled = useStore(s => s.soundEnabled);
   
@@ -81,7 +82,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const legendColor = pkDesign.legendColor || globalLegendColor;
   let legendText = pkDesign.legendText || globalLegendText || label;
   const font = pkDesign.font || globalFont;
-  const legendPosition = pkDesign.legendPosition || 'top-center';
+  const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';
   
   const bodyGeo = useMemo(() => buildFrustumBody(), []);
   const topGeo = useMemo(() => buildTopDish(), []);
@@ -107,9 +108,9 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
 
   // Material preset overrides
   const isABS = materialPreset === 'abs';
-  const presetRoughness = isBg ? 0.4 : (isABS ? 0.25 : 0.78);
-  const presetClearcoat = isBg ? 0.2 : (isABS ? 0.06 : 0.0);
-  const presetEnvMap = isBg ? 1.5 : (isABS ? 0.25 : 0.15);
+  const presetRoughness = isBg ? 0.4 : (isABS ? 0.35 : 0.72);
+  const presetClearcoat = isBg ? 0.2 : (isABS ? 0.04 : 0.0);
+  const presetEnvMap = isBg ? 1.5 : (isABS ? 0.2 : 0.12);
 
   const bodyMaterialParams = {
     color: color,

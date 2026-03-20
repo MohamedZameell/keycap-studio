@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
@@ -10,9 +10,15 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
+import { getLayoutForFormFactor } from '../data/layouts';
 
 const PRESET_COLORS = ['#1a1a1a', '#f0f0f0', '#1e3a5f', '#c0392b', '#6c63ff', '#0d9e75', '#e91e8c', '#f5c518'];
 const FONTS = ['Inter', 'Oswald', 'Press Start 2P', 'Share Tech Mono', 'Playfair Display', 'Nunito', 'Rajdhani', 'Bebas Neue'];
+const FONT_DESCRIPTIONS = {
+  'Inter': 'Modern clean', 'Oswald': 'Bold condensed', 'Press Start 2P': 'Pixel',
+  'Share Tech Mono': 'Mono', 'Playfair Display': 'Elegant', 'Nunito': 'Rounded',
+  'Rajdhani': 'Futuristic', 'Bebas Neue': 'Bold display',
+};
 
 const THEMES = [
   { name: 'Midnight', keycap: '#1a1a2e', legend: '#ffffff', material: 'pbt' },
@@ -25,41 +31,82 @@ const THEMES = [
   { name: 'Stealth', keycap: '#111111', legend: '#2a2a2a', material: 'pbt' },
 ];
 
+const LEGEND_POSITIONS = [
+  { value: 'top-center', label: 'Top Center' },
+  { value: 'top-left', label: 'Top Left' },
+  { value: 'top-right', label: 'Top Right' },
+  { value: 'front', label: 'Front Face' },
+  { value: 'none', label: 'Hidden' },
+];
+
+const IMAGE_MODES = [
+  { value: 'none', icon: '⬜', label: 'No Image', desc: 'Solid color only' },
+  { value: 'wrap', icon: '🖼', label: 'Wrap Keyboard', desc: 'One image across all keys' },
+  { value: 'tile', icon: '🔲', label: 'Tile All Keys', desc: 'Same image on every key' },
+  { value: 'perkey', icon: '🎯', label: 'Per Key Image', desc: 'Different image per key' },
+];
+
 export default function StudioScreen() {
   const store = useStore();
   const [activeTab, setActiveTab] = useState('DESIGN');
-  const [viewMode, setViewMode] = useState('full'); 
+  const [viewMode, setViewMode] = useState('full');
   const [targetScope, setTargetScope] = useState('all');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  
+  const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
+  const fileInputRef = useRef(null);
+
   const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
+
+  // Debounced color update (1 frame = ~16ms)
+  const colorTimerRef = useRef(null);
+  const debouncedColorUpdate = useCallback((key, value) => {
+    if (colorTimerRef.current) clearTimeout(colorTimerRef.current);
+    colorTimerRef.current = setTimeout(() => {
+      if (key === 'color') store.setGlobalColor(value);
+      if (key === 'legendColor') store.setGlobalLegendColor(value);
+    }, 16);
+  }, [store]);
 
   const updateDesign = (key, value) => {
     if (targetScope === 'all' || !targetKeyId) {
-      if (key === 'color') store.setGlobalColor(value);
-      if (key === 'legendColor') store.setGlobalLegendColor(value);
+      if (key === 'color' || key === 'legendColor') {
+        debouncedColorUpdate(key, value);
+        return;
+      }
       if (key === 'legendText') store.setGlobalLegendText(value);
       if (key === 'font') store.setGlobalFont(value);
-      if (key === 'legendPosition') {
-        const currentDesigns = { ...store.perKeyDesigns };
-        Object.keys(currentDesigns).forEach(k => {
-          if(currentDesigns[k]) currentDesigns[k].legendPosition = value;
-        });
-        store.setPerKeyDesign('global_override', {legendPosition: value});
-      }
+      if (key === 'legendPosition') store.setGlobalLegendPosition(value);
     } else {
       store.setPerKeyDesign(targetKeyId, { [key]: value });
     }
   };
 
   const getVal = (key) => {
-    if(targetScope === 'selected' && targetKeyId && store.perKeyDesigns[targetKeyId]) {
+    if (targetScope === 'selected' && targetKeyId && store.perKeyDesigns[targetKeyId]) {
       return store.perKeyDesigns[targetKeyId][key] || store[`global${key.charAt(0).toUpperCase() + key.slice(1)}`];
     }
     return store[`global${key.charAt(0).toUpperCase() + key.slice(1)}`];
   };
 
+  // Keyboard shortcuts (Task 12)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'Escape') store.setSelectedKey(null);
+      if (e.key === ' ') { e.preventDefault(); setViewMode(v => v === 'full' ? 'single' : 'full'); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [store]);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 2500);
+  };
+
+  // --- EXPORT HANDLERS ---
   const handleExportPNG = () => {
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
@@ -69,28 +116,89 @@ export default function StudioScreen() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    showToast('PNG exported!');
+  };
+
+  const handleExportSVG = () => {
+    try {
+      const state = useStore.getState();
+      let mappedFF = 'SIXTY';
+      const ff = state.selectedFormFactor;
+      if (ff === '75%') mappedFF = 'SEVENTY_FIVE';
+      else if (ff === 'TKL' || ff === '80%') mappedFF = 'TKL_80';
+      else if (ff === '100%') mappedFF = 'FULL_100';
+      else if (ff === '65%') mappedFF = 'SIXTY_FIVE';
+      const layout = getLayoutForFormFactor(mappedFF) || [];
+      const KEY_UNIT_MM = 19.05;
+
+      const svgKeys = layout.map(key => {
+        const x = (key.x || 0) * KEY_UNIT_MM;
+        const y = (key.y || 0) * KEY_UNIT_MM;
+        const w = ((key.w || 1) * KEY_UNIT_MM) - 1;
+        const h = ((key.h || 1) * KEY_UNIT_MM) - 1;
+        const design = state.perKeyDesigns?.[key.id];
+        const fill = design?.color || state.globalColor;
+        return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" rx="2" stroke="#333" stroke-width="0.5"/>\n<text x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="8" fill="${state.globalLegendColor}" font-family="Inter,sans-serif">${key.label || ''}</text>`;
+      }).join('\n');
+
+      const maxX = Math.max(...layout.map(k => ((k.x || 0) + (k.w || 1)) * KEY_UNIT_MM));
+      const maxY = Math.max(...layout.map(k => ((k.y || 0) + (k.h || 1)) * KEY_UNIT_MM));
+
+      const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg width="${maxX}mm" height="${maxY}mm" viewBox="0 0 ${maxX} ${maxY}" xmlns="http://www.w3.org/2000/svg">\n<rect width="${maxX}" height="${maxY}" fill="#0a0a0f"/>\n${svgKeys}\n</svg>`;
+
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `keycap-layout-${Date.now()}.svg`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('SVG exported!');
+    } catch (e) {
+      console.error('SVG export failed:', e);
+      showToast('SVG export failed');
+    }
   };
 
   const handleShareURL = () => {
-    const state = useStore.getState();
-    const design = {
-      c: state.globalColor,
-      lc: state.globalLegendColor,
-      f: state.globalFont,
-      m: state.materialPreset,
-      k: state.selectedModel,
-      led: state.keyboardLEDType,
-    };
-    const encoded = btoa(JSON.stringify(design));
-    const url = `${window.location.origin}?d=${encoded}`;
-    navigator.clipboard.writeText(url);
-    showToast('Link copied!');
+    try {
+      const state = useStore.getState();
+      const design = {
+        c: state.globalColor, lc: state.globalLegendColor, f: state.globalFont,
+        m: state.materialPreset, k: state.selectedModel, ff: state.selectedFormFactor,
+        led: state.keyboardLEDType,
+      };
+      const encoded = btoa(JSON.stringify(design));
+      const url = `${window.location.origin}?d=${encoded}`;
+      navigator.clipboard.writeText(url);
+      showToast('Link copied to clipboard!');
+    } catch (e) {
+      showToast('Failed to copy link');
+    }
   };
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setToastVisible(true);
-    setTimeout(() => setToastVisible(false), 2000);
+  const handleImageUpload = (e) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('File too large (max 5MB)'); return; }
+    const url = URL.createObjectURL(file);
+    setUploadedImageUrl(url);
+    store.setKeyboardImageUrl(url);
+    // TODO: Apply texture to 3D keycap surfaces
+  };
+
+  const LEDTypeColor = (type) => {
+    if (type?.includes('North')) return '#0d9e75';
+    if (type?.includes('South')) return '#f5a623';
+    if (type?.includes('Per-key')) return '#6c63ff';
+    return '#444460';
+  };
+
+  const LEDTypeIcon = (type) => {
+    if (type?.includes('North')) return '↑';
+    if (type?.includes('South')) return '↓';
+    if (type?.includes('Per-key')) return '✦';
+    return '—';
   };
 
   return (
@@ -101,32 +209,27 @@ export default function StudioScreen() {
         .color-circle { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-sizing: border-box; }
         .color-circle:hover { transform: scale(1.15); }
         .color-circle.active { border: 2px solid #ffffff; }
-        .export-btn { display: flex; flex-direction: column; width: 100%; padding: 16px; background-color: #16162a; border: 1px solid #2a2a3a; border-radius: 8px; text-align: left; margin-bottom: 8px; cursor: pointer; transition: background 0.2s, border-color 0.2s, transform 0.2s; }
-        .export-btn:hover { background-color: #1a1a2e; border-color: #6c63ff; transform: translateY(-1px); }
-        .export-btn.png { background-color: #6c63ff22; border-color: #6c63ff; }
       `}</style>
-      
+
       {/* TOP BAR */}
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
           <button style={styles.iconBtn} onClick={() => store.setScreen('selector')}>← Back</button>
           <span style={styles.logoText}>Keycap Studio</span>
         </div>
-        
         <div style={styles.topBarCenter}>
           {store.selectedModel ? (
-            <>{store.selectedModel} <span style={{color: '#888899'}}>— {store.selectedFormFactor}</span></>
+            <>{store.selectedModel} <span style={{ color: '#888899' }}>— {store.selectedFormFactor}</span></>
           ) : (
             `Custom Layout — ${store.selectedFormFactor}`
           )}
         </div>
-        
         <div style={styles.topBarRight}>
           <div style={styles.viewToggle}>
-            <button style={{...styles.toggleBtn, ...(viewMode === 'single' ? styles.toggleActive : {})}} onClick={() => setViewMode('single')}>Single Key</button>
-            <button style={{...styles.toggleBtn, ...(viewMode === 'full' ? styles.toggleActive : {})}} onClick={() => setViewMode('full')}>Full Keyboard</button>
+            <button style={{ ...styles.toggleBtn, ...(viewMode === 'single' ? styles.toggleActive : {}) }} onClick={() => setViewMode('single')}>Single Key</button>
+            <button style={{ ...styles.toggleBtn, ...(viewMode === 'full' ? styles.toggleActive : {}) }} onClick={() => setViewMode('full')}>Full Keyboard</button>
           </div>
-          <button style={{...styles.iconBtn, display:'flex', alignItems:'center', gap:'8px', padding:'6px 12px', border:'1px solid #6c63ff', color:'#6c63ff'}} onClick={handleExportPNG}>Export 📥</button>
+          <button style={{ ...styles.iconBtn, display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', border: '1px solid #6c63ff', color: '#6c63ff' }} onClick={handleExportPNG}>Export 📥</button>
         </div>
       </div>
 
@@ -142,137 +245,225 @@ export default function StudioScreen() {
           </div>
 
           <div style={styles.panelContent}>
-            
+            {/* ===== DESIGN TAB ===== */}
             {activeTab === 'DESIGN' && (
-               <div style={styles.section}>
-                 <div style={styles.pillToggleContainer}>
-                   <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>All Keys</button>
-                   <button style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('selected')}>Selected Key</button>
-                 </div>
-                 
-                 {targetScope === 'selected' && !targetKeyId && (
-                   <div style={styles.warning}>Please select a key on the keyboard first.</div>
-                 )}
-
-                 {/* THEMES */}
-                 <div style={{ marginBottom: 8 }}>
-                   <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#666680', fontWeight: 700, letterSpacing: '1px', marginBottom: '8px' }}>Themes</div>
-                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
-                     {THEMES.map(t => (
-                       <div key={t.name} style={{ textAlign: 'center' }}>
-                         <button
-                           onClick={() => { store.setGlobalColor(t.keycap); store.setGlobalLegendColor(t.legend); store.setMaterialPreset(t.material); }}
-                           style={{ width: '100%', height: 36, background: t.keycap, borderRadius: 6, border: getVal('color') === t.keycap ? '2px solid #6c63ff' : '2px solid transparent', position: 'relative', cursor: 'pointer', transition: 'border 0.15s' }}
-                           onMouseEnter={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid rgba(255,255,255,0.3)'; }}
-                           onMouseLeave={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid transparent'; }}
-                         >
-                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.legend, position: 'absolute', bottom: 4, right: 4 }} />
-                         </button>
-                         <div style={{ fontSize: '9px', color: '#666680', marginTop: 2 }}>{t.name}</div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-
-                 <div style={styles.colorPickers}>
-                   <div>
-                     <label style={styles.label}>Keycap Base Color</label>
-                     <HexColorPicker color={getVal('color') || '#6c63ff'} onChange={(c) => updateDesign('color', c)} style={{width: '100%'}} />
-                   </div>
-                   <div>
-                     <label style={styles.label}>Legend Color</label>
-                     <HexColorPicker color={getVal('legendColor') || '#ffffff'} onChange={(c) => updateDesign('legendColor', c)} style={{width: '100%'}} />
-                   </div>
-                 </div>
-
-                 <div style={styles.presets}>
-                   {PRESET_COLORS.map(c => {
-                     const isSelected = getVal('color') === c;
-                     return (
-                       <button key={c} className={`color-circle ${isSelected ? 'active' : ''}`} style={{ backgroundColor: c }} onClick={() => updateDesign('color', c)} />
-                     );
-                   })}
-                 </div>
-
-                 {/* MATERIAL TOGGLE */}
-                 <div style={{ marginTop: 16 }}>
-                   <div style={styles.pillToggleContainer}>
-                     <button style={store.materialPreset === 'abs' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('abs')}>ABS — Glossy</button>
-                     <button style={store.materialPreset === 'pbt' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('pbt')}>PBT — Matte</button>
-                   </div>
-                   <div style={{ fontSize: '11px', color: '#444460', textAlign: 'center', marginTop: 4 }}>
-                     {store.materialPreset === 'abs' ? 'Shiny surface, brighter colors' : 'Matte texture, enthusiast preferred'}
-                   </div>
-                 </div>
-
-                 {/* SOUND TOGGLE */}
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                   <input type="checkbox" checked={store.soundEnabled} onChange={(e) => { store.setSoundEnabled(e.target.checked); if (e.target.checked) { import('../utils/soundEngine').then(m => m.playKeycapSound(store.materialPreset)); } }} style={{ width: 16, height: 16 }} />
-                   <span style={{ fontSize: '12px', color: '#666680' }}>Key sounds</span>
-                 </div>
-               </div>
-            )}
-
-            {activeTab === 'LEGEND' && (
               <div style={styles.section}>
-                 <label style={styles.label}>Legend text (max 4 chars)</label>
-                 <input type="text" maxLength={4} style={styles.input} value={getVal('legendText') || ''} onChange={(e) => updateDesign('legendText', e.target.value)} placeholder="Default" />
-                 
-                 <label style={{...styles.label, marginTop: 16}}>Legend Position</label>
-                 <div style={styles.posGrid}>
-                   {['top-left', 'top-center', 'top-right', 'front', 'none'].map(pos => (
-                     <button key={pos} style={styles.posBtn} onClick={() => updateDesign('legendPosition', pos)}>{pos}</button>
-                   ))}
-                 </div>
+                <div style={styles.pillToggleContainer}>
+                  <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>All Keys</button>
+                  <button style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('selected')}>Selected Key</button>
+                </div>
 
-                 <label style={{...styles.label, marginTop: 16}}>Font selector</label>
-                 <div style={styles.fontGrid}>
-                   {FONTS.map(f => (
-                     <button key={f} style={{...styles.fontBtn, fontFamily: f, borderColor: getVal('font') === f ? 'var(--primary-accent)' : 'var(--border-color)'}} onClick={() => updateDesign('font', f)}>{f}</button>
-                   ))}
-                 </div>
-              </div>
-            )}
+                {targetScope === 'selected' && !targetKeyId && (
+                  <div style={styles.warning}>Please select a key on the keyboard first.</div>
+                )}
 
-            {activeTab === 'IMAGE' && (
-              <div style={styles.section}>
-                <div style={styles.imageModeGrid}>
-                  {['none', 'wrap', 'tile', 'perkey'].map(m => (
-                    <button key={m} style={{...styles.imgBtn, borderColor: store.keyboardImageMode === m ? 'var(--primary-accent)' : 'var(--border-color)'}} onClick={() => store.setKeyboardImageMode(m)}>{m.toUpperCase()}</button>
+                {/* THEMES */}
+                <div style={{ marginBottom: 8 }}>
+                  <div style={styles.sectionLabel}>Themes</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
+                    {THEMES.map(t => (
+                      <div key={t.name} style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={() => { store.setGlobalColor(t.keycap); store.setGlobalLegendColor(t.legend); store.setMaterialPreset(t.material); }}
+                          style={{ width: '100%', height: 36, background: t.keycap, borderRadius: 6, border: getVal('color') === t.keycap ? '2px solid #6c63ff' : '2px solid transparent', position: 'relative', cursor: 'pointer', transition: 'border 0.15s' }}
+                          onMouseEnter={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid rgba(255,255,255,0.3)'; }}
+                          onMouseLeave={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid transparent'; }}
+                        >
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.legend, position: 'absolute', bottom: 4, right: 4 }} />
+                        </button>
+                        <div style={{ fontSize: '9px', color: '#666680', marginTop: 2 }}>{t.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={styles.colorPickers}>
+                  <div>
+                    <label style={styles.label}>Keycap Base Color</label>
+                    <HexColorPicker color={getVal('color') || '#6c63ff'} onChange={(c) => updateDesign('color', c)} style={{ width: '100%' }} />
+                  </div>
+                  <div>
+                    <label style={styles.label}>Legend Color</label>
+                    <HexColorPicker color={getVal('legendColor') || '#ffffff'} onChange={(c) => updateDesign('legendColor', c)} style={{ width: '100%' }} />
+                  </div>
+                </div>
+
+                <div style={styles.presets}>
+                  {PRESET_COLORS.map(c => (
+                    <button key={c} className={`color-circle ${getVal('color') === c ? 'active' : ''}`} style={{ backgroundColor: c }} onClick={() => store.setGlobalColor(c)} />
                   ))}
                 </div>
-                {store.keyboardImageMode !== 'none' && store.keyboardImageMode !== 'perkey' && (
-                  <div style={styles.uploadArea}>Drop image here or click to upload<br/><small>PNG, JPG, WebP</small></div>
-                )}
-                {store.keyboardImageMode === 'perkey' && (
-                  <div style={styles.uploadArea}>{targetKeyId ? `Upload image for ${targetKeyId}` : "Click any key on the keyboard to select it, then upload an image for that key"}</div>
-                )}
-                {store.keyboardImageMode === 'wrap' && <p style={styles.note}>Image will be mapped across all keycaps as one unified canvas</p>}
-                {store.keyboardImageMode === 'tile' && <p style={styles.note}>Image repeats on each individual key</p>}
-                {store.keyboardImageMode === 'perkey' && <p style={styles.note}>Select any key to set its specific image</p>}
+
+                {/* MATERIAL TOGGLE */}
+                <div style={{ marginTop: 16 }}>
+                  <div style={styles.pillToggleContainer}>
+                    <button style={store.materialPreset === 'abs' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('abs')}>ABS — Glossy</button>
+                    <button style={store.materialPreset === 'pbt' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('pbt')}>PBT — Matte</button>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#444460', textAlign: 'center', marginTop: 4 }}>
+                    {store.materialPreset === 'abs' ? 'Shiny surface, brighter colors' : 'Matte texture, enthusiast preferred'}
+                  </div>
+                </div>
+
+                {/* SOUND TOGGLE */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                  <input type="checkbox" checked={store.soundEnabled} onChange={(e) => { store.setSoundEnabled(e.target.checked); if (e.target.checked) { import('../utils/soundEngine').then(m => m.playKeycapSound(store.materialPreset)); } }} style={{ width: 16, height: 16 }} />
+                  <span style={{ fontSize: '12px', color: '#666680' }}>Key sounds</span>
+                </div>
               </div>
             )}
 
+            {/* ===== LEGEND TAB ===== */}
+            {activeTab === 'LEGEND' && (
+              <div style={styles.section}>
+                <div style={styles.sectionLabel}>Legend Text</div>
+                <input
+                  type="text"
+                  maxLength={4}
+                  style={{ ...styles.input, fontSize: '20px', letterSpacing: '2px' }}
+                  value={store.globalLegendText || ''}
+                  onChange={(e) => store.setGlobalLegendText(e.target.value)}
+                  placeholder="A"
+                />
+
+                <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Legend Position</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {LEGEND_POSITIONS.map(pos => (
+                    <button
+                      key={pos.value}
+                      style={{
+                        ...styles.pillInactive,
+                        ...(store.globalLegendPosition === pos.value ? { background: '#6c63ff', color: '#fff' } : {}),
+                        borderRadius: 17, fontSize: 11,
+                      }}
+                      onClick={() => store.setGlobalLegendPosition(pos.value)}
+                    >
+                      {pos.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Font</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {FONTS.map(f => {
+                    const isActive = store.globalFont === f;
+                    return (
+                      <button
+                        key={f}
+                        style={{
+                          padding: '8px 12px', background: isActive ? '#6c63ff15' : '#1a1a2e',
+                          border: `1px solid ${isActive ? '#6c63ff' : '#2a2a3a'}`, borderRadius: 6,
+                          color: isActive ? '#a09bf5' : '#aaaacc', fontFamily: f, fontSize: 14,
+                          cursor: 'pointer', width: '100%', textAlign: 'left', transition: '0.15s',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        }}
+                        onClick={() => store.setGlobalFont(f)}
+                      >
+                        <span>{f} — Aa</span>
+                        <span style={{ fontSize: 10, color: '#444460' }}>{FONT_DESCRIPTIONS[f]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ===== IMAGE TAB ===== */}
+            {activeTab === 'IMAGE' && (
+              <div style={styles.section}>
+                <div style={styles.sectionLabel}>Image Mode</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {IMAGE_MODES.map(m => {
+                    const isActive = store.keyboardImageMode === m.value;
+                    return (
+                      <button
+                        key={m.value}
+                        onClick={() => store.setKeyboardImageMode(m.value)}
+                        style={{
+                          padding: '14px 10px', background: isActive ? '#6c63ff11' : '#1a1a2e',
+                          border: `1px solid ${isActive ? '#6c63ff' : '#2a2a3a'}`, borderRadius: 8,
+                          textAlign: 'center', cursor: 'pointer', transition: '0.2s',
+                        }}
+                      >
+                        <div style={{ fontSize: 24, marginBottom: 4 }}>{m.icon}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>{m.label}</div>
+                        <div style={{ fontSize: 10, color: '#666680', marginTop: 2 }}>{m.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {(store.keyboardImageMode === 'wrap' || store.keyboardImageMode === 'tile') && (
+                  <>
+                    <input type="file" ref={fileInputRef} accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleImageUpload} />
+                    <div
+                      style={styles.uploadArea}
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) handleImageUpload({ target: { files: [f] } }); }}
+                    >
+                      Drop image here<br /><small style={{ color: '#444460' }}>PNG, JPG, WebP up to 5MB</small>
+                    </div>
+                    {uploadedImageUrl && (
+                      <img src={uploadedImageUrl} alt="Uploaded" style={{ width: '100%', borderRadius: 6, maxHeight: 100, objectFit: 'cover', marginTop: 8 }} />
+                    )}
+                    <p style={styles.note}>
+                      {store.keyboardImageMode === 'wrap' ? 'Image will span across all keycaps as one unified canvas' : 'Same image repeats on every key'}
+                    </p>
+                  </>
+                )}
+
+                {store.keyboardImageMode === 'perkey' && (
+                  <>
+                    {!store.selectedKey ? (
+                      <div style={{ color: '#444460', fontSize: 12, textAlign: 'center', padding: 16 }}>
+                        Click any key on the keyboard to select it, then upload an image for that key
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 12, color: '#888899', marginBottom: 8 }}>Uploading for key: <strong style={{ color: '#fff' }}>{store.selectedKey}</strong></div>
+                        <input type="file" ref={fileInputRef} accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={handleImageUpload} />
+                        <div style={styles.uploadArea} onClick={() => fileInputRef.current?.click()}>
+                          Drop image here<br /><small style={{ color: '#444460' }}>PNG, JPG, WebP up to 5MB</small>
+                        </div>
+                      </>
+                    )}
+                    <p style={styles.note}>Select any key to set its specific image</p>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ===== BACKLIT TAB ===== */}
             {activeTab === 'BACKLIT' && (
               <div style={styles.section}>
-                {store.selectionPath === 'beginner' || store.selectedModel ? (
+                {store.selectionPath === 'beginner' || (store.selectedModel && store.selectedModel !== 'Custom Build') ? (
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', color:'#fff', fontWeight:600 }}>
-                      <div style={{ width:8, height:8, borderRadius:'50%', backgroundColor: store.keyboardLEDType === 'None' ? '#888' : '#6c63ff' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#fff', fontWeight: 600 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: LEDTypeColor(store.keyboardLEDType), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff' }}>
+                        {LEDTypeIcon(store.keyboardLEDType)}
+                      </div>
                       {store.keyboardLEDType || 'None'}
                     </div>
-                    <div style={{ fontSize:'11px', color:'#888899', marginTop:'4px' }}>
+                    <div style={{ fontSize: '11px', color: '#888899', marginTop: '4px' }}>
                       Fixed by your keyboard's hardware
                     </div>
                   </div>
                 ) : (
                   <div style={{ marginBottom: 16 }}>
+                    <div style={styles.sectionLabel}>LED Type</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                       {['North-facing RGB', 'South-facing RGB', 'Per-key RGB', 'None'].map(t => {
-                        const display = t.replace('-facing RGB', '').replace(' RGB', '');
                         const isActive = store.keyboardLEDType === t;
+                        const color = LEDTypeColor(t);
                         return (
-                          <button key={t} style={{ padding: '8px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 600, background: isActive ? '#6c63ff' : 'var(--card-bg)', color: isActive ? '#fff' : 'var(--text-secondary)', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => store.setKeyboardLEDType(t)}>{display}</button>
+                          <button key={t} style={{
+                            padding: '8px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 600,
+                            background: isActive ? color : 'var(--card-bg)', color: isActive ? '#fff' : 'var(--text-secondary)',
+                            border: 'none', cursor: 'pointer', transition: 'all 0.2s'
+                          }} onClick={() => store.setKeyboardLEDType(t)}>
+                            {t.replace('-facing RGB', '').replace(' RGB', '')}
+                          </button>
                         );
                       })}
                     </div>
@@ -281,79 +472,109 @@ export default function StudioScreen() {
 
                 <div style={styles.flexRow}>
                   <span style={styles.label}>RGB Backlight</span>
-                  <input type="checkbox" style={{width: 20, height: 20}} checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
+                  <input type="checkbox" style={{ width: 20, height: 20 }} checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
                 </div>
-                
+
                 {store.backlitEnabled && (
-                  <div style={{marginTop: 24}}>
+                  <div style={{ marginTop: 24 }}>
                     <label style={styles.label}>Backlit Color</label>
-                    <HexColorPicker color={store.backlitColor} onChange={(c) => store.setBacklitColor(c)} style={{width: '100%'}} />
+                    <HexColorPicker color={store.backlitColor} onChange={(c) => store.setBacklitColor(c)} style={{ width: '100%' }} />
                   </div>
                 )}
-                
+
                 <div style={{ marginTop: '24px', fontSize: '11px', color: '#444460' }}>
                   See the LED diagram →
                 </div>
               </div>
             )}
 
+            {/* ===== EXPORT TAB ===== */}
             {activeTab === 'EXPORT' && (
               <div style={styles.section}>
-                <button className="export-btn png" onClick={handleExportPNG}><strong>PNG Render</strong><span style={{fontSize: 12, color: 'var(--text-muted)'}}>High quality screenshot of 3D view</span></button>
-                <button className="export-btn" onClick={handleShareURL}><strong>Share URL</strong><span style={{fontSize: 12, color: 'var(--text-muted)'}}>Copies link to clipboard</span></button>
-                <button className="export-btn"><strong>SVG Layout</strong><span style={{fontSize: 12, color: 'var(--text-muted)'}}>Coming soon</span></button>
-                <button className="export-btn"><strong>PDF Print-ready</strong><span style={{fontSize: 12, color: 'var(--text-muted)'}}>Coming soon</span></button>
+                {[
+                  { icon: '🖼', label: 'PNG Render', desc: 'High quality 3D screenshot', size: '~2-4MB', onClick: handleExportPNG },
+                  { icon: '📐', label: 'SVG Layout', desc: 'Vector layout for manufacturers', size: '~50KB', onClick: handleExportSVG },
+                  { icon: '🔗', label: 'Share URL', desc: 'Copy link to this design', size: '', onClick: handleShareURL },
+                  { icon: '📄', label: 'Print-ready PDF', desc: 'Coming soon', size: '', disabled: true },
+                ].map(btn => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.disabled ? undefined : btn.onClick}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                      background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8,
+                      cursor: btn.disabled ? 'not-allowed' : 'pointer', transition: '0.2s',
+                      opacity: btn.disabled ? 0.4 : 1, marginBottom: 10, width: '100%', textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => { if (!btn.disabled) { e.currentTarget.style.borderColor = '#6c63ff'; e.currentTarget.style.background = '#6c63ff0a'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
+                  >
+                    <span style={{ fontSize: 24 }}>{btn.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{btn.label}</div>
+                      <div style={{ fontSize: 11, color: '#666680' }}>{btn.desc}</div>
+                      {btn.size && <div style={{ fontSize: 10, color: '#444460' }}>{btn.size}</div>}
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
-
           </div>
         </div>
 
         {/* 3D CANVAS */}
         <div style={styles.canvasArea}>
           <ErrorBoundary>
-             <Canvas 
-                 gl={{ 
-                   antialias: true,
-                   alpha: true,
-                   powerPreference: "high-performance",
-                   toneMapping: THREE.ACESFilmicToneMapping,
-                   toneMappingExposure: 0.85,
-                   outputColorSpace: THREE.SRGBColorSpace,
-                 }}
-                 dpr={[1, 2]}
-                 shadows="soft"
-                 camera={{ 
-                   position: viewMode === 'full' ? [0, 8, 12] : [0, 2.5, 5], 
-                   fov: viewMode === 'full' ? 50 : 45,
-                   near: 0.1,
-                   far: 1000
-                 }}
-                 onCreated={(state) => {
-                   state.gl.setClearColor('#0a0a0f');
-                 }}
-              >
+            <Canvas
+              gl={{
+                antialias: true,
+                alpha: true,
+                preserveDrawingBuffer: true,
+                powerPreference: "high-performance",
+                toneMapping: THREE.ACESFilmicToneMapping,
+                toneMappingExposure: 0.85,
+                outputColorSpace: THREE.SRGBColorSpace,
+              }}
+              dpr={[1, 2]}
+              shadows="soft"
+              camera={{
+                position: viewMode === 'full' ? [0, 8, 12] : [0, 2.2, 4.5],
+                fov: viewMode === 'full' ? 50 : 42,
+                near: 0.1,
+                far: 1000
+              }}
+              onCreated={(state) => {
+                state.gl.setClearColor('#0a0a0f');
+              }}
+            >
               <Suspense fallback={null}>
-                {/* FINAL STUDIO LIGHTING CONFIGURATION */}
+                {/* STUDIO LIGHTING */}
                 <ambientLight intensity={0.4} color="#ffffff" />
                 <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
                 <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
                 <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
                 <Environment preset="apartment" background={false} blur={1} />
-                
+
                 <Stars radius={100} depth={50} count={2000} factor={3} fade speed={0.5} />
-                
+
                 {viewMode === 'full' ? (
                   <KeyboardRenderer />
                 ) : (
-                  <group position={[0,0,0]} scale={2}>
-                    <Keycap keyId="preview" label="Preview" />
+                  <group position={[0, 0, 0]}>
+                    {/* Cinematic pedestal */}
+                    <mesh position={[0, -0.8, 0]}>
+                      <cylinderGeometry args={[1.2, 1.4, 0.08, 32]} />
+                      <meshPhysicalMaterial color="#111120" roughness={0.4} metalness={0.5} clearcoat={0.6} emissive="#000000" emissiveIntensity={0} />
+                    </mesh>
+                    <group scale={2}>
+                      <Keycap keyId="preview" label={store.globalLegendText || 'A'} />
+                    </group>
                   </group>
                 )}
-                
-                <ContactShadows position={[0, -0.5, 0]} opacity={0.55} scale={40} blur={3} far={8} />
-                
-                <OrbitControls enableDamping={true} dampingFactor={0.05} enableZoom={true} enablePan={true} minDistance={3} maxDistance={35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
+
+                <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.85, 0]} opacity={0.55} scale={40} blur={3} far={8} />
+
+                <OrbitControls enableDamping dampingFactor={0.05} enableZoom enablePan minDistance={3} maxDistance={35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
 
                 {/* POST PROCESSING */}
                 <EffectComposer multisampling={0}>
@@ -363,14 +584,14 @@ export default function StudioScreen() {
               </Suspense>
             </Canvas>
           </ErrorBoundary>
-          
+
           <LEDPreviewWidget />
         </div>
       </div>
 
       {/* Toast notification */}
       {toastVisible && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#0d9e75', color: '#fff', padding: '10px 16px', borderRadius: 8, fontSize: '13px', zIndex: 9999, transition: 'opacity 0.3s', opacity: toastVisible ? 1 : 0, pointerEvents: 'none' }}>
+        <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#0d9e75', color: '#fff', padding: '10px 16px', borderRadius: 8, fontSize: '13px', zIndex: 9999, transition: 'opacity 0.3s', pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
           {toastMessage}
         </div>
       )}
@@ -394,6 +615,7 @@ const styles = {
   tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--border-color)', justifyContent: 'space-around', alignItems: 'center' },
   panelContent: { flex: 1, overflowY: 'auto', padding: '24px' },
   section: { display: 'flex', flexDirection: 'column', gap: '16px' },
+  sectionLabel: { fontSize: '10px', textTransform: 'uppercase', color: '#666680', fontWeight: 700, letterSpacing: '1px' },
   pillToggleContainer: { display: 'inline-flex', background: '#1a1a2e', borderRadius: '20px', padding: '3px', alignSelf: 'flex-start' },
   pillActive: { background: '#6c63ff', borderRadius: '18px', padding: '6px 14px', color: '#fff', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },
   pillInactive: { background: 'transparent', color: '#888899', padding: '6px 14px', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },
@@ -401,15 +623,9 @@ const styles = {
   label: { fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' },
   colorPickers: { display: 'flex', flexDirection: 'column', gap: '24px' },
   presets: { display: 'flex', flexWrap: 'wrap', gap: '2px', marginTop: '8px' },
-  input: { width: '100%', padding: '12px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', color: '#fff', fontFamily: 'var(--font-mono)' },
-  posGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px' },
-  posBtn: { padding: '8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', color: '#fff' },
-  fontGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  fontBtn: { padding: '12px 8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', color: '#fff' },
-  imageModeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  imgBtn: { padding: '12px', backgroundColor: 'var(--card-bg)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: '1px solid transparent', cursor: 'pointer', color: '#fff' },
-  uploadArea: { border: '2px dashed var(--border-color)', padding: '32px', textAlign: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', backgroundColor: 'var(--card-bg)' },
-  note: { fontSize: '13px', color: 'var(--text-muted)' },
+  input: { width: '100%', padding: '10px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', color: '#fff', fontFamily: 'var(--font-mono)', boxSizing: 'border-box' },
+  uploadArea: { border: '2px dashed #2a2a3a', padding: '24px', textAlign: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', backgroundColor: 'var(--card-bg)', fontSize: 12 },
+  note: { fontSize: '12px', color: 'var(--text-muted)' },
   flexRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  canvasArea: { flex: 1, position: 'relative' }
+  canvasArea: { flex: 1, position: 'relative' },
 };
