@@ -8,6 +8,15 @@ import * as THREE from 'three';
 
 const KEY_UNIT = 1.08;
 
+const ROW_HEIGHT = {
+  0: 0.66, 1: 0.52, 2: 0.50,
+  3: 0.42, 4: 0.44, 5: 0.47
+};
+const ROW_TILT = {
+  0: 0.175, 1: 0.087, 2: 0.052,
+  3: 0, 4: -0.087, 5: -0.14
+};
+
 export default function KeyboardRenderer() {
   const formFactor = useStore(s => s.selectedFormFactor);
   const selectedKey = useStore(s => s.selectedKey);
@@ -72,8 +81,8 @@ export default function KeyboardRenderer() {
       {baseGeo && (
         <mesh geometry={baseGeo} position={[0, -0.36, 0]} receiveShadow>
           <meshStandardMaterial 
-            color="#111118" 
-            roughness={0.8} 
+            color="#0d0d14" 
+            roughness={0.9} 
             metalness={0.0} 
             emissive="#000000"
             emissiveIntensity={0}
@@ -99,6 +108,8 @@ export default function KeyboardRenderer() {
             y={gridZ}
             w={kw}
             h={kh}
+            rowHeight={ROW_HEIGHT[key.row] ?? 0.50}
+            rowTilt={ROW_TILT[key.row] ?? 0}
             isSelected={selectedKey === key.id}
             isPerformanceMode={isPerformanceMode}
             onClick={() => setSelectedKey(key.id)}

@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useRef } from 'react';
 import { useStore } from '../store';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
@@ -14,11 +14,24 @@ import LEDPreviewWidget from '../components/LEDPreviewWidget';
 const PRESET_COLORS = ['#1a1a1a', '#f0f0f0', '#1e3a5f', '#c0392b', '#6c63ff', '#0d9e75', '#e91e8c', '#f5c518'];
 const FONTS = ['Inter', 'Oswald', 'Press Start 2P', 'Share Tech Mono', 'Playfair Display', 'Nunito', 'Rajdhani', 'Bebas Neue'];
 
+const THEMES = [
+  { name: 'Midnight', keycap: '#1a1a2e', legend: '#ffffff', material: 'pbt' },
+  { name: 'Arctic', keycap: '#f0f0f0', legend: '#1a1a1a', material: 'abs' },
+  { name: 'Purple', keycap: '#6c63ff', legend: '#ffffff', material: 'abs' },
+  { name: 'Forest', keycap: '#1a3a2a', legend: '#a8d8a0', material: 'pbt' },
+  { name: 'Coral', keycap: '#c0392b', legend: '#ffeaa7', material: 'abs' },
+  { name: 'Ocean', keycap: '#1e3a5f', legend: '#74b9ff', material: 'abs' },
+  { name: 'Rose', keycap: '#c4906a', legend: '#2d1b0e', material: 'abs' },
+  { name: 'Stealth', keycap: '#111111', legend: '#2a2a2a', material: 'pbt' },
+];
+
 export default function StudioScreen() {
   const store = useStore();
   const [activeTab, setActiveTab] = useState('DESIGN');
   const [viewMode, setViewMode] = useState('full'); 
-  const [targetScope, setTargetScope] = useState('all'); 
+  const [targetScope, setTargetScope] = useState('all');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   
   const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
 
@@ -49,17 +62,35 @@ export default function StudioScreen() {
 
   const handleExportPNG = () => {
     const canvas = document.querySelector('canvas');
-    if(canvas) {
-      const link = document.createElement('a');
-      link.download = 'keycap-studio-render.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `keycap-studio-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleShareURL = () => {
-    navigator.clipboard.writeText(window.location.href);
-    alert("URL copied to clipboard!");
+    const state = useStore.getState();
+    const design = {
+      c: state.globalColor,
+      lc: state.globalLegendColor,
+      f: state.globalFont,
+      m: state.materialPreset,
+      k: state.selectedModel,
+      led: state.keyboardLEDType,
+    };
+    const encoded = btoa(JSON.stringify(design));
+    const url = `${window.location.origin}?d=${encoded}`;
+    navigator.clipboard.writeText(url);
+    showToast('Link copied!');
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 2000);
   };
 
   return (
@@ -123,6 +154,26 @@ export default function StudioScreen() {
                    <div style={styles.warning}>Please select a key on the keyboard first.</div>
                  )}
 
+                 {/* THEMES */}
+                 <div style={{ marginBottom: 8 }}>
+                   <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#666680', fontWeight: 700, letterSpacing: '1px', marginBottom: '8px' }}>Themes</div>
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
+                     {THEMES.map(t => (
+                       <div key={t.name} style={{ textAlign: 'center' }}>
+                         <button
+                           onClick={() => { store.setGlobalColor(t.keycap); store.setGlobalLegendColor(t.legend); store.setMaterialPreset(t.material); }}
+                           style={{ width: '100%', height: 36, background: t.keycap, borderRadius: 6, border: getVal('color') === t.keycap ? '2px solid #6c63ff' : '2px solid transparent', position: 'relative', cursor: 'pointer', transition: 'border 0.15s' }}
+                           onMouseEnter={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid rgba(255,255,255,0.3)'; }}
+                           onMouseLeave={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid transparent'; }}
+                         >
+                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.legend, position: 'absolute', bottom: 4, right: 4 }} />
+                         </button>
+                         <div style={{ fontSize: '9px', color: '#666680', marginTop: 2 }}>{t.name}</div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+
                  <div style={styles.colorPickers}>
                    <div>
                      <label style={styles.label}>Keycap Base Color</label>
@@ -141,6 +192,23 @@ export default function StudioScreen() {
                        <button key={c} className={`color-circle ${isSelected ? 'active' : ''}`} style={{ backgroundColor: c }} onClick={() => updateDesign('color', c)} />
                      );
                    })}
+                 </div>
+
+                 {/* MATERIAL TOGGLE */}
+                 <div style={{ marginTop: 16 }}>
+                   <div style={styles.pillToggleContainer}>
+                     <button style={store.materialPreset === 'abs' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('abs')}>ABS — Glossy</button>
+                     <button style={store.materialPreset === 'pbt' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('pbt')}>PBT — Matte</button>
+                   </div>
+                   <div style={{ fontSize: '11px', color: '#444460', textAlign: 'center', marginTop: 4 }}>
+                     {store.materialPreset === 'abs' ? 'Shiny surface, brighter colors' : 'Matte texture, enthusiast preferred'}
+                   </div>
+                 </div>
+
+                 {/* SOUND TOGGLE */}
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                   <input type="checkbox" checked={store.soundEnabled} onChange={(e) => { store.setSoundEnabled(e.target.checked); if (e.target.checked) { import('../utils/soundEngine').then(m => m.playKeycapSound(store.materialPreset)); } }} style={{ width: 16, height: 16 }} />
+                   <span style={{ fontSize: '12px', color: '#666680' }}>Key sounds</span>
                  </div>
                </div>
             )}
@@ -250,13 +318,13 @@ export default function StudioScreen() {
                    alpha: true,
                    powerPreference: "high-performance",
                    toneMapping: THREE.ACESFilmicToneMapping,
-                   toneMappingExposure: 1.1,
+                   toneMappingExposure: 0.85,
                    outputColorSpace: THREE.SRGBColorSpace,
                  }}
                  dpr={[1, 2]}
                  shadows="soft"
                  camera={{ 
-                   position: viewMode === 'full' ? [0, 10, 14] : [0, 2.5, 5], 
+                   position: viewMode === 'full' ? [0, 8, 12] : [0, 2.5, 5], 
                    fov: viewMode === 'full' ? 50 : 45,
                    near: 0.1,
                    far: 1000
@@ -271,7 +339,7 @@ export default function StudioScreen() {
                 <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
                 <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
                 <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
-                <Environment preset="studio" background={false} blur={1} />
+                <Environment preset="apartment" background={false} blur={1} />
                 
                 <Stars radius={100} depth={50} count={2000} factor={3} fade speed={0.5} />
                 
@@ -299,6 +367,13 @@ export default function StudioScreen() {
           <LEDPreviewWidget />
         </div>
       </div>
+
+      {/* Toast notification */}
+      {toastVisible && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#0d9e75', color: '#fff', padding: '10px 16px', borderRadius: 8, fontSize: '13px', zIndex: 9999, transition: 'opacity 0.3s', opacity: toastVisible ? 1 : 0, pointerEvents: 'none' }}>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

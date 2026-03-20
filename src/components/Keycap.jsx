@@ -4,6 +4,7 @@ import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { useStore } from '../store';
+import { playKeycapSound } from '../utils/soundEngine';
 
 function buildFrustumBody() {
   try {
@@ -62,7 +63,7 @@ function buildTopDish() {
   }
 }
 
-export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, isPerformanceMode, onClick }) {
+export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, isSelected, isPerformanceMode, onClick }) {
   const meshRef = useRef();
   
   const [hovered, setHovered] = useState(false);
@@ -70,6 +71,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, i
   const globalLegendColor = useStore(s => s.globalLegendColor);
   const globalLegendText = useStore(s => s.globalLegendText);
   const globalFont = useStore(s => s.globalFont);
+  const materialPreset = useStore(s => s.materialPreset);
+  const soundEnabled = useStore(s => s.soundEnabled);
   
   const perKeyDesigns = useStore(s => s.perKeyDesigns);
   const pkDesign = perKeyDesigns[keyId] || {};
@@ -101,28 +104,35 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, i
   });
 
   const isBg = keyId === 'bg';
+
+  // Material preset overrides
+  const isABS = materialPreset === 'abs';
+  const presetRoughness = isBg ? 0.4 : (isABS ? 0.25 : 0.78);
+  const presetClearcoat = isBg ? 0.2 : (isABS ? 0.06 : 0.0);
+  const presetEnvMap = isBg ? 1.5 : (isABS ? 0.25 : 0.15);
+
   const bodyMaterialParams = {
     color: color,
-    roughness: isBg ? 0.4 : 0.55,
+    roughness: presetRoughness,
     metalness: 0.0,
     emissive: '#000000',
     emissiveIntensity: 0,
     ...(usePhysical ? { 
-      clearcoat: isBg ? 0.2 : 0.1, 
+      clearcoat: presetClearcoat, 
       clearcoatRoughness: 0.4, 
       reflectivity: 0.5, 
-      envMapIntensity: isBg ? 1.5 : 0.6 
+      envMapIntensity: presetEnvMap 
     } : {})
   };
   
   const topColorObj = new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.05).getHexString();
   const topMaterialParams = {
     color: '#' + topColorObj,
-    roughness: 0.45,
+    roughness: isABS ? 0.2 : 0.7,
     metalness: 0.0,
     emissive: '#000000',
     emissiveIntensity: 0,
-    ...(usePhysical ? { clearcoat: 0.12, clearcoatRoughness: 0.35, envMapIntensity: 0.7 } : {})
+    ...(usePhysical ? { clearcoat: isABS ? 0.06 : 0.0, clearcoatRoughness: 0.35, envMapIntensity: isABS ? 0.3 : 0.15 } : {})
   };
 
   const stemMaterialParams = {
@@ -146,10 +156,12 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, i
 
   return (
     <group 
-      position={[px, 0, pz]} 
+      position={[px, 0, pz]}
+      rotation={[rowTilt || 0, 0, 0]}
       onClick={(e) => {
         if(onClick) {
           e.stopPropagation();
+          if (soundEnabled) playKeycapSound(materialPreset);
           onClick();
         }
       }}
@@ -186,23 +198,23 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, i
 
         {/* 1. Frustum body */}
         <mesh geometry={bodyGeo} castShadow receiveShadow>
-          <MaterialCmp {...bodyMaterialParams} />
+          <MaterialCmp {...bodyMaterialParams} color={bodyMaterialParams.color} />
         </mesh>
 
         {/* 2. Concave top dish surface */}
         <mesh geometry={topGeo} position={[0, topFaceY, -0.026]} castShadow receiveShadow>
-          <MaterialCmp {...topMaterialParams} />
+          <MaterialCmp {...topMaterialParams} color={topMaterialParams.color} />
         </mesh>
 
         {/* 4. Cherry MX stem underneath */}
         <group position={[0, -0.3865, 0]}>
           <mesh castShadow>
             <boxGeometry args={[0.14, 0.24, 0.44]} />
-            <MaterialCmp {...stemMaterialParams} />
+            <MaterialCmp {...stemMaterialParams} color={stemMaterialParams.color} />
           </mesh>
           <mesh castShadow>
             <boxGeometry args={[0.44, 0.24, 0.14]} />
-            <MaterialCmp {...stemMaterialParams} />
+            <MaterialCmp {...stemMaterialParams} color={stemMaterialParams.color} />
           </mesh>
         </group>
       </group>

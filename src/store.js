@@ -22,6 +22,8 @@ export const useStore = create((set) => ({
   backlitEnabled: false,
   backlitColor: '#00aaff',
   perKeyDesigns: {},
+  materialPreset: 'abs',
+  soundEnabled: true,
 
   // IMAGE STATE
   keyboardImageMode: 'none',
@@ -48,6 +50,8 @@ export const useStore = create((set) => ({
   setGlobalFont: (font) => set({ globalFont: font }),
   setBacklitEnabled: (enabled) => set({ backlitEnabled: enabled }),
   setBacklitColor: (color) => set({ backlitColor: color }),
+  setMaterialPreset: (p) => set({ materialPreset: p }),
+  setSoundEnabled: (v) => set({ soundEnabled: v }),
   
   setPerKeyDesign: (keyId, designObj) => set((state) => ({
     perKeyDesigns: {
