@@ -32,7 +32,6 @@ export default function KeyboardRenderer() {
   const { totalW, totalH, minX, minZ, maxW, maxH } = useMemo(() => {
     if (!layout.length) return { totalW:0, totalH:0, minX:0, minZ:0, maxW:0, maxH:0 };
     
-    // Fallbacks handled gracefully as numbers
     const safeLayout = layout.map(k => ({
       ...k,
       w: Math.max(0.5, Math.min(8, Number(k.w) || 1)),
@@ -67,22 +66,21 @@ export default function KeyboardRenderer() {
 
   return (
     <group position={[0, 0, 0]}>
-      {/* Base Plate perfectly sharing coordinate center translation */}
+      {/* Base plate is centered at [0, -0.36, 0] */}
       {baseGeo && (
         <mesh geometry={baseGeo} position={[0, -0.36, 0]} receiveShadow>
           <meshStandardMaterial color="#1a1a2e" roughness={0.7} metalness={0.3} />
         </mesh>
       )}
 
-      {/* Keys mapped directly across origin scale */}
+      {/* Keys calculate their offset natively to match the parent 0,0 center */}
       {layout.map((key) => {
         const kw = Math.max(0.5, Math.min(8, Number(key.w) || 1));
         const kh = Math.max(0.5, Math.min(3, Number(key.h) || 1));
         
-        // Offset each coordinate to map perfectly into the bounding box origin. 
-        // We pass the raw pre-KEY_UNIT metrics because Keycap internally multiplies by 1.08.
-        const gridX = Number(key.x) - minX - (maxW)/2 + kw/2;
-        const gridZ = Number(key.y) - minZ - (maxH)/2 + kh/2;
+        // Convert explicitly so Keycap's internal 1.08 scalar equates exactly to the user's `posX` world map definition
+        const gridX = Number(key.x) - minX - maxW / 2 + kw / 2;
+        const gridZ = Number(key.y) - minZ - maxH / 2 + kh / 2;
 
         return (
           <Keycap
