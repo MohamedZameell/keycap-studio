@@ -1,6 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { useStore } from '../store';
@@ -61,7 +60,8 @@ function buildTopDish() {
   }
 }
 
-const topWidth = 0.787;
+const TOP_SURFACE_W = 0.787;
+const TOP_SURFACE_D = 0.735;
 
 export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0,0], uvScale = [1,1], isSelected, isPerformanceMode, singleKeyMode = false, onClick }) {
   const meshRef = useRef();
@@ -93,42 +93,55 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const usePhysical = !isPerformanceMode || isSingleView;
   const MaterialCmp = usePhysical ? 'meshPhysicalMaterial' : 'meshStandardMaterial';
 
-  // FIX 1 — Canvas texture for non-Inter fonts
+  // ============================================================
+  // FIX 1 — Unified CanvasTexture for ALL fonts (no drei Text)
+  // Uses browser's own Canvas2D font rendering — zero crash risk
+  // ============================================================
   const legendTexture = useMemo(() => {
-    if (!legendText || String(legendText).trim() === '' || font === 'Inter') return null;
+    if (!legendText || String(legendText).trim() === '') return null;
     
+    const size = 256;
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
     
-    ctx.clearRect(0, 0, 256, 256);
+    ctx.clearRect(0, 0, size, size);
+    
+    // Font must already be loaded in CSS via Google Fonts @import
+    ctx.font = `bold 110px "${font}", sans-serif`;
     ctx.fillStyle = legendColor || '#ffffff';
-    ctx.font = `bold 120px "${font}", Inter, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(legendText).slice(0, 4), 128, 128);
+    ctx.fillText(String(legendText).slice(0, 4), size / 2, size / 2);
     
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
   }, [legendText, legendColor, font]);
 
-  // FIX 2 — Image textures
-  const tileTexture = useMemo(() => {
-    if (!imageUrl || imageMode === 'none' || imageMode === 'perkey') return null;
-    try {
-      const loader = new THREE.TextureLoader();
-      const tex = loader.load(imageUrl);
+  // ============================================================
+  // FIX 2 — Image textures with callback form of TextureLoader
+  // ============================================================
+  const [tileTexture, setTileTexture] = useState(null);
+
+  useEffect(() => {
+    if (!imageUrl || imageMode === 'none' || imageMode === 'perkey') {
+      setTileTexture(null);
+      return;
+    }
+    const loader = new THREE.TextureLoader();
+    loader.load(imageUrl, (tex) => {
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
       tex.repeat.set(1, 1);
       tex.colorSpace = THREE.SRGBColorSpace;
-      return tex;
-    } catch { return null; }
+      tex.needsUpdate = true;
+      setTileTexture(tex);
+    });
   }, [imageUrl, imageMode]);
 
-  // Apply UV offsets for wrap mode via useEffect (not in render)
+  // Apply UV offsets for wrap mode
   useEffect(() => {
     if (tileTexture && imageMode === 'wrap') {
       tileTexture.wrapS = THREE.ClampToEdgeWrapping;
@@ -139,23 +152,31 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     }
   }, [tileTexture, imageMode, uvOffset, uvScale]);
 
+  // ============================================================
+  // FIX 3 — Per-key image texture with callback
+  // ============================================================
   const perKeyImage = pkDesign?.imageUrl;
-  const perKeyTexture = useMemo(() => {
-    if (!perKeyImage) return null;
-    try {
-      const loader = new THREE.TextureLoader();
-      const tex = loader.load(perKeyImage);
+  const [perKeyTexture, setPerKeyTexture] = useState(null);
+
+  useEffect(() => {
+    if (!perKeyImage) {
+      setPerKeyTexture(null);
+      return;
+    }
+    const loader = new THREE.TextureLoader();
+    loader.load(perKeyImage, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      return tex;
-    } catch { return null; }
+      tex.needsUpdate = true;
+      setPerKeyTexture(tex);
+    });
   }, [perKeyImage]);
 
-  // Resolve which texture to use (priority: perKey > tile/wrap > none)
-  const activeTexture = perKeyTexture || (imageMode !== 'none' ? tileTexture : null) || null;
+  // Priority: perKey > tile/wrap > none
+  const activeTexture = perKeyTexture || ((imageMode === 'tile' || imageMode === 'wrap') ? tileTexture : null);
   // When texture is active, use white so it shows pure image colors
   const resolvedColor = activeTexture ? '#ffffff' : color;
 
-  // FIX 3 — Animation: singleKeyMode gets bob+rotate, full keyboard keys stay still (only hover lift)
+  // Animation: singleKeyMode gets bob+rotate, keyboard keys stay still (only hover lift)
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     if (singleKeyMode) {
@@ -214,13 +235,11 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const topFaceY = 0.2465;
   let legendPos = [0, topFaceY + 0.02, -0.026];
   let legendRot = [-Math.PI / 2, 0, 0];
-  let legendSize = 0.28;
   if (legendPosition === 'top-left') { legendPos = [-0.25, topFaceY + 0.02, -0.2]; }
   if (legendPosition === 'top-right') { legendPos = [0.25, topFaceY + 0.02, -0.2]; }
-  if (legendPosition === 'front') { legendPos = [0, 0.05, 0.48]; legendRot = [0, 0, 0]; legendSize = 0.2; }
+  if (legendPosition === 'front') { legendPos = [0, 0.05, 0.48]; legendRot = [0, 0, 0]; }
   if (legendPosition === 'none') legendText = '';
 
-  const scaleY = 1;
   const px = x !== undefined ? x * 1.08 : 0;
   const pz = y !== undefined ? y * 1.08 : 0;
 
@@ -249,7 +268,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         }
       }}
     >
-      <group ref={meshRef} scale={[w, scaleY, h]}>
+      <group ref={meshRef} scale={[w, 1, h]}>
         
         {/* Selected Key Highlight */}
         {isSelected && (
@@ -271,12 +290,12 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
           <MaterialCmp {...bodyMaterialParams} color={bodyMaterialParams.color} />
         </mesh>
 
-        {/* 2. Concave top dish surface */}
+        {/* 2. Concave top dish surface — image texture applied here */}
         <mesh geometry={topGeo} position={[0, topFaceY, -0.026]} castShadow receiveShadow>
           <MaterialCmp {...topMaterialParams} color={topMaterialParams.color} />
         </mesh>
 
-        {/* 4. Cherry MX stem underneath */}
+        {/* Cherry MX stem underneath */}
         <group position={[0, -0.3865, 0]}>
           <mesh castShadow>
             <boxGeometry args={[0.14, 0.24, 0.44]} />
@@ -289,33 +308,21 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         </group>
       </group>
 
-      {/* 3. Legend — drei Text for Inter, CanvasTexture plane for other fonts */}
-      {legendText && legendPosition !== 'none' && (
-        font === 'Inter' ? (
-          <Text
-            position={legendPos}
-            rotation={legendRot}
-            fontSize={legendSize}
-            color={legendColor}
-            anchorX="center"
-            anchorY="middle"
-            depthOffset={-1}
-            renderOrder={1}
-            outlineWidth={0.004}
-            outlineColor="rgba(0,0,0,0.3)"
-          >
-            {typeof legendText === 'string' ? legendText : ''}
-          </Text>
-        ) : legendTexture ? (
-          <mesh position={legendPos} rotation={legendRot} renderOrder={1}>
-            <planeGeometry args={[topWidth * 0.7, topWidth * 0.7]} />
-            <meshBasicMaterial
-              map={legendTexture}
-              transparent
-              depthWrite={false}
-            />
-          </mesh>
-        ) : null
+      {/* Legend via CanvasTexture — works for ALL fonts */}
+      {legendPosition !== 'none' && legendText && legendTexture && (
+        <mesh
+          position={legendPos}
+          rotation={legendRot}
+          renderOrder={2}
+        >
+          <planeGeometry args={[TOP_SURFACE_W * 0.72, TOP_SURFACE_D * 0.72]} />
+          <meshBasicMaterial
+            map={legendTexture}
+            transparent={true}
+            depthWrite={false}
+            alphaTest={0.01}
+          />
+        </mesh>
       )}
     </group>
   );
