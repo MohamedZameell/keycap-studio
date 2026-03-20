@@ -71,12 +71,10 @@ export default function KeyboardRenderer() {
       {/* Base plate is centered at [0, -0.36, 0] */}
       {baseGeo && (
         <mesh geometry={baseGeo} position={[0, -0.36, 0]} receiveShadow>
-          <meshPhysicalMaterial 
-            color="#12121f" 
-            roughness={0.6} 
-            metalness={0.05} 
-            clearcoat={0.1}
-            envMapIntensity={0.8}
+          <meshStandardMaterial 
+            color="#111118" 
+            roughness={0.7} 
+            metalness={0.1} 
           />
         </mesh>
       )}

@@ -2,7 +2,7 @@ import React, { useState, Suspense } from 'react';
 import { useStore } from '../store';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
-import { EffectComposer, SSAO, ToneMapping, Vignette, BrightnessContrast } from '@react-three/postprocessing';
+import { EffectComposer, SSAO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { HexColorPicker } from 'react-colorful';
 import * as THREE from 'three';
@@ -266,12 +266,12 @@ export default function StudioScreen() {
                  }}
               >
               <Suspense fallback={null}>
-                {/* STUDIO LIGHTING CONFIGURATION */}
-                <directionalLight position={[5, 8, 3]} intensity={1.8} color="#ffffff" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-far={50} shadow-camera-left={-20} shadow-camera-right={20} shadow-camera-top={20} shadow-camera-bottom={-20} shadow-bias={-0.001} />
-                <directionalLight position={[-4, 3, -2]} intensity={0.4} color="#b0c4ff" />
-                <directionalLight position={[0, 2, -8]} intensity={0.6} color="#ffffff" />
-                <ambientLight intensity={0.3} color="#1a1a2e" />
-                <Environment preset="studio" background={false} blur={0.8} />
+                {/* FINAL STUDIO LIGHTING CONFIGURATION */}
+                <ambientLight intensity={0.4} color="#ffffff" />
+                <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
+                <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
+                <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
+                <Environment preset="studio" background={false} blur={1} />
                 
                 <Stars radius={100} depth={50} count={2000} factor={3} fade speed={0.5} />
                 
@@ -283,16 +283,14 @@ export default function StudioScreen() {
                   </group>
                 )}
                 
-                <ContactShadows position={[0, -0.5, 0]} opacity={0.6} scale={40} blur={2.5} far={10} color="#000000" />
+                <ContactShadows position={[0, -0.5, 0]} opacity={0.55} scale={40} blur={3} far={8} />
                 
                 <OrbitControls enableDamping={true} dampingFactor={0.05} enableZoom={true} enablePan={true} minDistance={3} maxDistance={35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
 
                 {/* POST PROCESSING */}
-                <EffectComposer>
-                  <SSAO samples={16} radius={0.05} intensity={20} luminanceInfluence={0.6} color="black" />
+                <EffectComposer multisampling={0}>
+                  <SSAO samples={16} radius={0.08} intensity={25} luminanceInfluence={0.5} bias={0.04} color="black" />
                   <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-                  <Vignette eskil={false} offset={0.3} darkness={0.6} />
-                  <BrightnessContrast brightness={0.02} contrast={0.08} />
                 </EffectComposer>
               </Suspense>
             </Canvas>

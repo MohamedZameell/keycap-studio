@@ -103,22 +103,26 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, i
   const isBg = keyId === 'bg';
   const bodyMaterialParams = {
     color: color,
-    roughness: isBg ? 0.4 : 0.45,
+    roughness: isBg ? 0.4 : 0.55,
     metalness: 0.0,
+    emissive: '#000000',
+    emissiveIntensity: 0,
     ...(usePhysical ? { 
-      clearcoat: isBg ? 0.2 : 0.15, 
-      clearcoatRoughness: 0.3, 
+      clearcoat: isBg ? 0.2 : 0.1, 
+      clearcoatRoughness: 0.4, 
       reflectivity: 0.5, 
-      envMapIntensity: isBg ? 1.5 : 1.2 
+      envMapIntensity: isBg ? 1.5 : 0.6 
     } : {})
   };
   
   const topColorObj = new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.05).getHexString();
   const topMaterialParams = {
     color: '#' + topColorObj,
-    roughness: 0.35,
+    roughness: 0.45,
     metalness: 0.0,
-    ...(usePhysical ? { clearcoat: 0.2, clearcoatRoughness: 0.2, envMapIntensity: 1.4 } : {})
+    emissive: '#000000',
+    emissiveIntensity: 0,
+    ...(usePhysical ? { clearcoat: 0.12, clearcoatRoughness: 0.35, envMapIntensity: 0.7 } : {})
   };
 
   const stemMaterialParams = {
