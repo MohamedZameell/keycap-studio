@@ -128,7 +128,9 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, i
   const stemMaterialParams = {
     color: '#0a0a0a',
     roughness: 0.8,
-    metalness: 0.0
+    metalness: 0.0,
+    emissive: '#000000',
+    emissiveIntensity: 0
   };
 
   const topFaceY = 0.2465;
@@ -170,8 +172,10 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, i
         {/* Selected Key Highlight */}
         {isSelected && (
           <mesh scale={[1.04, 1.08, 1.04]} geometry={bodyGeo}>
-            <meshBasicMaterial 
+            <meshStandardMaterial 
               color="#6c63ff"
+              emissive="#000000"
+              emissiveIntensity={0}
               wireframe={false}
               transparent
               opacity={0.25}
