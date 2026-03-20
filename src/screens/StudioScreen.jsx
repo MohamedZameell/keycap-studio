@@ -230,33 +230,36 @@ export default function StudioScreen() {
               <div style={styles.section}>
                 
                 {/* Hardware Spec Array Display per Path */}
-                {store.selectedModel ? (
+                {store.selectionPath === 'beginner' || store.selectedModel ? (
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', color:'#fff', fontWeight:600 }}>
                       <div style={{ width:8, height:8, borderRadius:'50%', backgroundColor: store.keyboardLEDType === 'None' ? '#888' : '#6c63ff' }} />
                       {store.keyboardLEDType || 'None'}
                     </div>
                     <div style={{ fontSize:'11px', color:'#888899', marginTop:'4px' }}>
-                      This is your keyboard's hardware spec and cannot be changed.
+                      Fixed by your keyboard's hardware
                     </div>
                   </div>
                 ) : (
                   <div style={{ marginBottom: 16 }}>
-                    <label style={styles.label}>LED Array Hardware</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {['North-facing RGB', 'South-facing RGB', 'Per-key RGB', 'None'].map(t => (
-                        <button key={t} 
-                          style={{
-                            padding: '8px', borderRadius: '6px', textAlign: 'left', fontSize: '13px',
-                            background: store.keyboardLEDType === t ? '#6c63ff' : 'var(--card-bg)',
-                            color: store.keyboardLEDType === t ? '#fff' : 'var(--text-secondary)',
-                            border: 'none', cursor: 'pointer'
-                          }}
-                          onClick={() => store.setKeyboardLEDType(t)}
-                        >
-                          {t}
-                        </button>
-                      ))}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {['North-facing RGB', 'South-facing RGB', 'Per-key RGB', 'None'].map(t => {
+                        const display = t.replace('-facing RGB', '').replace(' RGB', '');
+                        const isActive = store.keyboardLEDType === t;
+                        return (
+                          <button key={t} 
+                            style={{
+                              padding: '8px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 600,
+                              background: isActive ? '#6c63ff' : 'var(--card-bg)',
+                              color: isActive ? '#fff' : 'var(--text-secondary)',
+                              border: 'none', cursor: 'pointer', transition: 'all 0.2s'
+                            }}
+                            onClick={() => store.setKeyboardLEDType(t)}
+                          >
+                            {display}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -273,8 +276,8 @@ export default function StudioScreen() {
                   </div>
                 )}
                 
-                <div style={{ marginTop: '24px', fontSize: '11px', color: '#444460', fontStyle: 'italic' }}>
-                  See the LED Preview in the bottom-right corner of the canvas →
+                <div style={{ marginTop: '24px', fontSize: '11px', color: '#444460' }}>
+                  See the LED diagram →
                 </div>
               </div>
             )}
@@ -308,7 +311,7 @@ export default function StudioScreen() {
           <ErrorBoundary>
             <Canvas 
                gl={{ preserveDrawingBuffer: true }} 
-               camera={viewMode === 'full' ? { position: [0, 14, 18], fov: 50 } : { position: [0, 2.5, 5], fov: 45 }}
+               camera={viewMode === 'full' ? { position: [0, 10, 14], fov: 50 } : { position: [0, 2.5, 5], fov: 45 }}
                onCreated={(state) => {
                  state.gl.setClearColor('#0a0a0f');
                }}
@@ -329,7 +332,7 @@ export default function StudioScreen() {
                 )}
                 
                 <ContactShadows position={[0, -0.5, 0]} opacity={0.5} scale={50} blur={2} far={10} />
-                <OrbitControls enableZoom enablePan minDistance={3} maxDistance={30} />
+                <OrbitControls enableZoom enablePan minDistance={3} maxDistance={30} target={[0, 0, 0]} />
               </Suspense>
             </Canvas>
           </ErrorBoundary>
