@@ -73,8 +73,10 @@ export default function KeyboardRenderer() {
         <mesh geometry={baseGeo} position={[0, -0.36, 0]} receiveShadow>
           <meshStandardMaterial 
             color="#111118" 
-            roughness={0.7} 
-            metalness={0.1} 
+            roughness={0.8} 
+            metalness={0.0} 
+            emissive="#000000"
+            emissiveIntensity={0}
           />
         </mesh>
       )}
