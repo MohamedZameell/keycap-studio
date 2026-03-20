@@ -1,20 +1,19 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../store';
 import Keycap from './Keycap';
+import KeyboardChassis from './KeyboardChassis';
 import { getLayoutForFormFactor } from '../data/layouts';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Text } from '@react-three/drei';
-import * as THREE from 'three';
 
 const KEY_UNIT = 1.08;
 
 const ROW_HEIGHT = {
-  0: 0.66, 1: 0.52, 2: 0.50,
-  3: 0.42, 4: 0.44, 5: 0.47
+  0: 0.52, 1: 0.50, 2: 0.48,
+  3: 0.44, 4: 0.46, 5: 0.48
 };
 const ROW_TILT = {
-  0: 0.175, 1: 0.087, 2: 0.052,
-  3: 0, 4: -0.087, 5: -0.14
+  0: 0.06, 1: 0.03, 2: 0.01,
+  3: 0, 4: -0.03, 5: -0.05
 };
 
 export default function KeyboardRenderer() {
@@ -62,40 +61,27 @@ export default function KeyboardRenderer() {
 
   const isPerformanceMode = layout.length > 80;
 
-  const baseGeo = useMemo(() => {
-    if (totalW === 0) return null;
-    return new RoundedBoxGeometry(totalW + 1.2, 0.22, totalH + 0.8, 16, 0.05);
-  }, [totalW, totalH]);
-
   if (!layout || layout.length === 0) {
     return (
-      <Text position={[0, 0, 0]} fontSize={0.5} color="white" anchorX="center" anchorY="middle">
-        Layout loading...
-      </Text>
+      <group position={[0, 0, 0]}>
+        <Keycap keyId="placeholder" label="?" w={2} h={1} />
+        <Text position={[0, 1.5, 0]} fontSize={0.4} color="#888899" anchorX="center" anchorY="middle">
+          Select a keyboard to begin
+        </Text>
+      </group>
     );
   }
 
   return (
     <group position={[0, 0, 0]}>
-      {/* Base plate is centered at [0, -0.36, 0] */}
-      {baseGeo && (
-        <mesh geometry={baseGeo} position={[0, -0.36, 0]} receiveShadow>
-          <meshStandardMaterial 
-            color="#0d0d14" 
-            roughness={0.9} 
-            metalness={0.0} 
-            emissive="#000000"
-            emissiveIntensity={0}
-          />
-        </mesh>
-      )}
+      {/* Keyboard Chassis (replaces old flat base plate) */}
+      <KeyboardChassis totalW={maxW} totalH={maxH} />
 
       {/* Keys calculate their offset natively to match the parent 0,0 center */}
       {layout.map((key) => {
         const kw = Math.max(0.5, Math.min(8, Number(key.w) || 1));
         const kh = Math.max(0.5, Math.min(3, Number(key.h) || 1));
         
-        // Convert explicitly so Keycap's internal 1.08 scalar equates exactly to the user's `posX` world map definition
         const gridX = Number(key.x) - minX - maxW / 2 + kw / 2;
         const gridZ = Number(key.y) - minZ - maxH / 2 + kh / 2;
 

@@ -1,22 +1,37 @@
 import React, { Suspense } from 'react';
 import { useStore } from '../store';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import Keycap from '../components/Keycap';
-import { Environment, Float, Stars } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { Environment, Stars } from '@react-three/drei';
 
-function BackgroundKeycap() {
+function PrimaryKeycap() {
   const groupRef = React.useRef();
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (groupRef.current) {
       groupRef.current.rotation.y += 0.003;
-      groupRef.current.rotation.x = Math.sin(Date.now() * 0.0003) * 0.1;
+      groupRef.current.position.y = -0.3 + Math.sin(clock.elapsedTime * 0.6) * 0.08;
     }
   });
 
   return (
-    <group ref={groupRef} scale={[2.2, 2.2, 2.2]}>
-       <Keycap keyId="bg" label="K" isSelected={false} />
+    <group ref={groupRef} position={[0.8, -0.3, 0]} scale={[4, 4, 4]}>
+      <Keycap keyId="bg" label="K" isSelected={false} />
+    </group>
+  );
+}
+
+function SecondaryKeycap() {
+  const groupRef = React.useRef();
+  useFrame(({ clock }) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y -= 0.002;
+      groupRef.current.rotation.z = Math.sin(clock.elapsedTime * 0.4) * 0.05;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[-3, 1, -2]} scale={[2, 2, 2]}>
+      <Keycap keyId="bg2" label="S" isSelected={false} />
     </group>
   );
 }
@@ -35,19 +50,18 @@ export default function EntryScreen() {
     setScreen('selector');
   };
 
-
-
   return (
     <div style={styles.container}>
       {/* 3D Background */}
       <div style={styles.canvasContainer}>
-        <Canvas camera={{ position: [0, 2, 6], fov: 35 }}>
-          <Environment preset="studio" background={false}/>
+        <Canvas camera={{ position: [0, 0.5, 6], fov: 50 }}>
+          <Environment preset="apartment" background={false} />
           <directionalLight position={[5, 8, 3]} intensity={2.0} />
           <ambientLight intensity={0.4} />
           <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
           <Suspense fallback={null}>
-            <BackgroundKeycap />
+            <PrimaryKeycap />
+            <SecondaryKeycap />
           </Suspense>
         </Canvas>
       </div>
@@ -59,7 +73,6 @@ export default function EntryScreen() {
         </div>
 
         <div style={styles.cardsRow}>
-          {/* Beginner Card */}
           <button style={styles.card} onClick={handleBeginner} className="hover-scale">
             <div style={styles.icon}>⌨️</div>
             <h2 style={styles.cardTitle}>I have a keyboard</h2>
@@ -67,7 +80,6 @@ export default function EntryScreen() {
             <div style={styles.tagBeginner}>Recommended for beginners</div>
           </button>
 
-          {/* Enthusiast Card */}
           <button style={styles.card} onClick={handleEnthusiast} className="hover-scale">
             <div style={styles.icon}>⚙️</div>
             <h2 style={styles.cardTitle}>I know my setup</h2>
@@ -76,7 +88,7 @@ export default function EntryScreen() {
           </button>
         </div>
       </div>
-      
+
       <style>{`
         .hover-scale { transition: transform 0.2s ease, border-color 0.2s ease; }
         .hover-scale:hover { transform: translateY(-4px) scale(1.02); border-color: var(--primary-accent); }
@@ -87,100 +99,43 @@ export default function EntryScreen() {
 
 const styles = {
   container: {
-    position: 'relative',
-    width: '100%',
-    height: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'var(--bg-color)',
-    overflow: 'hidden'
+    position: 'relative', width: '100%', height: '100vh',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'var(--bg-color)', overflow: 'hidden'
   },
   canvasContainer: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    opacity: 0.15, // subtle background
-    pointerEvents: 'none'
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    opacity: 0.2, pointerEvents: 'none'
   },
   content: {
-    position: 'relative',
-    zIndex: 10,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '64px',
-    maxWidth: '1000px',
-    padding: '0 24px',
-    textAlign: 'center'
+    position: 'relative', zIndex: 10,
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    gap: '64px', maxWidth: '1000px', padding: '0 24px', textAlign: 'center'
   },
-  header: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px'
-  },
+  header: { display: 'flex', flexDirection: 'column', gap: '12px' },
   title: {
-    fontSize: '64px',
-    fontWeight: 700,
-    letterSpacing: '-1.5px',
-    color: 'var(--text-primary)',
-    margin: 0
+    fontSize: '64px', fontWeight: 700, letterSpacing: '-1.5px',
+    color: 'var(--text-primary)', margin: 0
   },
-  subtitle: {
-    fontSize: '20px',
-    color: 'var(--text-secondary)',
-    margin: 0
-  },
-  cardsRow: {
-    display: 'flex',
-    gap: '32px',
-    justifyContent: 'center',
-    flexWrap: 'wrap'
-  },
+  subtitle: { fontSize: '20px', color: 'var(--text-secondary)', margin: 0 },
+  cardsRow: { display: 'flex', gap: '32px', justifyContent: 'center', flexWrap: 'wrap' },
   card: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    backgroundColor: 'var(--card-bg)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '16px',
-    padding: '32px',
-    width: '380px',
-    textAlign: 'left',
-    position: 'relative',
-    overflow: 'hidden',
-    backdropFilter: 'blur(10px)'
+    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+    backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)',
+    borderRadius: '16px', padding: '32px', width: '380px', textAlign: 'left',
+    position: 'relative', overflow: 'hidden', backdropFilter: 'blur(10px)'
   },
-  icon: {
-    fontSize: '48px',
-    marginBottom: '24px'
-  },
-  cardTitle: {
-    fontSize: '28px',
-    marginBottom: '12px',
-    color: 'var(--text-primary)'
-  },
-  cardDesc: {
-    fontSize: '16px',
-    lineHeight: 1.5,
-    color: 'var(--text-secondary)',
-    marginBottom: '32px'
-  },
+  icon: { fontSize: '48px', marginBottom: '24px' },
+  cardTitle: { fontSize: '28px', marginBottom: '12px', color: 'var(--text-primary)' },
+  cardDesc: { fontSize: '16px', lineHeight: 1.5, color: 'var(--text-secondary)', marginBottom: '32px' },
   tagBeginner: {
-    marginTop: 'auto',
-    backgroundColor: 'rgba(13, 158, 117, 0.15)',
-    color: 'var(--success)',
-    padding: '6px 14px',
-    borderRadius: 'var(--radius-pill)',
-    fontSize: '14px',
-    fontWeight: 600
+    marginTop: 'auto', backgroundColor: 'rgba(13, 158, 117, 0.15)',
+    color: 'var(--success)', padding: '6px 14px', borderRadius: 'var(--radius-pill)',
+    fontSize: '14px', fontWeight: 600
   },
   tagEnthusiast: {
-    marginTop: 'auto',
-    backgroundColor: 'rgba(108, 99, 255, 0.15)',
-    color: 'var(--primary-accent)',
-    padding: '6px 14px',
-    borderRadius: 'var(--radius-pill)',
-    fontSize: '14px',
-    fontWeight: 600
+    marginTop: 'auto', backgroundColor: 'rgba(108, 99, 255, 0.15)',
+    color: 'var(--primary-accent)', padding: '6px 14px', borderRadius: 'var(--radius-pill)',
+    fontSize: '14px', fontWeight: 600
   }
 };
