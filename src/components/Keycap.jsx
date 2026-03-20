@@ -268,6 +268,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         }
       }}
     >
+      <group scale={singleKeyMode ? [1.6, 1.6, 1.6] : [1, 1, 1]}>
       <group ref={meshRef} scale={[w, 1, h]}>
         
         {/* Selected Key Highlight */}
@@ -306,6 +307,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             <MaterialCmp {...stemMaterialParams} color={stemMaterialParams.color} />
           </mesh>
         </group>
+      </group>
       </group>
 
       {/* Legend via CanvasTexture — works for ALL fonts */}

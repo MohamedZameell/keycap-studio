@@ -6,7 +6,7 @@ const generateRow = (keys, y, startX = 0, rowIdx = 0) => {
     // We handle varying widths manually later if provided as object.
     const w = label.w !== undefined ? label.w : 1;
     const keyDef = {
-      id: `key-R${rowIdx}-${idx}-${label.id !== undefined ? label.id : label}`,
+      id: `key-R${rowIdx}-${idx}-${typeof label === 'string' ? label : (label?.id ?? label?.label ?? String(idx))}`,
       label: label.label !== undefined ? label.label : label,
       row: rowIdx,
       col: idx,
