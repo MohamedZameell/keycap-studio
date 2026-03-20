@@ -1,11 +1,10 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
-
 
 function buildFrustumBody() {
   try {
@@ -62,7 +61,9 @@ function buildTopDish() {
   }
 }
 
-export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset, uvScale, isSelected, isPerformanceMode, onClick }) {
+const topWidth = 0.787;
+
+export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0,0], uvScale = [1,1], isSelected, isPerformanceMode, singleKeyMode = false, onClick }) {
   const meshRef = useRef();
   
   const [hovered, setHovered] = useState(false);
@@ -85,17 +86,37 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const font = pkDesign.font || globalFont;
   const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';
   
-
   const bodyGeo = useMemo(() => buildFrustumBody(), []);
   const topGeo = useMemo(() => buildTopDish(), []);
 
   const isSingleView = (x === undefined && y === undefined);
   const usePhysical = !isPerformanceMode || isSingleView;
   const MaterialCmp = usePhysical ? 'meshPhysicalMaterial' : 'meshStandardMaterial';
-  
-  // Image textures
+
+  // FIX 1 — Canvas texture for non-Inter fonts
+  const legendTexture = useMemo(() => {
+    if (!legendText || String(legendText).trim() === '' || font === 'Inter') return null;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.clearRect(0, 0, 256, 256);
+    ctx.fillStyle = legendColor || '#ffffff';
+    ctx.font = `bold 120px "${font}", Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(legendText).slice(0, 4), 128, 128);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }, [legendText, legendColor, font]);
+
+  // FIX 2 — Image textures
   const tileTexture = useMemo(() => {
-    if (imageMode !== 'tile' || !imageUrl) return null;
+    if (!imageUrl || imageMode === 'none' || imageMode === 'perkey') return null;
     try {
       const loader = new THREE.TextureLoader();
       const tex = loader.load(imageUrl);
@@ -105,25 +126,18 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
     } catch { return null; }
-  }, [imageMode, imageUrl]);
+  }, [imageUrl, imageMode]);
 
-  const wrapTexture = useMemo(() => {
-    if (imageMode !== 'wrap' || !imageUrl) return null;
-    try {
-      const loader = new THREE.TextureLoader();
-      const tex = loader.load(imageUrl);
-      tex.wrapS = THREE.ClampToEdgeWrapping;
-      tex.wrapT = THREE.ClampToEdgeWrapping;
-      tex.colorSpace = THREE.SRGBColorSpace;
-      return tex;
-    } catch { return null; }
-  }, [imageMode, imageUrl]);
-
-  // Apply UV offsets for wrap mode
-  if (wrapTexture && uvOffset && uvScale) {
-    wrapTexture.offset.set(uvOffset[0], 1 - uvOffset[1] - uvScale[1]);
-    wrapTexture.repeat.set(uvScale[0], uvScale[1]);
-  }
+  // Apply UV offsets for wrap mode via useEffect (not in render)
+  useEffect(() => {
+    if (tileTexture && imageMode === 'wrap') {
+      tileTexture.wrapS = THREE.ClampToEdgeWrapping;
+      tileTexture.wrapT = THREE.ClampToEdgeWrapping;
+      tileTexture.offset.set(uvOffset[0], 1 - uvOffset[1] - uvScale[1]);
+      tileTexture.repeat.set(uvScale[0], uvScale[1]);
+      tileTexture.needsUpdate = true;
+    }
+  }, [tileTexture, imageMode, uvOffset, uvScale]);
 
   const perKeyImage = pkDesign?.imageUrl;
   const perKeyTexture = useMemo(() => {
@@ -137,15 +151,17 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   }, [perKeyImage]);
 
   // Resolve which texture to use (priority: perKey > tile/wrap > none)
-  const activeTexture = perKeyTexture || (imageMode === 'tile' ? tileTexture : null) || (imageMode === 'wrap' ? wrapTexture : null) || null;
+  const activeTexture = perKeyTexture || (imageMode !== 'none' ? tileTexture : null) || null;
   // When texture is active, use white so it shows pure image colors
   const resolvedColor = activeTexture ? '#ffffff' : color;
 
+  // FIX 3 — Animation: singleKeyMode gets bob+rotate, full keyboard keys stay still (only hover lift)
   useFrame(({ clock }) => {
-    if (isSingleView && meshRef.current) {
+    if (!meshRef.current) return;
+    if (singleKeyMode) {
       meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.06;
-      meshRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.5) * 0.3;
-    } else if (meshRef.current) {
+      meshRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.4) * 0.25;
+    } else {
       meshRef.current.position.y = THREE.MathUtils.lerp(
         meshRef.current.position.y,
         hovered ? 0.06 : 0,
@@ -220,14 +236,14 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         }
       }}
       onPointerOver={(e) => {
-        if (!isSingleView) {
+        if (!isSingleView && !singleKeyMode) {
           e.stopPropagation();
           setHovered(true);
           document.body.style.cursor = 'pointer';
         }
       }}
       onPointerOut={() => {
-        if (!isSingleView) {
+        if (!isSingleView && !singleKeyMode) {
           setHovered(false);
           document.body.style.cursor = 'auto';
         }
@@ -273,23 +289,33 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         </group>
       </group>
 
-      {/* 3. Legend text */}
+      {/* 3. Legend — drei Text for Inter, CanvasTexture plane for other fonts */}
       {legendText && legendPosition !== 'none' && (
-        <Text
-          position={legendPos}
-          rotation={legendRot}
-          fontSize={legendSize}
-          color={legendColor}
-          anchorX="center"
-          anchorY="middle"
-          depthOffset={-1}
-          renderOrder={1}
-          outlineWidth={0.004}
-          outlineColor="rgba(0,0,0,0.3)"
-
-        >
-          {typeof legendText === 'string' ? legendText : ''}
-        </Text>
+        font === 'Inter' ? (
+          <Text
+            position={legendPos}
+            rotation={legendRot}
+            fontSize={legendSize}
+            color={legendColor}
+            anchorX="center"
+            anchorY="middle"
+            depthOffset={-1}
+            renderOrder={1}
+            outlineWidth={0.004}
+            outlineColor="rgba(0,0,0,0.3)"
+          >
+            {typeof legendText === 'string' ? legendText : ''}
+          </Text>
+        ) : legendTexture ? (
+          <mesh position={legendPos} rotation={legendRot} renderOrder={1}>
+            <planeGeometry args={[topWidth * 0.7, topWidth * 0.7]} />
+            <meshBasicMaterial
+              map={legendTexture}
+              transparent
+              depthWrite={false}
+            />
+          </mesh>
+        ) : null
       )}
     </group>
   );
