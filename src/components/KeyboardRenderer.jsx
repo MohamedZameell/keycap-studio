@@ -29,9 +29,8 @@ export default function KeyboardRenderer() {
     }
   }, [formFactor]);
 
-  // Safe boundaries mapped from exact layouts
-  const { totalWidth, totalHeight, centerOffset } = useMemo(() => {
-    if (!layout.length) return { totalWidth:0, totalHeight:0, centerOffset: [0,0] };
+  const { totalW, totalH, minX, minZ, maxW, maxH } = useMemo(() => {
+    if (!layout.length) return { totalW:0, totalH:0, minX:0, minZ:0, maxW:0, maxH:0 };
     
     // Fallbacks handled gracefully as numbers
     const safeLayout = layout.map(k => ({
@@ -40,25 +39,23 @@ export default function KeyboardRenderer() {
       h: Math.max(0.5, Math.min(3, Number(k.h) || 1))
     }));
 
-    const minX = Math.min(...safeLayout.map(k => k.x));
-    const minZ = Math.min(...safeLayout.map(k => k.y));
-    const maxX = Math.max(...safeLayout.map(k => k.x + k.w));
-    const maxZ = Math.max(...safeLayout.map(k => k.y + k.h));
+    const minX = Math.min(...safeLayout.map(k => Number(k.x)));
+    const minZ = Math.min(...safeLayout.map(k => Number(k.y)));
+    const maxX = Math.max(...safeLayout.map(k => Number(k.x) + (Number(k.w) || 1)));
+    const maxZ = Math.max(...safeLayout.map(k => Number(k.y) + (Number(k.h) || 1)));
     
-    const totalW = maxX - minX;
-    const totalH = maxZ - minZ;
+    const maxW = maxX - minX;
+    const maxH = maxZ - minZ;
+    const totalW = maxW * KEY_UNIT;
+    const totalH = maxH * KEY_UNIT;
     
-    return { 
-      totalWidth: totalW, 
-      totalHeight: totalH, 
-      centerOffset: [-(minX + totalW/2) * KEY_UNIT, -(minZ + totalH/2) * KEY_UNIT] 
-    };
+    return { totalW, totalH, minX, minZ, maxW, maxH };
   }, [layout]);
 
   const baseGeo = useMemo(() => {
-    if (totalWidth === 0) return null;
-    return new RoundedBoxGeometry(totalWidth * KEY_UNIT + 1.0, 0.2, totalHeight * KEY_UNIT + 0.8, 16, 0.1);
-  }, [totalWidth, totalHeight]);
+    if (totalW === 0) return null;
+    return new RoundedBoxGeometry(totalW + 1.2, 0.22, totalH + 0.8, 16, 0.1);
+  }, [totalW, totalH]);
 
   if (!layout || layout.length === 0) {
     return (
@@ -69,25 +66,31 @@ export default function KeyboardRenderer() {
   }
 
   return (
-    <group position={[centerOffset[0], 0, centerOffset[1]]}>
-      {/* Base Plate explicitly centered on self node with offset bounding box dimensions */}
+    <group position={[0, 0, 0]}>
+      {/* Base Plate perfectly sharing coordinate center translation */}
       {baseGeo && (
         <mesh geometry={baseGeo} position={[0, -0.36, 0]} receiveShadow>
           <meshStandardMaterial color="#1a1a2e" roughness={0.7} metalness={0.3} />
         </mesh>
       )}
 
-      {/* Keys */}
+      {/* Keys mapped directly across origin scale */}
       {layout.map((key) => {
         const kw = Math.max(0.5, Math.min(8, Number(key.w) || 1));
         const kh = Math.max(0.5, Math.min(3, Number(key.h) || 1));
+        
+        // Offset each coordinate to map perfectly into the bounding box origin. 
+        // We pass the raw pre-KEY_UNIT metrics because Keycap internally multiplies by 1.08.
+        const gridX = Number(key.x) - minX - (maxW)/2 + kw/2;
+        const gridZ = Number(key.y) - minZ - (maxH)/2 + kh/2;
+
         return (
           <Keycap
             key={key.id}
             keyId={key.id}
             label={key.label}
-            x={key.x}
-            y={key.y}
+            x={gridX}
+            y={gridZ}
             w={kw}
             h={kh}
             isSelected={selectedKey === key.id}

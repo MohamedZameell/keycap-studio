@@ -16,80 +16,83 @@ export default function LEDPreviewWidget() {
   const isNone = ledType === 'None';
 
   return (
-    <div style={styles.container}>
-      {/* Inline animations for rays */}
+    <div style={styles.card}>
       <style>{`
-        @keyframes rayPulse {
-          0% { opacity: 0; height: 0px; }
-          40% { opacity: 0.8; }
-          100% { opacity: 0; height: 28px; }
+        @keyframes rayGrow {
+          0% { height: 0px; opacity: 0; }
+          30% { opacity: 0.9; }
+          100% { height: 26px; opacity: 0; }
         }
       `}</style>
       
       <div style={styles.title}>LED PREVIEW</div>
 
-      {/* CROSS-SECTION DIAGRAM */}
-      <div style={styles.diagram}>
-        
-        {/* LAYER 1 — KEYCAP */}
-        <div style={{...styles.layerKeycap, backgroundColor: keycapColor}}>
-           <div style={{
-             ...styles.legendArea, 
-             backgroundColor: legendColor,
-             boxShadow: isNorth ? `0 0 8px ${legendColor}` : 'none'
-           }} />
-        </div>
-
-        {/* LAYER 2 — SWITCH HOUSING */}
-        <div style={styles.layerSwitch}>
-           <div style={styles.stem} />
-           
-           {!isNone && (
+      {/* DIAGRAM CONTAINER */}
+      <div style={styles.diagramWrap}>
+        <div style={styles.diagram}>
+          
+          {/* LAYER 1 — KEYCAP */}
+          <div style={{...styles.keycap, backgroundColor: keycapColor}}>
              <div style={{
-               ...styles.ledDot, 
-               backgroundColor: backlitColor,
-               boxShadow: `0 0 10px 3px ${backlitColor}`,
-               ...(isNorth ? { top: '-5px', left: '50%', transform: 'translateX(-50%)' } : {}),
-               ...(isSouth ? { bottom: '-5px', left: '50%', transform: 'translateX(-50%)' } : {}),
-               ...(isPerKey ? { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' } : {})
-             }}>
-                
-                {/* LIGHT RAY ANIMATIONS */}
-                {isNorth && (
-                  <>
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', bottom: '100%', left: '50%', transform: 'translateX(-50%) rotate(0deg)', animationDelay: '0s'}} />
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', bottom: '100%', left: '50%', transform: 'translateX(-50%) rotate(-15deg)', animationDelay: '0.2s'}} />
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', bottom: '100%', left: '50%', transform: 'translateX(-50%) rotate(15deg)', animationDelay: '0.4s'}} />
-                  </>
-                )}
-                {isSouth && (
-                  <>
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', top: '100%', left: '50%', transform: 'translateX(-50%) rotate(180deg)', animationDelay: '0s'}} />
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', top: '100%', left: '50%', transform: 'translateX(-50%) rotate(200deg)', animationDelay: '0.2s'}} />
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', top: '100%', left: '50%', transform: 'translateX(-50%) rotate(160deg)', animationDelay: '0.4s'}} />
-                  </>
-                )}
-                {isPerKey && (
-                  <>
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', bottom: '100%', left: '50%', transform: 'translateX(-50%) rotate(0deg)', animationDelay: '0s'}} />
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', top: '50%', left: '100%', transform: 'translateY(-50%) rotate(90deg)', transformOrigin: 'bottom center', animationDelay: '0.2s'}} />
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', top: '100%', left: '50%', transform: 'translateX(-50%) rotate(180deg)', animationDelay: '0.4s'}} />
-                    <div style={{...styles.rayBase, background: `linear-gradient(to top, ${backlitColor}, transparent)`, borderBottomLeftRadius: '1px', borderBottomRightRadius: '1px', top: '50%', right: '100%', transform: 'translateY(-50%) rotate(270deg)', transformOrigin: 'bottom center', animationDelay: '0.2s'}} />
-                  </>
-                )}
-
-             </div>
-           )}
-        </div>
-
-        {/* LAYER 3 — PCB */}
-        <div style={styles.layerPCB}>
-          <div style={styles.solderPoints}>
-            <div style={styles.solderDot} />
-            <div style={styles.solderDot} />
-            <div style={styles.solderDot} />
-            <div style={styles.solderDot} />
+               ...styles.legendRect, backgroundColor: legendColor, 
+               boxShadow: isNorth ? `0 0 8px ${legendColor}` : 'none'
+             }} />
           </div>
+
+          {/* LAYER 2 — SWITCH HOUSING */}
+          <div style={styles.switchBox}>
+             <div style={styles.stem} />
+          </div>
+
+          {/* LAYER 3 — PCB */}
+          <div style={styles.pcb}>
+            <div style={{...styles.solder, left: '30%'}} />
+            <div style={{...styles.solder, left: '40%'}} />
+            <div style={{...styles.solder, left: '58%'}} />
+            <div style={{...styles.solder, left: '68%'}} />
+          </div>
+
+          {/* Optional Labels */}
+          <div style={{position: 'absolute', right: '-4px', top: '8px', fontSize: '9px', color: '#888899'}}>Legend</div>
+          <div style={{position: 'absolute', right: '0px', top: '64px', fontSize: '9px', color: '#888899'}}>Switch</div>
+          <div style={{position: 'absolute', right: '-12px', top: '98px', fontSize: '9px', color: '#888899'}}>PCB</div>
+
+          {/* LAYER 4 — LED DOT */}
+          {!isNone && (
+            <div style={{
+              ...styles.ledDot, 
+              backgroundColor: backlitColor,
+              boxShadow: `0 0 8px 3px ${backlitColor}`,
+              ...(isNorth ? { top: '48px', left: '50%', transform: 'translateX(-50%)' } : {}),
+              ...(isSouth ? { top: '92px', left: '50%', transform: 'translateX(-50%)' } : {}),
+              ...(isPerKey ? { top: '68px', left: '50%', transform: 'translateX(-50%)' } : {})
+            }}>
+               
+               {/* LAYER 5 — LIGHT RAYS */}
+               {isNorth && (
+                 <>
+                   <div style={{...styles.ray, top: '42px', left: 'calc(50% - 10px)', transform: 'rotate(-20deg)', animationDelay: '0s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
+                   <div style={{...styles.ray, top: '42px', left: 'calc(50% - 1px)', transform: 'rotate(0deg)', animationDelay: '0.3s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
+                   <div style={{...styles.ray, top: '42px', left: 'calc(50% + 8px)', transform: 'rotate(20deg)', animationDelay: '0.6s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
+                 </>
+               )}
+               {isSouth && (
+                 <>
+                   <div style={{...styles.ray, top: '94px', left: 'calc(50% - 10px)', transform: 'rotate(200deg)', transformOrigin: 'top center', animationDelay: '0s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
+                   <div style={{...styles.ray, top: '94px', left: 'calc(50% - 1px)', transform: 'rotate(180deg)', transformOrigin: 'top center', animationDelay: '0.3s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
+                   <div style={{...styles.ray, top: '94px', left: 'calc(50% + 8px)', transform: 'rotate(160deg)', transformOrigin: 'top center', animationDelay: '0.6s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
+                 </>
+               )}
+               {isPerKey && (
+                 <>
+                   <div style={{...styles.ray, top: '62px', left: '50%', transform: 'rotate(0deg)', animationDelay: '0s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
+                   <div style={{...styles.ray, top: '72px', left: '58%', transform: 'rotate(90deg)', animationDelay: '0.2s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
+                   <div style={{...styles.ray, top: '78px', left: '50%', transform: 'rotate(180deg)', transformOrigin: 'top center', animationDelay: '0.4s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
+                   <div style={{...styles.ray, top: '72px', left: '36%', transform: 'rotate(270deg)', animationDelay: '0.6s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
+                 </>
+               )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -111,7 +114,7 @@ export default function LEDPreviewWidget() {
       {/* COMPATIBILITY ROW */}
       <div style={styles.compatContainer}>
         <div style={styles.compatLabel}>Best with:</div>
-        <div style={styles.pillsWrapper}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
           {isNorth && (
             <>
               <span style={{...styles.compatPill, background: '#9c27b022', border: '1px solid #9c27b044', color: '#e1bee7'}}>Shine-through keycaps</span>
@@ -144,7 +147,7 @@ export default function LEDPreviewWidget() {
 }
 
 const styles = {
-  container: {
+  card: {
     position: 'absolute',
     bottom: '24px',
     right: '24px',
@@ -155,7 +158,7 @@ const styles = {
     padding: '16px',
     backdropFilter: 'blur(12px)',
     zIndex: 10,
-    animation: 'fadeInOpacity 0.4s ease forwards',
+    animation: 'fadeIn 0.4s ease forwards',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center'
@@ -168,91 +171,102 @@ const styles = {
     marginBottom: '12px',
     fontWeight: 'bold'
   },
-  diagram: {
+  diagramWrap: {
+    position: 'relative',
     width: '180px',
-    height: '160px',
-    position: 'relative'
+    height: '120px',
+    margin: '0 auto 12px',
+    overflow: 'hidden',
+    background: '#080810',
+    border: '1px solid #1a1a2a',
+    borderRadius: '8px',
+    padding: '10px'
   },
-  layerKeycap: {
-    width: '100px',
-    height: '60px',
-    clipPath: 'polygon(10% 100%, 90% 100%, 85% 0%, 15% 0%)',
+  diagram: {
+    position: 'relative',
+    width: '100%',
+    height: '100%'
+  },
+  keycap: {
+    width: '90px',
+    height: '52px',
+    clipPath: 'polygon(12% 100%, 88% 100%, 78% 0%, 22% 0%)',
     borderRadius: '3px',
+    border: '1px solid rgba(255,255,255,0.15)',
     position: 'absolute',
+    top: '0px',
     left: '50%',
     transform: 'translateX(-50%)',
-    top: '0',
-    display: 'flex',
-    justifyContent: 'center'
+    zIndex: 1
   },
-  legendArea: {
-    width: '40px',
-    height: '8px',
+  legendRect: {
+    width: '36px',
+    height: '7px',
     borderRadius: '2px',
-    marginTop: '8px'
+    position: 'absolute',
+    top: '7px',
+    left: '50%',
+    transform: 'translateX(-50%)'
   },
-  layerSwitch: {
-    width: '70px',
-    height: '45px',
-    background: '#1a1a2e',
-    border: '1px solid #2a2a3a',
+  switchBox: {
+    width: '58px',
+    height: '42px',
+    background: '#13132a',
+    border: '1px solid #2a2a4a',
     borderRadius: '3px',
     position: 'absolute',
+    top: '54px',
     left: '50%',
     transform: 'translateX(-50%)',
-    top: '62px',
-    display: 'flex',
-    justifyContent: 'center'
+    zIndex: 2
   },
   stem: {
-    width: '14px',
-    height: '28px',
-    background: '#0a0a14',
+    width: '12px',
+    height: '24px',
+    background: '#0a0a1a',
     position: 'absolute',
-    top: '8px'
+    top: '6px',
+    left: '50%',
+    transform: 'translateX(-50%)'
+  },
+  pcb: {
+    width: '160px',
+    height: '16px',
+    background: '#0d1a0d',
+    border: '1px solid #1a3a1a',
+    borderRadius: '2px',
+    position: 'absolute',
+    top: '98px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 0
+  },
+  solder: {
+    width: '4px',
+    height: '4px',
+    borderRadius: '50%',
+    background: '#2a5a2a',
+    position: 'absolute',
+    top: '6px'
   },
   ledDot: {
     width: '8px',
     height: '8px',
     borderRadius: '50%',
     position: 'absolute',
-    zIndex: 20
+    zIndex: 10
   },
-  rayBase: {
+  ray: {
+    position: 'absolute',
     width: '2px',
-    position: 'absolute',
+    borderRadius: '1px',
     transformOrigin: 'bottom center',
-    animation: 'rayPulse 1.5s ease-out infinite'
-  },
-  layerPCB: {
-    width: '180px',
-    height: '14px',
-    background: '#0d1117',
-    border: '1px solid #1a2332',
-    borderRadius: '2px',
-    position: 'absolute',
-    top: '108px',
-    left: '50%',
-    transform: 'translateX(-50%)'
-  },
-  solderPoints: {
-    display: 'flex',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%'
-  },
-  solderDot: {
-    width: '3px',
-    height: '3px',
-    borderRadius: '50%',
-    background: '#3a5a3a'
+    animation: 'rayGrow 1.8s ease-out infinite'
   },
   mainCaption: {
     fontSize: '13px',
     color: '#ffffff',
-    textAlign: 'center',
-    marginTop: '12px'
+    textAlign: 'center'
   },
   subCaption: {
     fontSize: '11px',
@@ -265,18 +279,12 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '4px',
     width: '100%'
   },
   compatLabel: {
     fontSize: '10px',
-    color: '#888899'
-  },
-  pillsWrapper: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: '4px'
+    color: '#888899',
+    marginBottom: '4px'
   },
   compatPill: {
     fontSize: '10px',
