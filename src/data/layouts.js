@@ -137,16 +137,13 @@ function build65Percent() {
 }
 
 export const LAYOUT_TEMPLATES = {
-  '100%': buildFull100(),
-  '104': buildFull100(),
-  'TKL': buildTKL(),
-  '80%': buildTKL(),
-  '75%': build75Percent(),
-  '65%': build65Percent(),
-  '60%': build60Percent()
+  'FULL_100': buildFull100(),
+  'TKL_80': buildTKL(),
+  'SEVENTY_FIVE': build75Percent(),
+  'SIXTY_FIVE': build65Percent(),
+  'SIXTY': build60Percent()
 };
 
-export function getLayoutForFormFactor(formFactor) {
-  // If the exact form factor exists, use it. Otherwise approximate to 60%.
-  return LAYOUT_TEMPLATES[formFactor] || LAYOUT_TEMPLATES['60%'];
+export function getLayoutForFormFactor(formFactorString) {
+  return LAYOUT_TEMPLATES[formFactorString] || LAYOUT_TEMPLATES['SIXTY'];
 }
