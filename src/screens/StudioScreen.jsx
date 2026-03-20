@@ -545,8 +545,8 @@ export default function StudioScreen() {
               dpr={[1, 2]}
               shadows="soft"
               camera={{
-                position: viewMode === 'full' ? [0, 8, 12] : [0, 1.8, 3.8],
-                fov: viewMode === 'full' ? 50 : 38,
+                position: viewMode === 'full' ? [0, 8, 12] : [0, 1.2, 3.5],
+                fov: viewMode === 'full' ? 50 : 40,
                 near: 0.1,
                 far: 1000
               }}
@@ -573,25 +573,29 @@ export default function StudioScreen() {
                     <pointLight position={[-2, 1, -1]} intensity={0.3} color="#c8d4ff" />
 
                     {/* Pedestal disc */}
-                    <mesh position={[0, -0.85, 0]} receiveShadow>
-                      <cylinderGeometry args={[1.4, 1.6, 0.1, 48]} />
+                    <mesh position={[0, -0.72, 0]} receiveShadow>
+                      <cylinderGeometry args={[0.85, 0.95, 0.06, 48]} />
                       <meshPhysicalMaterial
                         color="#111120"
                         roughness={0.3}
-                        metalness={0.55}
-                        clearcoat={0.7}
+                        metalness={0.6}
+                        clearcoat={0.8}
                         clearcoatRoughness={0.1}
-                        envMapIntensity={0.9}
+                        envMapIntensity={0.8}
+                        emissive="#000000"
+                        emissiveIntensity={0}
                       />
                     </mesh>
 
                     {/* Pedestal stem */}
-                    <mesh position={[0, -1.1, 0]} receiveShadow>
-                      <cylinderGeometry args={[0.15, 0.18, 0.5, 24]} />
+                    <mesh position={[0, -0.88, 0]} receiveShadow>
+                      <cylinderGeometry args={[0.08, 0.1, 0.28, 24]} />
                       <meshPhysicalMaterial
                         color="#0d0d1a"
                         roughness={0.4}
                         metalness={0.5}
+                        emissive="#000000"
+                        emissiveIntensity={0}
                       />
                     </mesh>
 
@@ -606,7 +610,7 @@ export default function StudioScreen() {
                   </group>
                 )}
 
-                <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.85, 0]} opacity={0.55} scale={40} blur={3} far={8} />
+                <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
 
                 <OrbitControls enableDamping dampingFactor={0.05} enableZoom enablePan minDistance={viewMode === 'single' ? 2 : 3} maxDistance={viewMode === 'single' ? 8 : 35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
 
