@@ -1,0 +1,239 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Oswald:wght@400;600&family=Press+Start+2P&family=Share+Tech+Mono&family=Playfair+Display:wght@400;700&family=Nunito:wght@400;600&family=Rajdhani:wght@400;600&family=Bebas+Neue&display=swap');
+
+.panel {
+  width: 320px;
+  height: 100vh;
+  background: #111118;
+  border-right: 1px solid #2a2a3a;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.panel-header {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.panel-header h1 {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 4px;
+}
+
+.panel-header p {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #666680;
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 4px;
+  background: none;
+  border: none;
+  color: #666680;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: #aaaacc;
+}
+
+.tab.active {
+  color: #6c63ff;
+  border-bottom: 2px solid #6c63ff;
+}
+
+.tab-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.react-colorful {
+  width: 100% !important;
+  height: 200px !important;
+  border-radius: 8px !important;
+}
+
+.picker-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.picker-toggle button {
+  flex: 1;
+  padding: 8px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  color: #666680;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.picker-toggle button.active {
+  background: #6c63ff22;
+  border-color: #6c63ff;
+  color: #6c63ff;
+}
+
+.hex-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.hex-display span {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: #aaaacc;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #2a2a3a;
+}
+
+.field-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #666680;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.text-input {
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.text-input:focus {
+  border-color: #6c63ff;
+}
+
+.font-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.font-option {
+  padding: 10px 14px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  color: #aaaacc;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.font-option:hover {
+  border-color: #6c63ff44;
+  color: #ffffff;
+}
+
+.font-option.active {
+  background: #6c63ff22;
+  border-color: #6c63ff;
+  color: #6c63ff;
+}
+
+.slider {
+  width: 100%;
+  accent-color: #6c63ff;
+  cursor: pointer;
+}
+
+.material-presets .preset-row {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-row button {
+  flex: 1;
+  padding: 8px 4px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  color: #aaaacc;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-row button:hover {
+  border-color: #6c63ff;
+  color: #ffffff;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-btn {
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-btn.on {
+  background: #6c63ff;
+  color: white;
+}
+
+.toggle-btn.off {
+  background: #2a2a3a;
+  color: #666680;
+}
+
+.hint {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #444460;
+  line-height: 1.6;
+}
