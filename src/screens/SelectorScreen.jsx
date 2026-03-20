@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { KEYBOARDS, BRANDS, FORM_FACTORS, PROFILES, LAYOUTS } from '../data/keyboards';
+import KeyboardSilhouette from '../components/KeyboardSilhouette';
 
 export default function SelectorScreen() {
   const store = useStore();
@@ -109,9 +110,11 @@ export default function SelectorScreen() {
                       <div key={k.id} style={isCardSelected ? styles.modelCardSelected : styles.modelCard} onClick={() => handleSelectModel(k)}>
                         {isCardSelected && <div style={styles.cardCheckmark}>✓</div>}
                         <h3 style={styles.modelName}>{k.model}</h3>
-                        {/* Visual Form Factor Silhouette CSS shape proxy */}
-                        <div style={styles.silhouetteProxy}>
-                          <div style={{...styles.silhouetteInner, width: k.percentage === '100%' ? '100%' : k.percentage === 'TKL' ? '80%' : k.percentage === '60%' ? '60%' : k.percentage}} />
+                        <div style={{display:'flex',justifyContent:'center', margin:'10px 0'}}>
+                          <KeyboardSilhouette 
+                            formFactor={k.formFactor} 
+                            large={false} 
+                          />
                         </div>
                         <div style={styles.badges}>
                           <span style={styles.badge}>{k.formFactor}</span>
@@ -149,13 +152,21 @@ export default function SelectorScreen() {
         {path === 'enthusiast' && step === 2 && (
           <div style={styles.grid}>
             <div style={styles.stepTitle}>Step 2: Choose Form Factor</div>
-            <div style={styles.enthusiastGrid}>
-              {FORM_FACTORS.map(ff => (
-                <button key={ff} style={localFormFactor === ff ? styles.selectCardActive : styles.selectCard} 
-                  onClick={() => { setLocalFormFactor(ff); setStep(3); }}>
-                  <h3>{ff}</h3>
-                </button>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {FORM_FACTORS.map(ff => {
+                const countMap = { '100%': 104, '96%': 98, 'TKL': 87, '75%': 84, '65%': 68, '60%': 61, '40%': 47 };
+                return (
+                  <button key={ff} 
+                    style={localFormFactor === ff ? styles.silhouetteCardActive : styles.silhouetteCard} 
+                    onClick={() => { setLocalFormFactor(ff); setStep(3); }}>
+                    <div style={{ pointerEvents: 'none' }}>
+                      <KeyboardSilhouette formFactor={ff} large={true} />
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff', textAlign: 'center', marginTop: '16px' }}>{ff}</div>
+                    <div style={{ fontSize: '12px', color: '#888899', textAlign: 'center', marginTop: '4px' }}>{countMap[ff] || 60} Keys</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -243,6 +254,8 @@ const styles = {
   enthusiastGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' },
   selectCard: { backgroundColor: 'var(--card-bg)', border: '2px solid var(--border-color)', borderRadius: '12px', padding: '32px 16px', textAlign: 'center', cursor: 'pointer' },
   selectCardActive: { backgroundColor: 'var(--card-bg)', border: '2px solid var(--primary-accent)', borderRadius: '12px', padding: '32px 16px', textAlign: 'center', cursor: 'pointer' },
+  silhouetteCard: { backgroundColor: 'var(--card-bg)', border: '2px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' },
+  silhouetteCardActive: { backgroundColor: '#6c63ff11', border: '2px solid #6c63ff', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' },
   
   confirmWrapper: { display: 'flex', justifyContent: 'center', marginTop: '48px', paddingBottom: '48px' },
   confirmCard: { backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '40px', width: '100%', maxWidth: '800px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' },

@@ -4,16 +4,16 @@ const generateRow = (keys, y, startX = 0, rowIdx = 0) => {
   return keys.map((label, idx) => {
     // Basic standard width is 1u. 
     // We handle varying widths manually later if provided as object.
-    const w = label.w || 1;
+    const w = label.w !== undefined ? label.w : 1;
     const keyDef = {
-      id: `key-R${rowIdx}-${idx}-${label.id || label}`,
-      label: label.label || label,
+      id: `key-R${rowIdx}-${idx}-${label.id !== undefined ? label.id : label}`,
+      label: label.label !== undefined ? label.label : label,
       row: rowIdx,
       col: idx,
       x: currentX,
       y,
       w,
-      h: label.h || 1,
+      h: label.h !== undefined ? label.h : 1,
       isSpecial: label.w > 1 || label.h > 1 || ['Esc', 'Fn', 'Win', 'Alt', 'Ctrl', 'Menu', 'PgUp', 'PgDn', 'Home', 'End', 'Ins', 'Del'].includes(label.label || label)
     };
     currentX += w;

@@ -183,7 +183,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, isSelected, o
           depthOffset={-2}
           font={font === 'Inter' ? undefined : undefined} 
         >
-          {legendText}
+          {typeof legendText === 'string' ? legendText : ''}
         </Text>
       )}
     </group>
