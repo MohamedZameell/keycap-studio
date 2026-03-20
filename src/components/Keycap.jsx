@@ -6,16 +6,6 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 
-const FONT_URLS = {
-  'Inter': 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2',
-  'Oswald': 'https://fonts.gstatic.com/s/oswald/v49/TK3_WkUHHAIjg75cFRf3bXL8LICs13NvgUFoZAaRliE.woff2',
-  'Press Start 2P': 'https://fonts.gstatic.com/s/pressstart2p/v15/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2',
-  'Share Tech Mono': 'https://fonts.gstatic.com/s/sharetechmono/v15/J7aHnp1uDWRBEqV98dVQztYldFc7pAsEIc3Xew.woff2',
-  'Playfair Display': 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQ.woff2',
-  'Nunito': 'https://fonts.gstatic.com/s/nunito/v25/XRXI3I6Li01BKofiOc5wtlZ2di8HDDshRTM.woff2',
-  'Rajdhani': 'https://fonts.gstatic.com/s/rajdhani/v10/LDI2apCSOBg7S-QT7pasEcOsc-bGkqIw.woff2',
-  'Bebas Neue': 'https://fonts.gstatic.com/s/bebasneuepro/v7/8QI8diHEiO0g-GjvHqjDHsD3k9Ax5rUr.woff2',
-};
 
 function buildFrustumBody() {
   try {
@@ -95,8 +85,6 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const font = pkDesign.font || globalFont;
   const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';
   
-  // Font URL for drei Text
-  const fontUrl = FONT_URLS[font] || FONT_URLS['Inter'];
 
   const bodyGeo = useMemo(() => buildFrustumBody(), []);
   const topGeo = useMemo(() => buildTopDish(), []);
@@ -298,7 +286,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
           renderOrder={1}
           outlineWidth={0.004}
           outlineColor="rgba(0,0,0,0.3)"
-          font={fontUrl}
+
         >
           {typeof legendText === 'string' ? legendText : ''}
         </Text>
