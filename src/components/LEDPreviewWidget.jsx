@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../store';
 
 export default function LEDPreviewWidget() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const ledType = useStore(s => s.keyboardLEDType) || 'None';
   const backlitEnabled = useStore(s => s.backlitEnabled);
   const backlitColor = useStore(s => s.backlitColor) || '#ffcc00';
@@ -14,6 +16,21 @@ export default function LEDPreviewWidget() {
   const isSouth = ledType.includes('South');
   const isPerKey = ledType.includes('Per-key');
   const isNone = ledType === 'None';
+
+  let dotColor = '#888899';
+  if (isNorth) dotColor = '#a09bf5';
+  if (isSouth) dotColor = '#f5a623';
+  if (isPerKey) dotColor = '#5dcaa5';
+
+  if (!isExpanded) {
+    return (
+      <div style={styles.collapsedPill} onClick={() => setIsExpanded(true)}>
+        <div style={{width: '8px', height: '8px', borderRadius: '50%', background: dotColor}} />
+        <span style={{fontSize: '12px', color: '#fff', fontWeight: 500, flex: 1}}>{ledType}</span>
+        <span style={{fontSize: '12px', color: '#888899'}}>↑</span>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.outerContainer}>
@@ -45,22 +62,26 @@ export default function LEDPreviewWidget() {
           0%, 100% { opacity: 0.2; }
           50% { opacity: 0.5; }
         }
+        .collapsed-pill:hover { border-color: #6c63ff44; }
       `}</style>
       
       {/* HEADER */}
       <div style={styles.header}>
         <div style={styles.title}>LED PREVIEW</div>
-        <div style={{
-          ...styles.badge,
-          ...(isNorth && { background: '#6c63ff22', color: '#a09bf5', border: '1px solid #6c63ff33' }),
-          ...(isSouth && { background: '#f5a62322', color: '#f5a623', border: '1px solid #f5a62333' }),
-          ...(isPerKey && { background: '#0d9e7522', color: '#5dcaa5', border: '1px solid #0d9e7533' }),
-          ...(isNone && { background: '#44446622', color: '#888899', border: '1px solid #44446633' })
-        }}>
-          {isNorth && "North"}
-          {isSouth && "South"}
-          {isPerKey && "Per-key"}
-          {isNone && "None"}
+        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+          <div style={{
+            ...styles.badge,
+            ...(isNorth && { background: '#6c63ff22', color: '#a09bf5', border: '1px solid #6c63ff33' }),
+            ...(isSouth && { background: '#f5a62322', color: '#f5a623', border: '1px solid #f5a62333' }),
+            ...(isPerKey && { background: '#0d9e7522', color: '#5dcaa5', border: '1px solid #0d9e7533' }),
+            ...(isNone && { background: '#44446622', color: '#888899', border: '1px solid #44446633' })
+          }}>
+            {isNorth && "North"}
+            {isSouth && "South"}
+            {isPerKey && "Per-key"}
+            {isNone && "None"}
+          </div>
+          <span style={styles.collapseBtn} onClick={() => setIsExpanded(false)}>↓</span>
         </div>
       </div>
 
@@ -75,13 +96,11 @@ export default function LEDPreviewWidget() {
              animation: isNorth ? 'legendGlow 2s ease-in-out infinite' : 'none'
            }} />
            <div style={styles.keycapStemHole} />
-           
            {/* Per-Key Body Glow */}
            {isPerKey && (
              <div style={{
                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-               background: `${backlitColor}20`,
-               clipPath: 'polygon(14% 100%, 86% 100%, 76% 0%, 24% 0%)',
+               background: `${backlitColor}20`, clipPath: 'polygon(14% 100%, 86% 100%, 76% 0%, 24% 0%)',
                animation: 'pulseOpacity 2s ease-in-out infinite'
              }} />
            )}
@@ -123,16 +142,12 @@ export default function LEDPreviewWidget() {
             ...(isNorth ? { top: '62px', left: '50%', transform: 'translateX(-50%)' } : {}),
             ...(isSouth ? { top: '106px', left: '50%', transform: 'translateX(-50%)' } : {}),
             ...(isPerKey ? { top: '84px', left: '50%', transform: 'translateX(-50%)' } : {})
-          }}>
-             {/* Note: The physical rays originate off the LED coords natively */}
-          </div>
+          }}></div>
         )}
 
         {/* LAYER 5 — LIGHT RAYS */}
         {!isNone && (
           <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden'}}>
-            
-            {/* North Rays */}
             {isNorth && (
               <>
                 <div style={{...styles.ray, background: `linear-gradient(to top, ${backlitColor}, transparent)`, bottom: '98px', left: 'calc(50% - 12px)', transform: 'rotate(-18deg)', animation: 'rayUp 1.6s ease-out infinite', animationDelay: '0s'}} />
@@ -140,8 +155,6 @@ export default function LEDPreviewWidget() {
                 <div style={{...styles.ray, background: `linear-gradient(to top, ${backlitColor}, transparent)`, bottom: '98px', left: 'calc(50% + 10px)', transform: 'rotate(18deg)', animation: 'rayUp 1.6s ease-out infinite', animationDelay: '0.6s'}} />
               </>
             )}
-
-            {/* South Rays */}
             {isSouth && (
               <>
                 <div style={{...styles.rayDown, background: `linear-gradient(to bottom, ${backlitColor}, transparent)`, top: '110px', left: 'calc(50% - 1px)', animation: 'rayDown 1.6s ease-out infinite', animationDelay: '0s'}} />
@@ -149,8 +162,6 @@ export default function LEDPreviewWidget() {
                 <div style={{...styles.rayDown, background: `linear-gradient(to bottom, ${backlitColor}, transparent)`, top: '108px', left: 'calc(50% + 12px)', transform: 'rotate(30deg)', animation: 'rayDown 1.6s ease-out infinite', animationDelay: '0.5s'}} />
               </>
             )}
-
-            {/* Per-Key Rays */}
             {isPerKey && (
               <>
                 <div style={{...styles.ray, background: `linear-gradient(to top, ${backlitColor}, transparent)`, bottom: '76px', left: '50%', transform: 'translateX(-50%) rotate(0deg)', animation: 'rayUp 1.6s ease-out infinite', animationDelay: '0s'}} />
@@ -159,7 +170,6 @@ export default function LEDPreviewWidget() {
                 <div style={{...styles.rayLine, background: `linear-gradient(to left, ${backlitColor}, transparent)`, top: '84px', right: '96px', transform: 'translateY(-50%)', animation: 'rayOut 1.6s ease-out infinite', animationDelay: '0.6s'}} />
               </>
             )}
-            
           </div>
         )}
       </div>
@@ -221,12 +231,118 @@ export default function LEDPreviewWidget() {
           ✓ Compatible with all keycap profiles. No interference issues.
         </div>
       )}
-      
+
+      {/* LEGEND PLACEMENT SECTION */}
+      <div style={styles.legendPlacementSection}>
+        <div style={styles.legendPlacementTitle}>Legend placement</div>
+        
+        {isNorth && (
+          <div style={styles.optionsRow}>
+            <div style={{...styles.optionCard, borderColor: '#0d9e75'}}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, top: '4px', left: '50%', transform: 'translateX(-50%)'}} />
+              </div>
+              <div style={styles.optionLabel}>Top center</div>
+              <div style={{...styles.optionBadge, background: '#0d9e7522', color: '#5dcaa5'}}>Best for north LED</div>
+              <div style={styles.optionReason}>Light shines directly through</div>
+            </div>
+            <div style={styles.optionCard}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, bottom: '4px', left: '50%', transform: 'translateX(-50%)'}} />
+              </div>
+              <div style={styles.optionLabel}>Front face</div>
+              <div style={styles.optionBadge}>Works well</div>
+            </div>
+            <div style={styles.optionCard}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, top: '4px', left: '4px'}} />
+              </div>
+              <div style={styles.optionLabel}>Corner</div>
+              <div style={styles.optionBadge}>Partial glow</div>
+            </div>
+          </div>
+        )}
+
+        {isSouth && (
+          <div style={styles.optionsRow}>
+            <div style={styles.optionCard}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, top: '4px', left: '50%', transform: 'translateX(-50%)'}} />
+              </div>
+              <div style={styles.optionLabel}>Top center</div>
+              <div style={styles.optionBadge}>Works fine</div>
+              <div style={styles.optionReason}>Soft glow through legend</div>
+            </div>
+            <div style={{...styles.optionCard, borderColor: '#0d9e75'}}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, bottom: '4px', left: '50%', transform: 'translateX(-50%)'}} />
+              </div>
+              <div style={styles.optionLabel}>Front face</div>
+              <div style={{...styles.optionBadge, background: '#0d9e7522', color: '#5dcaa5'}}>Best for south LED</div>
+              <div style={styles.optionReason}>Catches gap light perfectly</div>
+            </div>
+            <div style={styles.optionCard}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}} />
+              </div>
+              <div style={styles.optionLabel}>Any position</div>
+              <div style={styles.optionBadge}>No strong preference</div>
+              <div style={styles.optionReason}>South LEDs are less directional</div>
+            </div>
+          </div>
+        )}
+
+        {isPerKey && (
+          <div style={styles.optionsRow}>
+            <div style={{...styles.optionCard, borderColor: '#0d9e75', width: '80px'}}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, top: '4px', left: '50%', transform: 'translateX(-50%)'}} />
+              </div>
+              <div style={styles.optionLabel}>Top center</div>
+              <div style={{...styles.optionBadge, background: '#0d9e7522', color: '#5dcaa5'}}>Best for per-key RGB</div>
+              <div style={styles.optionReason}>Maximum shine-through effect</div>
+            </div>
+            <div style={{...styles.optionCard, width: '80px'}}>
+              <div style={styles.optionTopView}>
+                 <div style={{...styles.optionDot, top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}} />
+              </div>
+              <div style={styles.optionLabel}>Any position</div>
+              <div style={styles.optionBadge}>All positions work</div>
+              <div style={styles.optionReason}>Light fills entire keycap</div>
+            </div>
+          </div>
+        )}
+
+        {isNone && (
+          <div style={{fontSize: '11px', color: '#888899', lineHeight: 1.4, textAlign: 'center', padding: '0 8px'}}>
+            Without backlight, focus on color contrast. Dark legend on light keycap or vice versa gives best visibility in daylight.
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
 
 const styles = {
+  collapsedPill: {
+    position: 'absolute',
+    bottom: '24px',
+    right: '24px',
+    width: '140px',
+    height: '36px',
+    background: 'rgba(8, 8, 18, 0.95)',
+    border: '1px solid #1e1e3a',
+    borderRadius: '20px',
+    padding: '0 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    zIndex: 100,
+    transition: 'all 0.2s',
+    boxSizing: 'border-box'
+  },
   outerContainer: {
     position: 'absolute',
     bottom: '24px',
@@ -240,7 +356,8 @@ const styles = {
     boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
     zIndex: 100,
     fontFamily: 'inherit',
-    transition: 'opacity 0.4s'
+    transformOrigin: 'bottom right',
+    animation: 'scaleUp 0.3s ease forwards'
   },
   header: {
     display: 'flex',
@@ -258,6 +375,13 @@ const styles = {
     fontSize: '9px',
     padding: '2px 8px',
     borderRadius: '8px'
+  },
+  collapseBtn: {
+    fontSize: '12px',
+    color: '#444466',
+    cursor: 'pointer',
+    padding: '0 4px',
+    fontWeight: 'bold'
   },
   diagram: {
     width: '178px',
@@ -439,5 +563,69 @@ const styles = {
     marginTop: '8px',
     fontSize: '10px',
     color: '#5dcaa5'
+  },
+  legendPlacementSection: {
+    borderTop: '1px solid #1e1e3a',
+    paddingTop: '10px',
+    marginTop: '10px'
+  },
+  legendPlacementTitle: {
+    fontSize: '10px',
+    textTransform: 'uppercase',
+    color: '#888899',
+    letterSpacing: '0.08em',
+    marginBottom: '8px'
+  },
+  optionsRow: {
+    display: 'flex',
+    gap: '6px',
+    justifyContent: 'center'
+  },
+  optionCard: {
+    flex: 1,
+    background: '#0a0a18',
+    border: '1px solid #1e1e3a',
+    borderRadius: '6px',
+    padding: '6px 4px',
+    textAlign: 'center',
+    cursor: 'default',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  optionTopView: {
+    width: '28px',
+    height: '28px',
+    background: '#1a1a30',
+    border: '1px solid #2a2a4a',
+    borderRadius: '3px',
+    margin: '0 auto 4px',
+    position: 'relative'
+  },
+  optionDot: {
+    width: '5px',
+    height: '5px',
+    borderRadius: '50%',
+    background: '#6c63ff',
+    position: 'absolute'
+  },
+  optionLabel: {
+    fontSize: '9px',
+    color: '#fff',
+    fontWeight: 500
+  },
+  optionBadge: {
+    fontSize: '8px',
+    padding: '1px 5px',
+    borderRadius: '6px',
+    marginTop: '2px',
+    background: '#44446622',
+    color: '#888899'
+  },
+  optionReason: {
+    fontSize: '9px',
+    color: '#888899',
+    marginTop: '4px',
+    lineHeight: 1.2
   }
 };

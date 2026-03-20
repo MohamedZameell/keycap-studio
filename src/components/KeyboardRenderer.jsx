@@ -51,9 +51,11 @@ export default function KeyboardRenderer() {
     return { totalW, totalH, minX, minZ, maxW, maxH };
   }, [layout]);
 
+  const isPerformanceMode = layout.length > 80;
+
   const baseGeo = useMemo(() => {
     if (totalW === 0) return null;
-    return new RoundedBoxGeometry(totalW + 1.2, 0.22, totalH + 0.8, 16, 0.1);
+    return new RoundedBoxGeometry(totalW + 1.2, 0.22, totalH + 0.8, 16, 0.05);
   }, [totalW, totalH]);
 
   if (!layout || layout.length === 0) {
@@ -69,7 +71,13 @@ export default function KeyboardRenderer() {
       {/* Base plate is centered at [0, -0.36, 0] */}
       {baseGeo && (
         <mesh geometry={baseGeo} position={[0, -0.36, 0]} receiveShadow>
-          <meshStandardMaterial color="#1a1a2e" roughness={0.7} metalness={0.3} />
+          <meshPhysicalMaterial 
+            color="#12121f" 
+            roughness={0.6} 
+            metalness={0.05} 
+            clearcoat={0.1}
+            envMapIntensity={0.8}
+          />
         </mesh>
       )}
 
@@ -92,6 +100,7 @@ export default function KeyboardRenderer() {
             w={kw}
             h={kh}
             isSelected={selectedKey === key.id}
+            isPerformanceMode={isPerformanceMode}
             onClick={() => setSelectedKey(key.id)}
           />
         );

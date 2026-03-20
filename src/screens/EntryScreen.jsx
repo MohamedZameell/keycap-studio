@@ -3,6 +3,23 @@ import { useStore } from '../store';
 import { Canvas } from '@react-three/fiber';
 import Keycap from '../components/Keycap';
 import { Environment, Float, Stars } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+
+function BackgroundKeycap() {
+  const groupRef = React.useRef();
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += 0.003;
+      groupRef.current.rotation.x = Math.sin(Date.now() * 0.0003) * 0.1;
+    }
+  });
+
+  return (
+    <group ref={groupRef} scale={[2.2, 2.2, 2.2]}>
+       <Keycap keyId="bg" label="K" isSelected={false} />
+    </group>
+  );
+}
 
 export default function EntryScreen() {
   const setScreen = useStore(s => s.setScreen);
@@ -18,21 +35,19 @@ export default function EntryScreen() {
     setScreen('selector');
   };
 
+
+
   return (
     <div style={styles.container}>
       {/* 3D Background */}
       <div style={styles.canvasContainer}>
         <Canvas camera={{ position: [0, 2, 6], fov: 35 }}>
-          <ambientLight intensity={0.5} />
-          <spotLight position={[10, 10, 10]} intensity={2} />
-          <Environment preset="city" />
+          <Environment preset="studio" background={false}/>
+          <directionalLight position={[5, 8, 3]} intensity={2.0} />
+          <ambientLight intensity={0.4} />
           <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
           <Suspense fallback={null}>
-            <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
-              <group scale={1.5} rotation={[0.4, 0.4, 0]}>
-                <Keycap keyId="bg" label="K" isSelected={false} />
-              </group>
-            </Float>
+            <BackgroundKeycap />
           </Suspense>
         </Canvas>
       </div>
