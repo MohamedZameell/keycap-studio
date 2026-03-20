@@ -545,8 +545,8 @@ export default function StudioScreen() {
               dpr={[1, 2]}
               shadows="soft"
               camera={{
-                position: viewMode === 'full' ? [0, 8, 12] : [0, 2.2, 4.5],
-                fov: viewMode === 'full' ? 50 : 42,
+                position: viewMode === 'full' ? [0, 8, 12] : [0, 1.8, 3.8],
+                fov: viewMode === 'full' ? 50 : 38,
                 near: 0.1,
                 far: 1000
               }}
@@ -574,7 +574,7 @@ export default function StudioScreen() {
 
                     {/* Pedestal disc */}
                     <mesh position={[0, -0.85, 0]} receiveShadow>
-                      <cylinderGeometry args={[0.9, 1.1, 0.12, 48]} />
+                      <cylinderGeometry args={[1.4, 1.6, 0.1, 48]} />
                       <meshPhysicalMaterial
                         color="#111120"
                         roughness={0.3}
@@ -586,8 +586,8 @@ export default function StudioScreen() {
                     </mesh>
 
                     {/* Pedestal stem */}
-                    <mesh position={[0, -1.05, 0]} receiveShadow>
-                      <cylinderGeometry args={[0.12, 0.14, 0.3, 24]} />
+                    <mesh position={[0, -1.1, 0]} receiveShadow>
+                      <cylinderGeometry args={[0.15, 0.18, 0.5, 24]} />
                       <meshPhysicalMaterial
                         color="#0d0d1a"
                         roughness={0.4}
@@ -608,7 +608,7 @@ export default function StudioScreen() {
 
                 <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.85, 0]} opacity={0.55} scale={40} blur={3} far={8} />
 
-                <OrbitControls enableDamping dampingFactor={0.05} enableZoom enablePan minDistance={3} maxDistance={35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
+                <OrbitControls enableDamping dampingFactor={0.05} enableZoom enablePan minDistance={viewMode === 'single' ? 2 : 3} maxDistance={viewMode === 'single' ? 8 : 35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
 
                 {/* POST PROCESSING */}
                 <EffectComposer multisampling={0}>
