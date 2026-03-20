@@ -6,6 +6,7 @@ import { HexColorPicker } from 'react-colorful';
 import ErrorBoundary from '../components/ErrorBoundary';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
+import LEDPreviewWidget from '../components/LEDPreviewWidget';
 
 const PRESET_COLORS = ['#1a1a1a', '#f0f0f0', '#1e3a5f', '#c0392b', '#6c63ff', '#0d9e75', '#e91e8c', '#f5c518'];
 const FONTS = ['Inter', 'Oswald', 'Press Start 2P', 'Share Tech Mono', 'Playfair Display', 'Nunito', 'Rajdhani', 'Bebas Neue'];
@@ -14,10 +15,10 @@ export default function StudioScreen() {
   const store = useStore();
   const [activeTab, setActiveTab] = useState('DESIGN');
   const [viewMode, setViewMode] = useState('full'); // 'full' or 'single'
-  
   const [targetScope, setTargetScope] = useState('all'); 
-  const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
   
+  const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
+
   const updateDesign = (key, value) => {
     if (targetScope === 'all' || !targetKeyId) {
       if (key === 'color') store.setGlobalColor(value);
@@ -58,8 +59,27 @@ export default function StudioScreen() {
     alert("URL copied to clipboard!");
   };
 
+  // Hover states via CSS inside component via style state or simple classes. 
+  // We use inline styles for dynamic stuff but regular classes for hovers are requested via user.
+  // Actually I'll use standard inline styles with simple wrappers where necessary, or just rely on CSS globally.
+  // User says "Export buttons need hover states: On hover: bg #1a1a2e ..." We can inject a quick style tag.
+
   return (
     <div style={styles.container}>
+      <style>{`
+        .tab-btn { padding: 8px 2px; font-size: 11px; font-weight: 600; color: #888899; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; background: transparent; border-top:none; border-left:none; border-right:none; }
+        .tab-btn.active { color: #6c63ff; border-bottom-color: #6c63ff; }
+        
+        .color-circle { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-sizing: border-box; }
+        .color-circle:hover { transform: scale(1.15); }
+        .color-circle.active { border: 2px solid #ffffff; }
+
+        .export-btn { display: flex; flex-direction: column; width: 100%; padding: 16px; background-color: #16162a; border: 1px solid #2a2a3a; border-radius: 8px; text-align: left; margin-bottom: 8px; cursor: pointer; transition: background 0.2s, border-color 0.2s, transform 0.2s; }
+        .export-btn:hover { background-color: #1a1a2e; border-color: #6c63ff; transform: translateY(-1px); }
+        
+        .export-btn.png { background-color: #6c63ff22; border-color: #6c63ff; }
+      `}</style>
+      
       {/* TOP BAR */}
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
@@ -68,7 +88,11 @@ export default function StudioScreen() {
         </div>
         
         <div style={styles.topBarCenter}>
-          {store.selectedModel ? `${store.selectedModel} — ${store.selectedFormFactor}` : 'Custom Layout'}
+          {store.selectedModel ? (
+            <>{store.selectedModel} <span style={{color: '#888899'}}>— {store.selectedFormFactor}</span></>
+          ) : (
+            `Custom Layout — ${store.selectedFormFactor}`
+          )}
         </div>
         
         <div style={styles.topBarRight}>
@@ -78,7 +102,7 @@ export default function StudioScreen() {
             <button style={{...styles.toggleBtn, ...(viewMode === 'full' ? styles.toggleActive : {})}} 
               onClick={() => setViewMode('full')}>Full Keyboard</button>
           </div>
-          <button style={styles.exportBtn} onClick={handleExportPNG}>Export 📥</button>
+          <button style={{...styles.iconBtn, display:'flex', alignItems:'center', gap:'8px', padding:'6px 12px', border:'1px solid #6c63ff', color:'#6c63ff'}} onClick={handleExportPNG}>Export 📥</button>
         </div>
       </div>
 
@@ -88,8 +112,7 @@ export default function StudioScreen() {
           
           <div style={styles.tabs}>
             {['Design', 'Legend', 'Image', 'Backlit', 'Export'].map(t => (
-              <button key={t} style={{...styles.tab, ...(activeTab === t.toUpperCase() ? styles.tabActive : {})}} 
-                onClick={() => setActiveTab(t.toUpperCase())}>
+              <button key={t} className={`tab-btn ${activeTab === t.toUpperCase() ? 'active' : ''}`} onClick={() => setActiveTab(t.toUpperCase())}>
                 {t}
               </button>
             ))}
@@ -99,9 +122,19 @@ export default function StudioScreen() {
             
             {activeTab === 'DESIGN' && (
                <div style={styles.section}>
-                 <div style={styles.scopeToggle}>
-                   <label style={styles.radioLabel}><input type="radio" checked={targetScope === 'all'} onChange={() => setTargetScope('all')} /> All keys</label>
-                   <label style={styles.radioLabel}><input type="radio" checked={targetScope === 'selected'} onChange={() => setTargetScope('selected')} /> Selected key only</label>
+                 
+                 {/* Pill Toggle for Scope */}
+                 <div style={styles.pillToggleContainer}>
+                   <button 
+                     style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} 
+                     onClick={() => setTargetScope('all')}>
+                     All Keys
+                   </button>
+                   <button 
+                     style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} 
+                     onClick={() => setTargetScope('selected')}>
+                     Selected Key
+                   </button>
                  </div>
                  
                  {targetScope === 'selected' && !targetKeyId && (
@@ -121,9 +154,17 @@ export default function StudioScreen() {
                  </div>
 
                  <div style={styles.presets}>
-                   {PRESET_COLORS.map(c => (
-                     <button key={c} style={{...styles.colorDot, backgroundColor: c}} onClick={() => updateDesign('color', c)} />
-                   ))}
+                   {PRESET_COLORS.map(c => {
+                     const isSelected = getVal('color') === c;
+                     return (
+                       <button 
+                         key={c} 
+                         className={`color-circle ${isSelected ? 'active' : ''}`} 
+                         style={{ backgroundColor: c }} 
+                         onClick={() => updateDesign('color', c)} 
+                       />
+                     );
+                   })}
                  </div>
                </div>
             )}
@@ -187,6 +228,39 @@ export default function StudioScreen() {
 
             {activeTab === 'BACKLIT' && (
               <div style={styles.section}>
+                
+                {/* Hardware Spec Array Display per Path */}
+                {store.selectedModel ? (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', color:'#fff', fontWeight:600 }}>
+                      <div style={{ width:8, height:8, borderRadius:'50%', backgroundColor: store.keyboardLEDType === 'None' ? '#888' : '#6c63ff' }} />
+                      {store.keyboardLEDType || 'None'}
+                    </div>
+                    <div style={{ fontSize:'11px', color:'#888899', marginTop:'4px' }}>
+                      This is your keyboard's hardware spec and cannot be changed.
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={styles.label}>LED Array Hardware</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {['North-facing RGB', 'South-facing RGB', 'Per-key RGB', 'None'].map(t => (
+                        <button key={t} 
+                          style={{
+                            padding: '8px', borderRadius: '6px', textAlign: 'left', fontSize: '13px',
+                            background: store.keyboardLEDType === t ? '#6c63ff' : 'var(--card-bg)',
+                            color: store.keyboardLEDType === t ? '#fff' : 'var(--text-secondary)',
+                            border: 'none', cursor: 'pointer'
+                          }}
+                          onClick={() => store.setKeyboardLEDType(t)}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div style={styles.flexRow}>
                   <span style={styles.label}>RGB Backlight</span>
                   <input type="checkbox" style={{width: 20, height: 20}} checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
@@ -198,29 +272,28 @@ export default function StudioScreen() {
                     <HexColorPicker color={store.backlitColor} onChange={(c) => store.setBacklitColor(c)} style={{width: '100%'}} />
                   </div>
                 )}
-
-                <div style={styles.infoCard}>
-                  <h4 style={{marginBottom: 8, color: '#fff'}}>{store.keyboardLEDType || 'None'} Array</h4>
-                  <p>Check the previous screen for exact advice on your LED configuration's behavior.</p>
+                
+                <div style={{ marginTop: '24px', fontSize: '11px', color: '#444460', fontStyle: 'italic' }}>
+                  See the LED Preview in the bottom-right corner of the canvas →
                 </div>
               </div>
             )}
 
             {activeTab === 'EXPORT' && (
               <div style={styles.section}>
-                <button style={styles.exportListBtn} onClick={handleExportPNG}>
+                <button className="export-btn png" onClick={handleExportPNG}>
                   <strong>PNG Render</strong>
                   <span style={{fontSize: 12, color: 'var(--text-muted)'}}>High quality screenshot of 3D view</span>
                 </button>
-                <button style={styles.exportListBtn} onClick={handleShareURL}>
+                <button className="export-btn" onClick={handleShareURL}>
                   <strong>Share URL</strong>
                   <span style={{fontSize: 12, color: 'var(--text-muted)'}}>Copies link to clipboard</span>
                 </button>
-                <button style={styles.exportListBtn}>
+                <button className="export-btn">
                   <strong>SVG Layout</strong>
                   <span style={{fontSize: 12, color: 'var(--text-muted)'}}>Coming soon</span>
                 </button>
-                <button style={styles.exportListBtn}>
+                <button className="export-btn">
                   <strong>PDF Print-ready</strong>
                   <span style={{fontSize: 12, color: 'var(--text-muted)'}}>Coming soon</span>
                 </button>
@@ -235,7 +308,7 @@ export default function StudioScreen() {
           <ErrorBoundary>
             <Canvas 
                gl={{ preserveDrawingBuffer: true }} 
-               camera={viewMode === 'full' ? { position: [0, 12, 16], fov: 50 } : { position: [0, 2.5, 5], fov: 45 }}
+               camera={viewMode === 'full' ? { position: [0, 14, 18], fov: 50 } : { position: [0, 2.5, 5], fov: 45 }}
                onCreated={(state) => {
                  state.gl.setClearColor('#0a0a0f');
                }}
@@ -251,8 +324,7 @@ export default function StudioScreen() {
                   <KeyboardRenderer />
                 ) : (
                   <group position={[0,0,0]} scale={2}>
-                    {/* The Single Key logic, without x,y args triggers animation loop */}
-                    <Keycap keyId={targetKeyId || 'preview_key'} label="A" />
+                    <Keycap keyId="preview" label="Preview" />
                   </group>
                 )}
                 
@@ -261,6 +333,8 @@ export default function StudioScreen() {
               </Suspense>
             </Canvas>
           </ErrorBoundary>
+          
+          <LEDPreviewWidget />
         </div>
       </div>
     </div>
@@ -272,44 +346,39 @@ const styles = {
   topBar: { height: '48px', backgroundColor: 'var(--panel-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', zIndex: 100 },
   topBarLeft: { display: 'flex', alignItems: 'center', gap: '16px' },
   logoText: { fontWeight: 700 },
-  iconBtn: { padding: '4px 12px', backgroundColor: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '14px' },
-  topBarCenter: { fontWeight: 600, color: '#fff' },
+  iconBtn: { padding: '4px 12px', backgroundColor: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '14px', borderRadius: '4px' },
+  topBarCenter: { fontWeight: 600, color: '#fff', fontSize: '14px' },
   topBarRight: { display: 'flex', alignItems: 'center', gap: '16px' },
   viewToggle: { display: 'flex', backgroundColor: 'var(--card-bg)', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' },
-  toggleBtn: { padding: '6px 16px', fontSize: '13px', cursor: 'pointer' },
+  toggleBtn: { padding: '6px 16px', fontSize: '13px', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: '#fff' },
   toggleActive: { backgroundColor: 'var(--primary-accent)', color: '#fff' },
-  exportBtn: { backgroundColor: 'transparent', border: '1px solid var(--primary-accent)', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, color: 'var(--primary-accent)', display: 'flex', alignItems: 'center', gap: '8px' },
   
   workspace: { flex: 1, display: 'flex', position: 'relative' },
   sidebar: { width: '320px', backgroundColor: 'var(--panel-bg)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', zIndex: 10 },
-  tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--border-color)' },
-  tab: { padding: '16px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid transparent', whiteSpace: 'nowrap', cursor: 'pointer' },
-  tabActive: { color: 'var(--primary-accent)', borderBottomColor: 'var(--primary-accent)' },
+  tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--border-color)', justifyContent: 'space-around', alignItems: 'center' },
   panelContent: { flex: 1, overflowY: 'auto', padding: '24px' },
   section: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  scopeToggle: { display: 'flex', gap: '16px', fontSize: '14px', padding: '12px', backgroundColor: 'var(--card-bg)', borderRadius: '8px' },
-  radioLabel: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' },
+  
+  pillToggleContainer: { display: 'inline-flex', background: '#1a1a2e', borderRadius: '20px', padding: '3px', alignSelf: 'flex-start' },
+  pillActive: { background: '#6c63ff', borderRadius: '18px', padding: '6px 14px', color: '#fff', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },
+  pillInactive: { background: 'transparent', color: '#888899', padding: '6px 14px', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },
+  
   warning: { padding: '12px', backgroundColor: 'rgba(245, 166, 35, 0.1)', color: 'var(--warning)', fontSize: '13px', borderRadius: '8px' },
   label: { fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' },
   colorPickers: { display: 'flex', flexDirection: 'column', gap: '24px' },
-  presets: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' },
-  colorDot: { width: '28px', height: '28px', borderRadius: '50%', border: '1px solid var(--border-color)', cursor: 'pointer' },
+  presets: { display: 'flex', flexWrap: 'wrap', gap: '2px', marginTop: '8px' },
   
   input: { width: '100%', padding: '12px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', color: '#fff', fontFamily: 'var(--font-mono)' },
   posGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px' },
-  posBtn: { padding: '8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' },
+  posBtn: { padding: '8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', color: '#fff' },
   fontGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  fontBtn: { padding: '12px 8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px', cursor: 'pointer' },
+  fontBtn: { padding: '12px 8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', color: '#fff' },
   
   imageModeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  imgBtn: { padding: '12px', backgroundColor: 'var(--card-bg)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: '1px solid transparent', cursor: 'pointer' },
+  imgBtn: { padding: '12px', backgroundColor: 'var(--card-bg)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: '1px solid transparent', cursor: 'pointer', color: '#fff' },
   uploadArea: { border: '2px dashed var(--border-color)', padding: '32px', textAlign: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', backgroundColor: 'var(--card-bg)' },
   note: { fontSize: '13px', color: 'var(--text-muted)' },
   
   flexRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  infoCard: { padding: '16px', backgroundColor: 'rgba(108, 99, 255, 0.1)', borderLeft: '3px solid var(--primary-accent)', borderRadius: '0 8px 8px 0', marginTop: '16px', fontSize: '13px', color: 'var(--text-secondary)' },
-  
-  exportListBtn: { display: 'flex', flexDirection: 'column', width: '100%', padding: '16px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '8px', textAlign: 'left', marginBottom: '8px', cursor: 'pointer' },
-
   canvasArea: { flex: 1, position: 'relative' }
 };

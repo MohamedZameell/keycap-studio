@@ -76,19 +76,23 @@ export default function KeyboardRenderer() {
       )}
 
       {/* Keys */}
-      {layout.map((key) => (
-        <Keycap
-          key={key.id}
-          keyId={key.id}
-          label={key.label}
-          x={key.x}
-          y={key.y}
-          w={key.w}
-          h={key.h}
-          isSelected={selectedKey === key.id}
-          onClick={() => setSelectedKey(key.id)}
-        />
-      ))}
+      {layout.map((key) => {
+        const kw = Math.max(0.5, Math.min(8, Number(key.w) || 1));
+        const kh = Math.max(0.5, Math.min(3, Number(key.h) || 1));
+        return (
+          <Keycap
+            key={key.id}
+            keyId={key.id}
+            label={key.label}
+            x={key.x}
+            y={key.y}
+            w={kw}
+            h={kh}
+            isSelected={selectedKey === key.id}
+            onClick={() => setSelectedKey(key.id)}
+          />
+        );
+      })}
     </group>
   );
 }
