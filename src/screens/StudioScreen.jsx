@@ -561,14 +561,41 @@ export default function StudioScreen() {
                   <KeyboardRenderer />
                 ) : (
                   <group position={[0, 0, 0]}>
-                    {/* Cinematic pedestal */}
-                    <mesh position={[0, -0.8, 0]}>
-                      <cylinderGeometry args={[1.2, 1.4, 0.08, 32]} />
-                      <meshPhysicalMaterial color="#111120" roughness={0.4} metalness={0.5} clearcoat={0.6} emissive="#000000" emissiveIntensity={0} />
+                    {/* Warm lighting for single key view */}
+                    <pointLight position={[2, 3, 2]} intensity={0.8} color="#fff8f0" />
+                    <pointLight position={[-2, 1, -1]} intensity={0.3} color="#c8d4ff" />
+
+                    {/* Pedestal disc */}
+                    <mesh position={[0, -0.85, 0]} receiveShadow>
+                      <cylinderGeometry args={[0.9, 1.1, 0.12, 48]} />
+                      <meshPhysicalMaterial
+                        color="#111120"
+                        roughness={0.3}
+                        metalness={0.55}
+                        clearcoat={0.7}
+                        clearcoatRoughness={0.1}
+                        envMapIntensity={0.9}
+                      />
                     </mesh>
-                    <group scale={2}>
-                      <Keycap keyId="preview" label={store.globalLegendText || 'A'} />
-                    </group>
+
+                    {/* Pedestal stem */}
+                    <mesh position={[0, -1.05, 0]} receiveShadow>
+                      <cylinderGeometry args={[0.12, 0.14, 0.3, 24]} />
+                      <meshPhysicalMaterial
+                        color="#0d0d1a"
+                        roughness={0.4}
+                        metalness={0.5}
+                      />
+                    </mesh>
+
+                    {/* Single keycap with animation */}
+                    <Keycap
+                      keyId="preview"
+                      label={store.globalLegendText || 'A'}
+                      isSelected={false}
+                      singleKeyMode={true}
+                      onClick={() => {}}
+                    />
                   </group>
                 )}
 
