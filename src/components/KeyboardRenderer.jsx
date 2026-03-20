@@ -85,6 +85,12 @@ export default function KeyboardRenderer() {
         const gridX = Number(key.x) - minX - maxW / 2 + kw / 2;
         const gridZ = Number(key.y) - minZ - maxH / 2 + kh / 2;
 
+        // UV offsets for wrap image mode
+        const uvOffsetX = maxW > 0 ? (Number(key.x) - minX) / maxW : 0;
+        const uvOffsetY = maxH > 0 ? (Number(key.y) - minZ) / maxH : 0;
+        const uvScaleX = maxW > 0 ? kw / maxW : 1;
+        const uvScaleY = maxH > 0 ? kh / maxH : 1;
+
         return (
           <Keycap
             key={key.id}
@@ -96,6 +102,8 @@ export default function KeyboardRenderer() {
             h={kh}
             rowHeight={ROW_HEIGHT[key.row] ?? 0.50}
             rowTilt={ROW_TILT[key.row] ?? 0}
+            uvOffset={[uvOffsetX, uvOffsetY]}
+            uvScale={[uvScaleX, uvScaleY]}
             isSelected={selectedKey === key.id}
             isPerformanceMode={isPerformanceMode}
             onClick={() => setSelectedKey(key.id)}

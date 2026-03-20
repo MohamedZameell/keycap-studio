@@ -9,12 +9,12 @@ function PrimaryKeycap() {
   useFrame(({ clock }) => {
     if (groupRef.current) {
       groupRef.current.rotation.y += 0.003;
-      groupRef.current.position.y = -0.3 + Math.sin(clock.elapsedTime * 0.6) * 0.08;
+      groupRef.current.position.y = Math.sin(clock.elapsedTime * 0.6) * 0.08;
     }
   });
 
   return (
-    <group ref={groupRef} position={[0.8, -0.3, 0]} scale={[4, 4, 4]}>
+    <group ref={groupRef} position={[0.3, 0, -1]} rotation={[-0.3, 0.4, 0]} scale={[2.5, 2.5, 2.5]}>
       <Keycap keyId="bg" label="K" isSelected={false} />
     </group>
   );
@@ -30,7 +30,7 @@ function SecondaryKeycap() {
   });
 
   return (
-    <group ref={groupRef} position={[-3, 1, -2]} scale={[2, 2, 2]}>
+    <group ref={groupRef} position={[-2.5, 0.8, -2]} rotation={[-0.3, -0.4, 0.1]} scale={[1.4, 1.4, 1.4]}>
       <Keycap keyId="bg2" label="S" isSelected={false} />
     </group>
   );
@@ -54,7 +54,7 @@ export default function EntryScreen() {
     <div style={styles.container}>
       {/* 3D Background */}
       <div style={styles.canvasContainer}>
-        <Canvas camera={{ position: [0, 0.5, 6], fov: 50 }}>
+        <Canvas camera={{ position: [0, 1.5, 7], fov: 45 }}>
           <Environment preset="apartment" background={false} />
           <directionalLight position={[5, 8, 3]} intensity={2.0} />
           <ambientLight intensity={0.4} />
