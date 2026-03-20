@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useStore } from '../store';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
 import { HexColorPicker } from 'react-colorful';
+import ErrorBoundary from '../components/ErrorBoundary';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
 
@@ -14,10 +15,7 @@ export default function StudioScreen() {
   const [activeTab, setActiveTab] = useState('DESIGN');
   const [viewMode, setViewMode] = useState('full'); // 'full' or 'single'
   
-  // Design targets
-  const [targetScope, setTargetScope] = useState('all'); // 'all' or 'selected'
-  
-  // Helpers
+  const [targetScope, setTargetScope] = useState('all'); 
   const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
   
   const updateDesign = (key, value) => {
@@ -31,7 +29,7 @@ export default function StudioScreen() {
         Object.keys(currentDesigns).forEach(k => {
           if(currentDesigns[k]) currentDesigns[k].legendPosition = value;
         });
-        store.setPerKeyDesign('global_override', {legendPosition: value}); // dummy hook concept, better to just apply it explicitly
+        store.setPerKeyDesign('global_override', {legendPosition: value});
       }
     } else {
       store.setPerKeyDesign(targetKeyId, { [key]: value });
@@ -45,17 +43,32 @@ export default function StudioScreen() {
     return store[`global${key.charAt(0).toUpperCase() + key.slice(1)}`];
   };
 
+  const handleExportPNG = () => {
+    const canvas = document.querySelector('canvas');
+    if(canvas) {
+      const link = document.createElement('a');
+      link.download = 'keycap-studio-render.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  };
+
+  const handleShareURL = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert("URL copied to clipboard!");
+  };
+
   return (
     <div style={styles.container}>
       {/* TOP BAR */}
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
-          <button style={styles.iconBtn} onClick={() => store.setScreen('selector')}>←</button>
+          <button style={styles.iconBtn} onClick={() => store.setScreen('selector')}>← Back</button>
           <span style={styles.logoText}>Keycap Studio</span>
         </div>
         
         <div style={styles.topBarCenter}>
-          {store.selectedModel || 'Custom Keyboard'} — {store.selectedFormFactor}
+          {store.selectedModel ? `${store.selectedModel} — ${store.selectedFormFactor}` : 'Custom Layout'}
         </div>
         
         <div style={styles.topBarRight}>
@@ -65,7 +78,7 @@ export default function StudioScreen() {
             <button style={{...styles.toggleBtn, ...(viewMode === 'full' ? styles.toggleActive : {})}} 
               onClick={() => setViewMode('full')}>Full Keyboard</button>
           </div>
-          <button style={styles.exportBtn}>Export</button>
+          <button style={styles.exportBtn} onClick={handleExportPNG}>Export 📥</button>
         </div>
       </div>
 
@@ -74,9 +87,9 @@ export default function StudioScreen() {
         <div style={styles.sidebar}>
           
           <div style={styles.tabs}>
-            {['DESIGN', 'LEGEND', 'IMAGE', 'BACKLIT', 'EXPORT'].map(t => (
-              <button key={t} style={{...styles.tab, ...(activeTab === t ? styles.tabActive : {})}} 
-                onClick={() => setActiveTab(t)}>
+            {['Design', 'Legend', 'Image', 'Backlit', 'Export'].map(t => (
+              <button key={t} style={{...styles.tab, ...(activeTab === t.toUpperCase() ? styles.tabActive : {})}} 
+                onClick={() => setActiveTab(t.toUpperCase())}>
                 {t}
               </button>
             ))}
@@ -87,8 +100,8 @@ export default function StudioScreen() {
             {activeTab === 'DESIGN' && (
                <div style={styles.section}>
                  <div style={styles.scopeToggle}>
-                   <label><input type="radio" checked={targetScope === 'all'} onChange={() => setTargetScope('all')} /> All keys</label>
-                   <label><input type="radio" checked={targetScope === 'selected'} onChange={() => setTargetScope('selected')} /> Selected key only</label>
+                   <label style={styles.radioLabel}><input type="radio" checked={targetScope === 'all'} onChange={() => setTargetScope('all')} /> All keys</label>
+                   <label style={styles.radioLabel}><input type="radio" checked={targetScope === 'selected'} onChange={() => setTargetScope('selected')} /> Selected key only</label>
                  </div>
                  
                  {targetScope === 'selected' && !targetKeyId && (
@@ -117,7 +130,7 @@ export default function StudioScreen() {
 
             {activeTab === 'LEGEND' && (
               <div style={styles.section}>
-                 <label style={styles.label}>Legend Text (max 4)</label>
+                 <label style={styles.label}>Legend text (max 4 chars)</label>
                  <input type="text" maxLength={4} style={styles.input} 
                    value={getVal('legendText') || ''} 
                    onChange={(e) => updateDesign('legendText', e.target.value)} 
@@ -130,7 +143,7 @@ export default function StudioScreen() {
                    ))}
                  </div>
 
-                 <label style={{...styles.label, marginTop: 16}}>Font Family</label>
+                 <label style={{...styles.label, marginTop: 16}}>Font selector</label>
                  <div style={styles.fontGrid}>
                    {FONTS.map(f => (
                      <button key={f} 
@@ -154,9 +167,15 @@ export default function StudioScreen() {
                   ))}
                 </div>
                 
-                {store.keyboardImageMode !== 'none' && (
+                {store.keyboardImageMode !== 'none' && store.keyboardImageMode !== 'perkey' && (
                   <div style={styles.uploadArea}>
                     Drop image here or click to upload<br/><small>PNG, JPG, WebP</small>
+                  </div>
+                )}
+                
+                {store.keyboardImageMode === 'perkey' && (
+                  <div style={styles.uploadArea}>
+                    {targetKeyId ? `Upload image for ${targetKeyId}` : "Click any key on the keyboard to select it, then upload an image for that key"}
                   </div>
                 )}
                 
@@ -169,8 +188,8 @@ export default function StudioScreen() {
             {activeTab === 'BACKLIT' && (
               <div style={styles.section}>
                 <div style={styles.flexRow}>
-                  <span>RGB Backlight</span>
-                  <input type="checkbox" checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
+                  <span style={styles.label}>RGB Backlight</span>
+                  <input type="checkbox" style={{width: 20, height: 20}} checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
                 </div>
                 
                 {store.backlitEnabled && (
@@ -181,7 +200,7 @@ export default function StudioScreen() {
                 )}
 
                 <div style={styles.infoCard}>
-                  <h4>{store.keyboardLEDType || 'None'} Array</h4>
+                  <h4 style={{marginBottom: 8, color: '#fff'}}>{store.keyboardLEDType || 'None'} Array</h4>
                   <p>Check the previous screen for exact advice on your LED configuration's behavior.</p>
                 </div>
               </div>
@@ -189,12 +208,22 @@ export default function StudioScreen() {
 
             {activeTab === 'EXPORT' && (
               <div style={styles.section}>
-                {['PNG Render', 'SVG Layout', 'PDF Print-ready', 'Share URL'].map(e => (
-                  <button key={e} style={styles.exportListBtn}>
-                    <strong>{e}</strong>
-                    <span style={{fontSize: 12, color: 'var(--text-muted)'}}>Standard format</span>
-                  </button>
-                ))}
+                <button style={styles.exportListBtn} onClick={handleExportPNG}>
+                  <strong>PNG Render</strong>
+                  <span style={{fontSize: 12, color: 'var(--text-muted)'}}>High quality screenshot of 3D view</span>
+                </button>
+                <button style={styles.exportListBtn} onClick={handleShareURL}>
+                  <strong>Share URL</strong>
+                  <span style={{fontSize: 12, color: 'var(--text-muted)'}}>Copies link to clipboard</span>
+                </button>
+                <button style={styles.exportListBtn}>
+                  <strong>SVG Layout</strong>
+                  <span style={{fontSize: 12, color: 'var(--text-muted)'}}>Coming soon</span>
+                </button>
+                <button style={styles.exportListBtn}>
+                  <strong>PDF Print-ready</strong>
+                  <span style={{fontSize: 12, color: 'var(--text-muted)'}}>Coming soon</span>
+                </button>
               </div>
             )}
 
@@ -203,24 +232,35 @@ export default function StudioScreen() {
 
         {/* 3D CANVAS */}
         <div style={styles.canvasArea}>
-          <Canvas camera={viewMode === 'full' ? { position: [0, 8, 12], fov: 45 } : { position: [0, 2.5, 4.5], fov: 40 }}>
-            <ambientLight intensity={0.5} />
-            <spotLight position={[10, 20, 10]} intensity={2} castShadow />
-            <pointLight position={[-8, 8, -8]} intensity={0.3} color="#6c63ff" />
-            <Environment preset="city" />
-            <Stars radius={100} depth={50} count={3000} factor={4} />
-            
-            {viewMode === 'full' ? (
-              <KeyboardRenderer />
-            ) : (
-              <group position={[0,0,0]} scale={2}>
-                 <Keycap keyId={targetKeyId || 'preview'} label="A" />
-              </group>
-            )}
-            
-            <ContactShadows position={[0, -0.5, 0]} opacity={0.5} scale={50} blur={2} far={10} />
-            <OrbitControls enableZoom enablePan minDistance={3} maxDistance={30} />
-          </Canvas>
+          <ErrorBoundary>
+            <Canvas 
+               gl={{ preserveDrawingBuffer: true }} 
+               camera={viewMode === 'full' ? { position: [0, 12, 16], fov: 50 } : { position: [0, 2.5, 5], fov: 45 }}
+               onCreated={(state) => {
+                 state.gl.setClearColor('#0a0a0f');
+               }}
+            >
+              <Suspense fallback={null}>
+                <ambientLight intensity={0.5} />
+                <spotLight position={[10, 20, 10]} intensity={2} castShadow />
+                <pointLight position={[-8, 8, -8]} intensity={0.3} color="#6c63ff" />
+                <Environment preset="city" />
+                <Stars radius={100} depth={50} count={3000} factor={4} />
+                
+                {viewMode === 'full' ? (
+                  <KeyboardRenderer />
+                ) : (
+                  <group position={[0,0,0]} scale={2}>
+                    {/* The Single Key logic, without x,y args triggers animation loop */}
+                    <Keycap keyId={targetKeyId || 'preview_key'} label="A" />
+                  </group>
+                )}
+                
+                <ContactShadows position={[0, -0.5, 0]} opacity={0.5} scale={50} blur={2} far={10} />
+                <OrbitControls enableZoom enablePan minDistance={3} maxDistance={30} />
+              </Suspense>
+            </Canvas>
+          </ErrorBoundary>
         </div>
       </div>
     </div>
@@ -228,114 +268,48 @@ export default function StudioScreen() {
 }
 
 const styles = {
-  container: {
-    height: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: 'var(--bg-color)',
-    overflow: 'hidden'
-  },
-  topBar: {
-    height: '48px',
-    backgroundColor: 'var(--panel-bg)',
-    borderBottom: '1px solid var(--border-color)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 16px',
-    zIndex: 100
-  },
+  container: { height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)', overflow: 'hidden' },
+  topBar: { height: '48px', backgroundColor: 'var(--panel-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', zIndex: 100 },
   topBarLeft: { display: 'flex', alignItems: 'center', gap: '16px' },
   logoText: { fontWeight: 700 },
-  iconBtn: { padding: '4px 8px', backgroundColor: 'var(--card-bg)', borderRadius: '4px' },
-  topBarCenter: { fontWeight: 500, color: 'var(--text-secondary)' },
+  iconBtn: { padding: '4px 12px', backgroundColor: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '14px' },
+  topBarCenter: { fontWeight: 600, color: '#fff' },
   topBarRight: { display: 'flex', alignItems: 'center', gap: '16px' },
-  viewToggle: { display: 'flex', backgroundColor: 'var(--card-bg)', borderRadius: '6px', overflow: 'hidden' },
-  toggleBtn: { padding: '6px 12px', fontSize: '13px' },
+  viewToggle: { display: 'flex', backgroundColor: 'var(--card-bg)', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' },
+  toggleBtn: { padding: '6px 16px', fontSize: '13px', cursor: 'pointer' },
   toggleActive: { backgroundColor: 'var(--primary-accent)', color: '#fff' },
-  exportBtn: { backgroundColor: 'var(--success)', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, color: '#fff' },
+  exportBtn: { backgroundColor: 'transparent', border: '1px solid var(--primary-accent)', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, color: 'var(--primary-accent)', display: 'flex', alignItems: 'center', gap: '8px' },
   
-  workspace: {
-    flex: 1,
-    display: 'flex',
-    position: 'relative'
-  },
-  sidebar: {
-    width: '320px',
-    backgroundColor: 'var(--panel-bg)',
-    borderRight: '1px solid var(--border-color)',
-    display: 'flex',
-    flexDirection: 'column',
-    zIndex: 10
-  },
-  tabs: {
-    display: 'flex',
-    overflowX: 'auto',
-    borderBottom: '1px solid var(--border-color)'
-  },
-  tab: {
-    padding: '12px',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: 'var(--text-secondary)',
-    borderBottom: '2px solid transparent',
-    whiteSpace: 'nowrap'
-  },
-  tabActive: {
-    color: 'var(--primary-accent)',
-    borderBottomColor: 'var(--primary-accent)'
-  },
-  panelContent: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '24px'
-  },
-  section: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-  scopeToggle: {
-    display: 'flex',
-    gap: '16px',
-    fontSize: '14px',
-    padding: '12px',
-    backgroundColor: 'var(--card-bg)',
-    borderRadius: '8px'
-  },
-  warning: {
-    padding: '12px',
-    backgroundColor: 'rgba(245, 166, 35, 0.1)',
-    color: 'var(--warning)',
-    fontSize: '13px',
-    borderRadius: '8px'
-  },
+  workspace: { flex: 1, display: 'flex', position: 'relative' },
+  sidebar: { width: '320px', backgroundColor: 'var(--panel-bg)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', zIndex: 10 },
+  tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--border-color)' },
+  tab: { padding: '16px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid transparent', whiteSpace: 'nowrap', cursor: 'pointer' },
+  tabActive: { color: 'var(--primary-accent)', borderBottomColor: 'var(--primary-accent)' },
+  panelContent: { flex: 1, overflowY: 'auto', padding: '24px' },
+  section: { display: 'flex', flexDirection: 'column', gap: '16px' },
+  scopeToggle: { display: 'flex', gap: '16px', fontSize: '14px', padding: '12px', backgroundColor: 'var(--card-bg)', borderRadius: '8px' },
+  radioLabel: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' },
+  warning: { padding: '12px', backgroundColor: 'rgba(245, 166, 35, 0.1)', color: 'var(--warning)', fontSize: '13px', borderRadius: '8px' },
   label: { fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' },
   colorPickers: { display: 'flex', flexDirection: 'column', gap: '24px' },
   presets: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' },
   colorDot: { width: '28px', height: '28px', borderRadius: '50%', border: '1px solid var(--border-color)', cursor: 'pointer' },
   
-  input: {
-    width: '100%', padding: '10px', backgroundColor: 'var(--bg-color)', 
-    border: '1px solid var(--border-color)', borderRadius: '6px', color: '#fff'
-  },
-  posGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  posBtn: { padding: '8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px' },
+  input: { width: '100%', padding: '12px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', color: '#fff', fontFamily: 'var(--font-mono)' },
+  posGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px' },
+  posBtn: { padding: '8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' },
   fontGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  fontBtn: { padding: '12px 8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' },
+  fontBtn: { padding: '12px 8px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px', cursor: 'pointer' },
   
   imageModeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  imgBtn: { padding: '12px', backgroundColor: 'var(--card-bg)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: '1px solid transparent' },
-  uploadArea: { border: '2px dashed var(--border-color)', padding: '32px', textAlign: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' },
+  imgBtn: { padding: '12px', backgroundColor: 'var(--card-bg)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: '1px solid transparent', cursor: 'pointer' },
+  uploadArea: { border: '2px dashed var(--border-color)', padding: '32px', textAlign: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', backgroundColor: 'var(--card-bg)' },
   note: { fontSize: '13px', color: 'var(--text-muted)' },
   
   flexRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   infoCard: { padding: '16px', backgroundColor: 'rgba(108, 99, 255, 0.1)', borderLeft: '3px solid var(--primary-accent)', borderRadius: '0 8px 8px 0', marginTop: '16px', fontSize: '13px', color: 'var(--text-secondary)' },
   
-  exportListBtn: { display: 'flex', flexDirection: 'column', width: '100%', padding: '16px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '8px', textAlign: 'left', marginBottom: '8px' },
+  exportListBtn: { display: 'flex', flexDirection: 'column', width: '100%', padding: '16px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '8px', textAlign: 'left', marginBottom: '8px', cursor: 'pointer' },
 
-  canvasArea: {
-    flex: 1,
-    position: 'relative'
-  }
+  canvasArea: { flex: 1, position: 'relative' }
 };
