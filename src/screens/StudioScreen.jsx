@@ -183,8 +183,15 @@ export default function StudioScreen() {
     if (file.size > 5 * 1024 * 1024) { showToast('File too large (max 5MB)'); return; }
     const url = URL.createObjectURL(file);
     setUploadedImageUrl(url);
-    store.setKeyboardImageUrl(url);
-    // TODO: Apply texture to 3D keycap surfaces
+
+    // Per-key mode: set image on the selected key
+    if (store.keyboardImageMode === 'perkey' && store.selectedKey) {
+      store.setPerKeyDesign(store.selectedKey, { imageUrl: url });
+      showToast(`Image set for key: ${store.selectedKey}`);
+    } else {
+      // Tile/wrap mode: set global image
+      store.setKeyboardImageUrl(url);
+    }
   };
 
   const LEDTypeColor = (type) => {
