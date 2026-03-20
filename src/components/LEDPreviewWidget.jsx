@@ -16,84 +16,152 @@ export default function LEDPreviewWidget() {
   const isNone = ledType === 'None';
 
   return (
-    <div style={styles.card}>
+    <div style={styles.outerContainer}>
       <style>{`
-        @keyframes rayGrow {
-          0% { height: 0px; opacity: 0; }
-          30% { opacity: 0.9; }
-          100% { height: 26px; opacity: 0; }
+        @keyframes legendGlow {
+          0%, 100% { box-shadow: 0 0 4px ${legendColor}, 0 0 8px ${legendColor}; opacity: 1; }
+          50% { box-shadow: 0 0 8px ${legendColor}, 0 0 16px ${legendColor}, 0 0 24px ${legendColor}; opacity: 1; }
+        }
+        @keyframes ledPulse {
+          0%, 100% { box-shadow: 0 0 6px 2px ${backlitColor}, 0 0 10px ${backlitColor}; }
+          50% { box-shadow: 0 0 10px 4px ${backlitColor}, 0 0 20px ${backlitColor}, 0 0 30px ${backlitColor}; }
+        }
+        @keyframes rayUp {
+          0% { height: 0; opacity: 0; }
+          20% { opacity: 0.85; }
+          100% { height: 30px; opacity: 0; }
+        }
+        @keyframes rayDown {
+          0% { height: 0; opacity: 0; transform-origin: top center; }
+          20% { opacity: 0.7; }
+          100% { height: 24px; opacity: 0; }
+        }
+        @keyframes rayOut {
+          0% { width: 0; opacity: 0; }
+          20% { opacity: 0.7; }
+          100% { width: 22px; opacity: 0; }
+        }
+        @keyframes pulseOpacity {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.5; }
         }
       `}</style>
       
-      <div style={styles.title}>LED PREVIEW</div>
-
-      {/* DIAGRAM CONTAINER */}
-      <div style={styles.diagramWrap}>
-        <div style={styles.diagram}>
-          
-          {/* LAYER 1 — KEYCAP */}
-          <div style={{...styles.keycap, backgroundColor: keycapColor}}>
-             <div style={{
-               ...styles.legendRect, backgroundColor: legendColor, 
-               boxShadow: isNorth ? `0 0 8px ${legendColor}` : 'none'
-             }} />
-          </div>
-
-          {/* LAYER 2 — SWITCH HOUSING */}
-          <div style={styles.switchBox}>
-             <div style={styles.stem} />
-          </div>
-
-          {/* LAYER 3 — PCB */}
-          <div style={styles.pcb}>
-            <div style={{...styles.solder, left: '30%'}} />
-            <div style={{...styles.solder, left: '40%'}} />
-            <div style={{...styles.solder, left: '58%'}} />
-            <div style={{...styles.solder, left: '68%'}} />
-          </div>
-
-          {/* Optional Labels */}
-          <div style={{position: 'absolute', right: '-4px', top: '8px', fontSize: '9px', color: '#888899'}}>Legend</div>
-          <div style={{position: 'absolute', right: '0px', top: '64px', fontSize: '9px', color: '#888899'}}>Switch</div>
-          <div style={{position: 'absolute', right: '-12px', top: '98px', fontSize: '9px', color: '#888899'}}>PCB</div>
-
-          {/* LAYER 4 — LED DOT */}
-          {!isNone && (
-            <div style={{
-              ...styles.ledDot, 
-              backgroundColor: backlitColor,
-              boxShadow: `0 0 8px 3px ${backlitColor}`,
-              ...(isNorth ? { top: '48px', left: '50%', transform: 'translateX(-50%)' } : {}),
-              ...(isSouth ? { top: '92px', left: '50%', transform: 'translateX(-50%)' } : {}),
-              ...(isPerKey ? { top: '68px', left: '50%', transform: 'translateX(-50%)' } : {})
-            }}>
-               
-               {/* LAYER 5 — LIGHT RAYS */}
-               {isNorth && (
-                 <>
-                   <div style={{...styles.ray, top: '42px', left: 'calc(50% - 10px)', transform: 'rotate(-20deg)', animationDelay: '0s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
-                   <div style={{...styles.ray, top: '42px', left: 'calc(50% - 1px)', transform: 'rotate(0deg)', animationDelay: '0.3s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
-                   <div style={{...styles.ray, top: '42px', left: 'calc(50% + 8px)', transform: 'rotate(20deg)', animationDelay: '0.6s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
-                 </>
-               )}
-               {isSouth && (
-                 <>
-                   <div style={{...styles.ray, top: '94px', left: 'calc(50% - 10px)', transform: 'rotate(200deg)', transformOrigin: 'top center', animationDelay: '0s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
-                   <div style={{...styles.ray, top: '94px', left: 'calc(50% - 1px)', transform: 'rotate(180deg)', transformOrigin: 'top center', animationDelay: '0.3s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
-                   <div style={{...styles.ray, top: '94px', left: 'calc(50% + 8px)', transform: 'rotate(160deg)', transformOrigin: 'top center', animationDelay: '0.6s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
-                 </>
-               )}
-               {isPerKey && (
-                 <>
-                   <div style={{...styles.ray, top: '62px', left: '50%', transform: 'rotate(0deg)', animationDelay: '0s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
-                   <div style={{...styles.ray, top: '72px', left: '58%', transform: 'rotate(90deg)', animationDelay: '0.2s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
-                   <div style={{...styles.ray, top: '78px', left: '50%', transform: 'rotate(180deg)', transformOrigin: 'top center', animationDelay: '0.4s', background: `linear-gradient(to bottom, ${backlitColor}, transparent)`}} />
-                   <div style={{...styles.ray, top: '72px', left: '36%', transform: 'rotate(270deg)', animationDelay: '0.6s', background: `linear-gradient(to top, ${backlitColor}, transparent)`}} />
-                 </>
-               )}
-            </div>
-          )}
+      {/* HEADER */}
+      <div style={styles.header}>
+        <div style={styles.title}>LED PREVIEW</div>
+        <div style={{
+          ...styles.badge,
+          ...(isNorth && { background: '#6c63ff22', color: '#a09bf5', border: '1px solid #6c63ff33' }),
+          ...(isSouth && { background: '#f5a62322', color: '#f5a623', border: '1px solid #f5a62333' }),
+          ...(isPerKey && { background: '#0d9e7522', color: '#5dcaa5', border: '1px solid #0d9e7533' }),
+          ...(isNone && { background: '#44446622', color: '#888899', border: '1px solid #44446633' })
+        }}>
+          {isNorth && "North"}
+          {isSouth && "South"}
+          {isPerKey && "Per-key"}
+          {isNone && "None"}
         </div>
+      </div>
+
+      {/* CROSS-SECTION DIAGRAM */}
+      <div style={styles.diagram}>
+
+        {/* LAYER 1 — KEYCAP */}
+        <div style={{...styles.keycap, background: keycapColor}}>
+           <div style={{
+             ...styles.legendRect, 
+             background: legendColor,
+             animation: isNorth ? 'legendGlow 2s ease-in-out infinite' : 'none'
+           }} />
+           <div style={styles.keycapStemHole} />
+           
+           {/* Per-Key Body Glow */}
+           {isPerKey && (
+             <div style={{
+               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+               background: `${backlitColor}20`,
+               clipPath: 'polygon(14% 100%, 86% 100%, 76% 0%, 24% 0%)',
+               animation: 'pulseOpacity 2s ease-in-out infinite'
+             }} />
+           )}
+        </div>
+
+        {/* LAYER 2 — SWITCH HOUSING */}
+        <div style={styles.switchHousing}>
+          <div style={styles.switchStem} />
+        </div>
+
+        {/* LAYER 3 — PCB */}
+        <div style={styles.pcb}>
+          <div style={{...styles.solder, left: '20%'}} />
+          <div style={{...styles.solder, left: '38%'}} />
+          <div style={{...styles.solder, left: '56%'}} />
+          <div style={{...styles.solder, left: '74%'}} />
+        </div>
+        
+        {isSouth && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: '20px',
+            background: `linear-gradient(to top, ${backlitColor}33, transparent)`,
+            opacity: 0.4, animation: 'pulseOpacity 2s ease-in-out infinite'
+          }} />
+        )}
+
+        {/* SIDE LABELS */}
+        <div style={styles.sideLabelWrap}>
+          <div style={{...styles.sideLabel, top: '20px'}}>Legend <span style={styles.sideLine} /></div>
+          <div style={{...styles.sideLabel, top: '88px'}}>Switch <span style={styles.sideLine} /></div>
+          <div style={{...styles.sideLabel, top: '119px'}}>PCB <span style={styles.sideLine} /></div>
+        </div>
+
+        {/* LAYER 4 — LED DOT */}
+        {!isNone && (
+          <div style={{
+            ...styles.ledDot, 
+            background: backlitColor,
+            ...(isNorth ? { top: '62px', left: '50%', transform: 'translateX(-50%)' } : {}),
+            ...(isSouth ? { top: '106px', left: '50%', transform: 'translateX(-50%)' } : {}),
+            ...(isPerKey ? { top: '84px', left: '50%', transform: 'translateX(-50%)' } : {})
+          }}>
+             {/* Note: The physical rays originate off the LED coords natively */}
+          </div>
+        )}
+
+        {/* LAYER 5 — LIGHT RAYS */}
+        {!isNone && (
+          <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden'}}>
+            
+            {/* North Rays */}
+            {isNorth && (
+              <>
+                <div style={{...styles.ray, background: `linear-gradient(to top, ${backlitColor}, transparent)`, bottom: '98px', left: 'calc(50% - 12px)', transform: 'rotate(-18deg)', animation: 'rayUp 1.6s ease-out infinite', animationDelay: '0s'}} />
+                <div style={{...styles.ray, background: `linear-gradient(to top, ${backlitColor}, transparent)`, bottom: '98px', left: 'calc(50% - 1px)', transform: 'rotate(0deg)', animation: 'rayUp 1.6s ease-out infinite', animationDelay: '0.3s'}} />
+                <div style={{...styles.ray, background: `linear-gradient(to top, ${backlitColor}, transparent)`, bottom: '98px', left: 'calc(50% + 10px)', transform: 'rotate(18deg)', animation: 'rayUp 1.6s ease-out infinite', animationDelay: '0.6s'}} />
+              </>
+            )}
+
+            {/* South Rays */}
+            {isSouth && (
+              <>
+                <div style={{...styles.rayDown, background: `linear-gradient(to bottom, ${backlitColor}, transparent)`, top: '110px', left: 'calc(50% - 1px)', animation: 'rayDown 1.6s ease-out infinite', animationDelay: '0s'}} />
+                <div style={{...styles.rayDown, background: `linear-gradient(to bottom, ${backlitColor}, transparent)`, top: '108px', left: 'calc(50% - 14px)', transform: 'rotate(-30deg)', animation: 'rayDown 1.6s ease-out infinite', animationDelay: '0.25s'}} />
+                <div style={{...styles.rayDown, background: `linear-gradient(to bottom, ${backlitColor}, transparent)`, top: '108px', left: 'calc(50% + 12px)', transform: 'rotate(30deg)', animation: 'rayDown 1.6s ease-out infinite', animationDelay: '0.5s'}} />
+              </>
+            )}
+
+            {/* Per-Key Rays */}
+            {isPerKey && (
+              <>
+                <div style={{...styles.ray, background: `linear-gradient(to top, ${backlitColor}, transparent)`, bottom: '76px', left: '50%', transform: 'translateX(-50%) rotate(0deg)', animation: 'rayUp 1.6s ease-out infinite', animationDelay: '0s'}} />
+                <div style={{...styles.rayLine, background: `linear-gradient(to right, ${backlitColor}, transparent)`, top: '84px', left: '96px', transform: 'translateY(-50%)', animation: 'rayOut 1.6s ease-out infinite', animationDelay: '0.2s'}} />
+                <div style={{...styles.rayDown, background: `linear-gradient(to bottom, ${backlitColor}, transparent)`, top: '92px', left: '50%', transform: 'translateX(-50%)', animation: 'rayDown 1.6s ease-out infinite', animationDelay: '0.4s'}} />
+                <div style={{...styles.rayLine, background: `linear-gradient(to left, ${backlitColor}, transparent)`, top: '84px', right: '96px', transform: 'translateY(-50%)', animation: 'rayOut 1.6s ease-out infinite', animationDelay: '0.6s'}} />
+              </>
+            )}
+            
+          </div>
+        )}
       </div>
 
       {/* LABELS BELOW DIAGRAM */}
@@ -114,7 +182,7 @@ export default function LEDPreviewWidget() {
       {/* COMPATIBILITY ROW */}
       <div style={styles.compatContainer}>
         <div style={styles.compatLabel}>Best with:</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={styles.pillsWrapper}>
           {isNorth && (
             <>
               <span style={{...styles.compatPill, background: '#9c27b022', border: '1px solid #9c27b044', color: '#e1bee7'}}>Shine-through keycaps</span>
@@ -141,127 +209,185 @@ export default function LEDPreviewWidget() {
           )}
         </div>
       </div>
+
+      {/* COMPATIBILITY WARNING / INFO */}
+      {isNorth && (
+        <div style={styles.warningBox}>
+          ⚠ Cherry profile keycaps may physically clash with north-facing LEDs. SA, DSA, XDA recommended.
+        </div>
+      )}
+      {isSouth && (
+        <div style={styles.infoBox}>
+          ✓ Compatible with all keycap profiles. No interference issues.
+        </div>
+      )}
       
     </div>
   );
 }
 
 const styles = {
-  card: {
+  outerContainer: {
     position: 'absolute',
     bottom: '24px',
     right: '24px',
-    width: '220px',
-    background: 'rgba(10, 10, 20, 0.92)',
-    border: '1px solid #2a2a3a',
+    width: '210px',
+    background: 'rgba(8, 8, 18, 0.95)',
+    border: '1px solid #1e1e3a',
     borderRadius: '14px',
-    padding: '16px',
-    backdropFilter: 'blur(12px)',
-    zIndex: 10,
-    animation: 'fadeIn 0.4s ease forwards',
+    padding: '14px 16px 16px',
+    backdropFilter: 'blur(16px)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+    zIndex: 100,
+    fontFamily: 'inherit',
+    transition: 'opacity 0.4s'
+  },
+  header: {
     display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '12px'
   },
   title: {
-    fontSize: '10px',
-    textTransform: 'uppercase',
-    letterSpacing: '0.1em',
-    color: '#444460',
-    marginBottom: '12px',
-    fontWeight: 'bold'
+    fontSize: '9px',
+    letterSpacing: '0.12em',
+    color: '#444466',
+    fontWeight: 500
   },
-  diagramWrap: {
-    position: 'relative',
-    width: '180px',
-    height: '120px',
-    margin: '0 auto 12px',
-    overflow: 'hidden',
-    background: '#080810',
-    border: '1px solid #1a1a2a',
-    borderRadius: '8px',
-    padding: '10px'
+  badge: {
+    fontSize: '9px',
+    padding: '2px 8px',
+    borderRadius: '8px'
   },
   diagram: {
+    width: '178px',
+    height: '160px',
     position: 'relative',
-    width: '100%',
-    height: '100%'
+    background: '#05050f',
+    border: '1px solid #1a1a2e',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    margin: '0 auto 12px'
   },
   keycap: {
-    width: '90px',
-    height: '52px',
-    clipPath: 'polygon(12% 100%, 88% 100%, 78% 0%, 22% 0%)',
-    borderRadius: '3px',
+    position: 'absolute',
+    top: '8px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '88px',
+    height: '56px',
+    clipPath: 'polygon(14% 100%, 86% 100%, 76% 0%, 24% 0%)',
     border: '1px solid rgba(255,255,255,0.15)',
-    position: 'absolute',
-    top: '0px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    zIndex: 1
-  },
-  legendRect: {
-    width: '36px',
-    height: '7px',
-    borderRadius: '2px',
-    position: 'absolute',
-    top: '7px',
-    left: '50%',
-    transform: 'translateX(-50%)'
-  },
-  switchBox: {
-    width: '58px',
-    height: '42px',
-    background: '#13132a',
-    border: '1px solid #2a2a4a',
-    borderRadius: '3px',
-    position: 'absolute',
-    top: '54px',
-    left: '50%',
-    transform: 'translateX(-50%)',
     zIndex: 2
   },
-  stem: {
-    width: '12px',
-    height: '24px',
-    background: '#0a0a1a',
+  legendRect: {
     position: 'absolute',
-    top: '6px',
-    left: '50%',
-    transform: 'translateX(-50%)'
-  },
-  pcb: {
-    width: '160px',
-    height: '16px',
-    background: '#0d1a0d',
-    border: '1px solid #1a3a1a',
-    borderRadius: '2px',
-    position: 'absolute',
-    top: '98px',
+    top: '8px',
     left: '50%',
     transform: 'translateX(-50%)',
+    width: '32px',
+    height: '7px',
+    borderRadius: '2px'
+  },
+  keycapStemHole: {
+    position: 'absolute',
+    bottom: '0px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '10px',
+    height: '8px',
+    background: 'rgba(0,0,0,0.4)',
+    borderRadius: '1px 1px 0 0'
+  },
+  switchHousing: {
+    position: 'absolute',
+    top: '66px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '54px',
+    height: '44px',
+    background: '#0e0e20',
+    border: '1px solid #252540',
+    borderRadius: '3px',
+    zIndex: 1
+  },
+  switchStem: {
+    position: 'absolute',
+    top: '4px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '10px',
+    height: '22px',
+    background: '#070710',
+    borderRadius: '1px'
+  },
+  pcb: {
+    position: 'absolute',
+    top: '112px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '162px',
+    height: '14px',
+    background: '#071207',
+    border: '1px solid #143314',
+    borderRadius: '2px',
     zIndex: 0
   },
   solder: {
     width: '4px',
     height: '4px',
     borderRadius: '50%',
-    background: '#2a5a2a',
+    background: '#1a5c1a',
     position: 'absolute',
-    top: '6px'
+    top: '5px'
   },
   ledDot: {
-    width: '8px',
-    height: '8px',
+    width: '9px',
+    height: '9px',
     borderRadius: '50%',
     position: 'absolute',
+    animation: 'ledPulse 1.5s ease-in-out infinite',
     zIndex: 10
   },
   ray: {
     position: 'absolute',
     width: '2px',
-    borderRadius: '1px',
-    transformOrigin: 'bottom center',
-    animation: 'rayGrow 1.8s ease-out infinite'
+    borderRadius: '2px',
+    transformOrigin: 'bottom center'
+  },
+  rayDown: {
+    position: 'absolute',
+    width: '2px',
+    borderRadius: '2px',
+    transformOrigin: 'top center'
+  },
+  rayLine: {
+    position: 'absolute',
+    height: '2px',
+    borderRadius: '2px',
+    transformOrigin: 'left center'
+  },
+  sideLabelWrap: {
+    position: 'absolute',
+    left: '142px',
+    width: '36px',
+    height: '100%',
+    top: 0
+  },
+  sideLabel: {
+    position: 'absolute',
+    fontSize: '9px',
+    color: '#555570',
+    display: 'flex',
+    alignItems: 'center',
+    right: '8px'
+  },
+  sideLine: {
+    position: 'absolute',
+    right: '-8px',
+    width: '6px',
+    height: '1px',
+    background: '#555570'
   },
   mainCaption: {
     fontSize: '13px',
@@ -275,16 +401,19 @@ const styles = {
     marginTop: '4px'
   },
   compatContainer: {
-    marginTop: '12px',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
-    width: '100%'
+    gap: '6px',
+    marginTop: '12px',
+    justifyContent: 'center'
   },
   compatLabel: {
     fontSize: '10px',
-    color: '#888899',
-    marginBottom: '4px'
+    color: '#888899'
+  },
+  pillsWrapper: {
+    display: 'inline-flex',
+    gap: '4px'
   },
   compatPill: {
     fontSize: '10px',
@@ -292,5 +421,23 @@ const styles = {
     borderRadius: '10px',
     display: 'inline-block',
     margin: '2px'
+  },
+  warningBox: {
+    background: '#f5a62311',
+    border: '1px solid #f5a62333',
+    borderRadius: '6px',
+    padding: '6px 8px',
+    marginTop: '8px',
+    fontSize: '10px',
+    color: '#f5a623'
+  },
+  infoBox: {
+    background: '#0d9e7511',
+    border: '1px solid #0d9e7533',
+    borderRadius: '6px',
+    padding: '6px 8px',
+    marginTop: '8px',
+    fontSize: '10px',
+    color: '#5dcaa5'
   }
 };
