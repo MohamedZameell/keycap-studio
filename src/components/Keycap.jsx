@@ -130,15 +130,26 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       setTileTexture(null);
       return;
     }
+    let cancelled = false;
     const loader = new THREE.TextureLoader();
-    loader.load(imageUrl, (tex) => {
-      tex.wrapS = THREE.RepeatWrapping;
-      tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(1, 1);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.needsUpdate = true;
-      setTileTexture(tex);
-    });
+    loader.load(
+      imageUrl,
+      (tex) => {
+        if (cancelled) return;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(1, 1);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.needsUpdate = true;
+        setTileTexture(tex);
+      },
+      undefined,
+      (err) => {
+        console.error('Texture load failed:', err);
+        if (!cancelled) setTileTexture(null);
+      }
+    );
+    return () => { cancelled = true; };
   }, [imageUrl, imageMode]);
 
   // Apply UV offsets for wrap mode
@@ -176,12 +187,13 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   // When texture is active, use white so it shows pure image colors
   const resolvedColor = activeTexture ? '#ffffff' : color;
 
-  // Animation: singleKeyMode gets bob+rotate, keyboard keys stay still (only hover lift)
+  // Animation: singleKeyMode gets gentle bob + slow Y spin, keyboard keys stay still
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     if (singleKeyMode) {
-      meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.06;
-      meshRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.4) * 0.25;
+      meshRef.current.rotation.x = 0; // keep top face visible
+      meshRef.current.rotation.y += 0.004; // slow continuous spin
+      meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.04;
     } else {
       meshRef.current.position.y = THREE.MathUtils.lerp(
         meshRef.current.position.y,
@@ -215,12 +227,12 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   
   const topColorObj = new THREE.Color(resolvedColor).lerp(new THREE.Color('#ffffff'), 0.05).getHexString();
   const topMaterialParams = {
-    color: '#' + topColorObj,
+    color: activeTexture ? '#ffffff' : ('#' + topColorObj),
+    map: activeTexture || undefined,
     roughness: isABS ? 0.2 : 0.7,
     metalness: 0.0,
     emissive: '#000000',
     emissiveIntensity: 0,
-    ...(activeTexture ? { map: activeTexture } : {}),
     ...(usePhysical ? { clearcoat: isABS ? 0.06 : 0.0, clearcoatRoughness: 0.35, envMapIntensity: isABS ? 0.3 : 0.15 } : {})
   };
 
