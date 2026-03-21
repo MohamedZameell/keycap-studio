@@ -568,20 +568,21 @@ export default function StudioScreen() {
                   <KeyboardRenderer />
                 ) : (
                   <group position={[0, 0, 0]}>
-                    {/* Warm lighting for single key view */}
-                    <pointLight position={[2, 3, 2]} intensity={0.8} color="#fff8f0" />
-                    <pointLight position={[-2, 1, -1]} intensity={0.3} color="#c8d4ff" />
+                    {/* Dedicated neutral lighting for single key — overrides warm HDRI */}
+                    <directionalLight position={[3, 5, 3]} intensity={1.8} color="#ffffff" />
+                    <directionalLight position={[-2, 2, -2]} intensity={0.4} color="#e0e8ff" />
+                    <ambientLight intensity={0.5} />
 
-                    {/* Pedestal disc */}
+                    {/* Pedestal disc — envMapIntensity=0 blocks HDRI tinting */}
                     <mesh position={[0, -0.72, 0]} receiveShadow>
                       <cylinderGeometry args={[0.85, 0.95, 0.06, 48]} />
                       <meshPhysicalMaterial
-                        color="#111120"
-                        roughness={0.3}
-                        metalness={0.6}
-                        clearcoat={0.8}
-                        clearcoatRoughness={0.1}
-                        envMapIntensity={0.8}
+                        color="#1a1a2e"
+                        roughness={0.2}
+                        metalness={0.7}
+                        clearcoat={0.9}
+                        clearcoatRoughness={0.05}
+                        envMapIntensity={0}
                         emissive="#000000"
                         emissiveIntensity={0}
                       />
@@ -594,6 +595,7 @@ export default function StudioScreen() {
                         color="#0d0d1a"
                         roughness={0.4}
                         metalness={0.5}
+                        envMapIntensity={0}
                         emissive="#000000"
                         emissiveIntensity={0}
                       />

@@ -65,6 +65,7 @@ const TOP_SURFACE_D = 0.735;
 
 export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0,0], uvScale = [1,1], isSelected, isPerformanceMode, singleKeyMode = false, onClick }) {
   const meshRef = useRef();
+  const topMatRef = useRef();
   
   const [hovered, setHovered] = useState(false);
   const globalColor = useStore(s => s.globalColor);
@@ -187,13 +188,29 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   // When texture is active, use white so it shows pure image colors
   const resolvedColor = activeTexture ? '#ffffff' : color;
 
+  // Imperative material update — the root-cause fix for textures not appearing.
+  // R3F's dynamic component pattern (<MaterialCmp>) doesn't reliably re-create
+  // the material when map changes. Imperative ref mutation works every time.
+  useEffect(() => {
+    if (!topMatRef.current) return;
+    if (activeTexture) {
+      topMatRef.current.map = activeTexture;
+      topMatRef.current.color.set('#ffffff');
+    } else {
+      topMatRef.current.map = null;
+      const topCol = new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.05);
+      topMatRef.current.color.copy(topCol);
+    }
+    topMatRef.current.needsUpdate = true;
+  }, [activeTexture, color]);
+
   // Animation: singleKeyMode gets gentle bob + slow Y spin, keyboard keys stay still
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     if (singleKeyMode) {
-      meshRef.current.rotation.x = 0; // keep top face visible
-      meshRef.current.rotation.y += 0.004; // slow continuous spin
-      meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.04;
+      meshRef.current.rotation.x = 0;
+      meshRef.current.rotation.y = clock.elapsedTime * 0.5;
+      meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.06;
     } else {
       meshRef.current.position.y = THREE.MathUtils.lerp(
         meshRef.current.position.y,
@@ -305,7 +322,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
 
         {/* 2. Concave top dish surface — image texture applied here */}
         <mesh geometry={topGeo} position={[0, topFaceY, -0.026]} castShadow receiveShadow>
-          <MaterialCmp {...topMaterialParams} color={topMaterialParams.color} />
+          <MaterialCmp ref={topMatRef} {...topMaterialParams} color={topMaterialParams.color} />
         </mesh>
 
         {/* Cherry MX stem underneath */}
