@@ -1,16 +1,34 @@
 import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useStore } from '../store';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
 import { EffectComposer, SSAO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { HexColorPicker } from 'react-colorful';
 import * as THREE from 'three';
+import { jsPDF } from 'jspdf';
 import ErrorBoundary from '../components/ErrorBoundary';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
+
+const KEY_UNIT = 1.08;
+
+// TASK 4 — Camera animator: lerps camera position and orbit target smoothly
+function CameraAnimator({ targetPos, targetLookAt, orbitRef }) {
+  useFrame(({ camera }) => {
+    if (!orbitRef?.current) return;
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetPos[0], 0.05);
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetPos[1], 0.05);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetPos[2], 0.05);
+    orbitRef.current.target.x = THREE.MathUtils.lerp(orbitRef.current.target.x, targetLookAt[0], 0.05);
+    orbitRef.current.target.y = THREE.MathUtils.lerp(orbitRef.current.target.y, targetLookAt[1], 0.05);
+    orbitRef.current.target.z = THREE.MathUtils.lerp(orbitRef.current.target.z, targetLookAt[2], 0.05);
+    orbitRef.current.update();
+  });
+  return null;
+}
 
 const PRESET_COLORS = ['#1a1a1a', '#f0f0f0', '#1e3a5f', '#c0392b', '#6c63ff', '#0d9e75', '#e91e8c', '#f5c518'];
 const FONTS = ['Inter', 'Oswald', 'Press Start 2P', 'Share Tech Mono', 'Playfair Display', 'Nunito', 'Rajdhani', 'Bebas Neue'];
@@ -55,6 +73,49 @@ export default function StudioScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
   const fileInputRef = useRef(null);
+  const orbitRef = useRef(null);
+
+  // TASK 4 — Camera animation state
+  const defaultCamPos = [0, 8, 12];
+  const defaultCamTarget = [0, 0, 0];
+  const [cameraPos, setCameraPos] = useState(defaultCamPos);
+  const [cameraTarget, setCameraTarget] = useState(defaultCamTarget);
+  const [isCameraFocused, setIsCameraFocused] = useState(false);
+
+  // Compute layout bounds for camera positioning
+  const layoutData = useCallback(() => {
+    let mappedFF = 'SIXTY';
+    const ff = store.selectedFormFactor;
+    if (ff === '75%') mappedFF = 'SEVENTY_FIVE';
+    else if (ff === 'TKL' || ff === '80%') mappedFF = 'TKL_80';
+    else if (ff === '100%') mappedFF = 'FULL_100';
+    else if (ff === '65%') mappedFF = 'SIXTY_FIVE';
+    const layout = getLayoutForFormFactor(mappedFF) || [];
+    if (!layout.length) return { layout, minX: 0, minZ: 0, maxW: 0, maxH: 0 };
+    const minX = Math.min(...layout.map(k => Number(k.x)));
+    const minZ = Math.min(...layout.map(k => Number(k.y)));
+    const maxX = Math.max(...layout.map(k => Number(k.x) + (Number(k.w) || 1)));
+    const maxZ = Math.max(...layout.map(k => Number(k.y) + (Number(k.h) || 1)));
+    return { layout, minX, minZ, maxW: maxX - minX, maxH: maxZ - minZ };
+  }, [store.selectedFormFactor]);
+
+  const handleKeyFocus = useCallback((keyId) => {
+    store.setSelectedKey(keyId);
+    const { layout, minX, minZ, maxW, maxH } = layoutData();
+    const key = layout.find(k => k.id === keyId);
+    if (!key || viewMode !== 'full') return;
+    const kx = (Number(key.x) - minX - maxW / 2 + (Number(key.w) || 1) / 2) * KEY_UNIT;
+    const kz = (Number(key.y) - minZ - maxH / 2 + (Number(key.h) || 1) / 2) * KEY_UNIT;
+    setCameraTarget([kx, 0, kz]);
+    setCameraPos([kx, 3.5, kz + 5]);
+    setIsCameraFocused(true);
+  }, [store, layoutData, viewMode]);
+
+  const resetCamera = useCallback(() => {
+    setCameraPos(defaultCamPos);
+    setCameraTarget(defaultCamTarget);
+    setIsCameraFocused(false);
+  }, []);
 
   const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
 
@@ -94,16 +155,19 @@ export default function StudioScreen() {
     return store[`global${key.charAt(0).toUpperCase() + key.slice(1)}`];
   };
 
-  // Keyboard shortcuts (Task 12)
+  // Keyboard shortcuts — Escape also resets camera
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === 'Escape') store.setSelectedKey(null);
+      if (e.key === 'Escape') {
+        store.setSelectedKey(null);
+        resetCamera();
+      }
       if (e.key === ' ') { e.preventDefault(); setViewMode(v => v === 'full' ? 'single' : 'full'); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [store]);
+  }, [store, resetCamera]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -179,6 +243,30 @@ export default function StudioScreen() {
       showToast('Link copied to clipboard!');
     } catch (e) {
       showToast('Failed to copy link');
+    }
+  };
+
+  // TASK 5 — PDF export
+  const handleExportPDF = () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    try {
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      pdf.setFillColor(10, 10, 15);
+      pdf.rect(0, 0, pdfW, pdfH, 'F');
+      pdf.addImage(imgData, 'PNG', 10, 10, pdfW - 20, pdfH - 30);
+      const state = useStore.getState();
+      pdf.setTextColor(108, 99, 255);
+      pdf.setFontSize(10);
+      pdf.text(`Keycap Studio — ${state.selectedModel || 'Custom Layout'} — ${state.globalColor}`, 10, pdfH - 8);
+      pdf.save(`keycap-design-${Date.now()}.pdf`);
+      showToast('PDF exported!');
+    } catch (e) {
+      console.error('PDF export failed:', e);
+      showToast('PDF export failed');
     }
   };
 
@@ -507,7 +595,7 @@ export default function StudioScreen() {
                   { icon: '🖼', label: 'PNG Render', desc: 'High quality 3D screenshot', size: '~2-4MB', onClick: handleExportPNG },
                   { icon: '📐', label: 'SVG Layout', desc: 'Vector layout for manufacturers', size: '~50KB', onClick: handleExportSVG },
                   { icon: '🔗', label: 'Share URL', desc: 'Copy link to this design', size: '', onClick: handleShareURL },
-                  { icon: '📄', label: 'Print-ready PDF', desc: 'Coming soon', size: '', disabled: true },
+                  { icon: '📄', label: 'Print-ready PDF', desc: 'High quality PDF render', size: '~2-4MB', onClick: handleExportPDF },
                 ].map(btn => (
                   <button
                     key={btn.label}
@@ -569,8 +657,10 @@ export default function StudioScreen() {
 
                 <Stars radius={100} depth={50} count={2000} factor={3} fade speed={0.5} />
 
+                {viewMode === 'full' && <CameraAnimator targetPos={cameraPos} targetLookAt={cameraTarget} orbitRef={orbitRef} />}
+
                 {viewMode === 'full' ? (
-                  <KeyboardRenderer />
+                  <KeyboardRenderer onKeyClick={handleKeyFocus} />
                 ) : (
                   <group position={[0, 0, 0]}>
                     {/* Dedicated neutral lighting for single key — overrides warm HDRI */}
@@ -621,7 +711,7 @@ export default function StudioScreen() {
 
                 <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
 
-                <OrbitControls enableDamping dampingFactor={0.05} enableZoom enablePan minDistance={viewMode === 'single' ? 2 : 3} maxDistance={viewMode === 'single' ? 8 : 35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
+                <OrbitControls ref={orbitRef} enableDamping dampingFactor={0.05} enableZoom enablePan minDistance={viewMode === 'single' ? 2 : 3} maxDistance={viewMode === 'single' ? 8 : 35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
 
                 {/* POST PROCESSING */}
                 <EffectComposer multisampling={0}>
@@ -633,6 +723,25 @@ export default function StudioScreen() {
           </ErrorBoundary>
 
           <LEDPreviewWidget />
+
+          {/* TASK 4 — Full view reset button overlay */}
+          {isCameraFocused && viewMode === 'full' && (
+            <button
+              onClick={() => { store.setSelectedKey(null); resetCamera(); }}
+              style={{
+                position: 'absolute', top: 12, left: 12, zIndex: 20,
+                padding: '6px 14px', background: 'rgba(10,10,15,0.85)',
+                border: '1px solid #6c63ff', borderRadius: 6,
+                color: '#6c63ff', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#6c63ff'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(10,10,15,0.85)'; e.currentTarget.style.color = '#6c63ff'; }}
+            >
+              ← Full view
+            </button>
+          )}
         </div>
       </div>
 

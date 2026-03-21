@@ -156,15 +156,23 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     return () => { cancelled = true; };
   }, [imageUrl, imageMode]);
 
-  // Apply UV offsets for wrap mode
+  // TASK 1 — Wrap mode: clone texture per-key with correct UV slice
+  // Each key needs its own texture clone so offset/repeat don't conflict
+  const [wrapTexture, setWrapTexture] = useState(null);
+
   useEffect(() => {
-    if (tileTexture && imageMode === 'wrap') {
-      tileTexture.wrapS = THREE.ClampToEdgeWrapping;
-      tileTexture.wrapT = THREE.ClampToEdgeWrapping;
-      tileTexture.offset.set(uvOffset[0], 1 - uvOffset[1] - uvScale[1]);
-      tileTexture.repeat.set(uvScale[0], uvScale[1]);
-      tileTexture.needsUpdate = true;
+    if (!tileTexture || imageMode !== 'wrap') {
+      setWrapTexture(null);
+      return;
     }
+    const cloned = tileTexture.clone();
+    cloned.wrapS = THREE.ClampToEdgeWrapping;
+    cloned.wrapT = THREE.ClampToEdgeWrapping;
+    cloned.offset.set(uvOffset[0], 1 - uvOffset[1] - uvScale[1]);
+    cloned.repeat.set(uvScale[0], uvScale[1]);
+    cloned.needsUpdate = true;
+    setWrapTexture(cloned);
+    return () => { cloned.dispose(); };
   }, [tileTexture, imageMode, uvOffset, uvScale]);
 
   // ============================================================
@@ -186,8 +194,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     });
   }, [perKeyImage]);
 
-  // Priority: perKey > tile/wrap > none
-  const activeTexture = perKeyTexture || ((imageMode === 'tile' || imageMode === 'wrap') ? tileTexture : null);
+  // Priority: perKey > wrap > tile > none
+  const activeTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : (imageMode === 'tile' ? tileTexture : null));
   // FIX 1 — Body always uses keycap color; only the dish gets white when textured
   const resolvedColor = color;
 

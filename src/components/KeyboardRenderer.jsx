@@ -16,7 +16,7 @@ const ROW_TILT = {
   3: 0, 4: -0.03, 5: -0.05
 };
 
-export default function KeyboardRenderer() {
+export default function KeyboardRenderer({ onKeyClick }) {
   const formFactor = useStore(s => s.selectedFormFactor);
   const selectedKey = useStore(s => s.selectedKey);
   const setSelectedKey = useStore(s => s.setSelectedKey);
@@ -106,7 +106,7 @@ export default function KeyboardRenderer() {
             uvScale={[uvScaleX, uvScaleY]}
             isSelected={selectedKey === key.id}
             isPerformanceMode={isPerformanceMode}
-            onClick={() => setSelectedKey(key.id)}
+            onClick={() => onKeyClick ? onKeyClick(key.id) : setSelectedKey(key.id)}
           />
         );
       })}
