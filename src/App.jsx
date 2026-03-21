@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import EntryScreen from './screens/EntryScreen';
 import SelectorScreen from './screens/SelectorScreen';
 import StudioScreen from './screens/StudioScreen';
+import GalleryScreen from './screens/GalleryScreen';
 import { useStore } from './store';
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
   if (screen === 'entry') return <EntryScreen />;
   if (screen === 'selector') return <SelectorScreen />;
   if (screen === 'studio') return <StudioScreen />;
+  if (screen === 'gallery') return <GalleryScreen />;
   
   return <div style={{color: 'white', padding: 20}}>Unknown screen</div>;
 }

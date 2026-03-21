@@ -386,24 +386,24 @@ export default function StudioScreen() {
 
       {/* TOP BAR */}
       <div style={styles.topBar}>
-        <div style={styles.topBarLeft}>
-          <button style={styles.iconBtn} onClick={() => store.setScreen('selector')}>← Back</button>
-          <span style={styles.logoText}>Keycap Studio</span>
-        </div>
-        <div style={styles.topBarCenter}>
-          {store.selectedModel ? (
-            <>{store.selectedModel} <span style={{ color: '#888899' }}>— {store.selectedFormFactor}</span></>
-          ) : (
-            `Custom Layout — ${store.selectedFormFactor}`
-          )}
-        </div>
-        <div style={styles.topBarRight}>
-          <div style={styles.viewToggle}>
-            <button style={{ ...styles.toggleBtn, ...(viewMode === 'single' ? styles.toggleActive : {}) }} onClick={() => setViewMode('single')}>Single Key</button>
-            <button style={{ ...styles.toggleBtn, ...(viewMode === 'full' ? styles.toggleActive : {}) }} onClick={() => setViewMode('full')}>Full Keyboard</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button className="text-btn" onClick={() => store.setScreen('selector')} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#888899', fontSize: 13 }}>
+            <span style={{ fontSize: 16 }}>←</span> Back
+          </button>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
+            Keycap Studio
           </div>
-          <button className="iconBtn export-btn" style={{ ...styles.iconBtn, display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 16px' }} onClick={handleExportPNG}>
-            Export <span style={{ fontSize: 16 }}>↓</span>
+        </div>
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontWeight: 600, color: '#fff' }}>
+          {store.selectedModel || 'Custom'} {store.selectedFormFactor && <span style={{ color: '#6c63ff', fontSize: 12, marginLeft: 8 }}>— {store.selectedFormFactor}</span>}
+        </div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <button className="text-btn" onClick={() => setViewMode(v => v === 'single' ? 'full' : 'single')} style={styles.viewToggleBtn}>
+            {viewMode === 'full' ? 'Single Key' : 'Full Keyboard'}
+          </button>
+          <button className="text-btn" onClick={() => store.setScreen('gallery')} style={{ marginRight: 24 }}>Gallery</button>
+          <button className="text-btn" onClick={handleExportPNG}>
+            Export ↓
           </button>
         </div>
       </div>
@@ -748,6 +748,22 @@ export default function StudioScreen() {
                     <directionalLight position={[-2, 2, -1]} intensity={0.5} color="#ddeeff" />
                     <ambientLight intensity={0.4} />
 
+                    {viewMode === 'single' && (
+                  <group position={[0, -0.6, 0]}>
+                    <mesh position={[0, -0.4, 0]} receiveShadow>
+                      <cylinderGeometry args={[1.2, 1.4, 0.8, 32]} />
+                      <meshStandardMaterial color="#080808" metalness={0.8} roughness={0.2} />
+                    </mesh>
+                    <mesh position={[0, -0.4, 0]} receiveShadow>
+                      <ringGeometry args={[1.4, 1.6, 32]} />
+                      <meshStandardMaterial color="#6c63ff" emissive="#6c63ff" emissiveIntensity={0.5} roughness={0.1} />
+                    </mesh>
+                    <mesh position={[0, -0.81, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                      <planeGeometry args={[10, 10]} />
+                      <meshBasicMaterial color="#050510" transparent opacity={0.6} depthWrite={false} />
+                    </mesh>
+                  </group>
+                )}
                     {/* Pedestal disc — envMapIntensity=0 blocks HDRI tinting */}
                     <mesh position={[0, -0.72, 0]} receiveShadow>
                       <cylinderGeometry args={[0.85, 0.95, 0.06, 48]} />
@@ -850,7 +866,7 @@ const styles = {
   tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--border-color)', justifyContent: 'space-around', alignItems: 'center' },
   panelContent: { flex: 1, overflowY: 'auto', padding: '24px' },
   section: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  sectionLabel: { fontSize: '10px', textTransform: 'uppercase', color: '#666680', fontWeight: 700, letterSpacing: '1px' },
+  sectionLabel: { fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: 600 },
   pillToggleContainer: { display: 'inline-flex', background: '#1a1a2e', borderRadius: '20px', padding: '3px', alignSelf: 'flex-start' },
   pillActive: { background: '#6c63ff', borderRadius: '18px', padding: '6px 14px', color: '#fff', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },
   pillInactive: { background: 'transparent', color: '#888899', padding: '6px 14px', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },

@@ -13,6 +13,7 @@ export default function SelectorScreen() {
   const [localProfile, setLocalProfile] = useState(null);
   const [localFormFactor, setLocalFormFactor] = useState(null);
   const [localLayout, setLocalLayout] = useState(null);
+  const [brandSearch, setBrandSearch] = useState('');
 
   const handleSelectModel = (model) => {
     setSelectedModelObj(model);
@@ -112,17 +113,28 @@ export default function SelectorScreen() {
             {step === 1 && <div style={styles.stepTitle}>Select Keyboard Brand</div>}
 
             {(step === 1 || step === 2 || step === 'confirm') && (
-              <div style={styles.brandGrid}>
-                {BRANDS.map(b => {
-                  const isSelected = localBrand === b;
-                  return (
-                    <button key={b} className="brand-pill" style={isSelected ? styles.brandPillActive : styles.brandPill}
-                      onClick={() => { setLocalBrand(b); setStep(2); setSelectedModelObj(null); }}>
-                      {b}
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                {step === 1 && (
+                  <input 
+                    type="text" 
+                    placeholder="Search over 80+ keyboards..." 
+                    value={brandSearch}
+                    onChange={e => setBrandSearch(e.target.value)}
+                    style={{ width: '100%', maxWidth: '400px', margin: '0 auto 16px', display: 'block', padding: '14px 20px', borderRadius: '12px', border: '1px solid #2a2a4a', backgroundColor: '#0a0a18', color: '#fff', fontSize: '16px', outline: 'none' }}
+                  />
+                )}
+                <div style={styles.brandGrid}>
+                  {BRANDS.filter(b => b.toLowerCase().includes(brandSearch.toLowerCase())).map(b => {
+                    const isSelected = localBrand === b;
+                    return (
+                      <button key={b} className="brand-pill" style={isSelected ? styles.brandPillActive : styles.brandPill}
+                        onClick={() => { setLocalBrand(b); setStep(2); setSelectedModelObj(null); }}>
+                        {b}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
 
             {(step === 2 || step === 'confirm') && localBrand && (
@@ -292,9 +304,9 @@ const styles = {
   stepTitle: { fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)' },
   textLinkBtn: { color: 'var(--text-secondary)', textDecoration: 'underline', backgroundColor: 'transparent', padding: 0 },
 
-  brandGrid: { display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center' },
-  brandPill: { padding: '16px 32px', borderRadius: '32px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--text-muted)', fontSize: '18px', color: 'var(--text-secondary)', cursor: 'pointer' },
-  brandPillActive: { padding: '16px 32px', borderRadius: '32px', backgroundColor: 'var(--primary-accent)', border: '1px solid var(--primary-accent)', fontSize: '18px', color: '#fff', cursor: 'pointer', fontWeight: 600 },
+  brandGrid: { display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', maxHeight: '400px', overflowY: 'auto', padding: '10px' },
+  brandPill: { padding: '12px 24px', borderRadius: '32px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--text-muted)', fontSize: '16px', color: 'var(--text-secondary)', cursor: 'pointer' },
+  brandPillActive: { padding: '12px 24px', borderRadius: '32px', backgroundColor: 'var(--primary-accent)', border: '1px solid var(--primary-accent)', fontSize: '16px', color: '#fff', cursor: 'pointer', fontWeight: 600 },
 
   modelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' },
   modelCard: { position: 'relative', backgroundColor: 'var(--card-bg)', border: '2px solid var(--border-color)', borderRadius: '12px', padding: '24px', cursor: 'pointer', display: 'flex', flexDirection: 'column', height: '100%' },
