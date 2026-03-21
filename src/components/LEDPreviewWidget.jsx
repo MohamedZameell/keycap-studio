@@ -11,8 +11,6 @@ export default function LEDPreviewWidget() {
   const keycapColor = useStore(s => s.globalColor) || '#6c63ff';
   const legendColor = useStore(s => s.globalLegendColor) || '#ffffff';
 
-  if (!backlitEnabled) return null;
-
   const isNorth = ledType.includes('North');
   const isSouth = ledType.includes('South');
   const isPerKey = ledType.includes('Per-key');

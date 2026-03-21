@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react
 import { useStore } from '../store';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
-import { EffectComposer, SSAO, ToneMapping } from '@react-three/postprocessing';
+import { EffectComposer, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { HexColorPicker } from 'react-colorful';
 import * as THREE from 'three';
@@ -716,7 +716,7 @@ export default function StudioScreen() {
                 outputColorSpace: THREE.SRGBColorSpace,
               }}
               dpr={[1, 2]}
-              shadows="soft"
+              shadows={{ type: THREE.PCFShadowMap }}
               camera={{
                 position: viewMode === 'full' ? [0, 8, 12] : [0, 1.0, 3.2],
                 fov: viewMode === 'full' ? 50 : 38,
@@ -794,8 +794,7 @@ export default function StudioScreen() {
                 <StudioOrbitControls orbitRef={orbitRef} cameraStateRef={cameraStateRef} viewMode={viewMode} />
 
                 {/* POST PROCESSING */}
-                <EffectComposer multisampling={0}>
-                  <SSAO samples={16} radius={0.10} intensity={1.5} luminanceInfluence={0.6} bias={0.04} color="black" />
+                <EffectComposer multisampling={0} disableNormalPass={false}>
                   <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
                 </EffectComposer>
               </Suspense>
