@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import EntryScreen from './screens/EntryScreen';
 import SelectorScreen from './screens/SelectorScreen';
+import SignInModal from './components/SignInModal';
 import { useStore } from './store';
 
 const StudioScreen = lazy(() => import('./screens/StudioScreen'));
@@ -32,14 +33,17 @@ export default function App() {
     }
   }, []);
 
-  if (screen === 'entry') return <EntryScreen />;
-  if (screen === 'selector') return <SelectorScreen />;
+  if (screen === 'entry') return <><EntryScreen /><SignInModal /></>;
+  if (screen === 'selector') return <><SelectorScreen /><SignInModal /></>;
   if (screen === 'studio' || screen === 'gallery') {
     return (
-      <Suspense fallback={<div style={{background:'#0a0a0f', width:'100vw', height:'100vh'}} />}>
-        {screen === 'studio' && <StudioScreen />}
-        {screen === 'gallery' && <GalleryScreen />}
-      </Suspense>
+      <>
+        <Suspense fallback={<div style={{background:'#0a0a0f', width:'100vw', height:'100vh'}} />}>
+          {screen === 'studio' && <StudioScreen />}
+          {screen === 'gallery' && <GalleryScreen />}
+        </Suspense>
+        <SignInModal />
+      </>
     );
   }
   

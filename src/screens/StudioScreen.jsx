@@ -355,55 +355,38 @@ export default function StudioScreen() {
   return (
     <div style={styles.container}>
       <style>{`
-        .tab-btn { padding: 8px 2px; font-size: 11px; font-weight: 600; color: #888899; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; background: transparent; border-top:none; border-left:none; border-right:none; }
-        .tab-btn.active { color: #6c63ff; border-bottom-color: #6c63ff; }
-        .color-circle { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-sizing: border-box; }
-        .color-circle:hover { transform: scale(1.15); }
-        .color-circle.active { border: 2px solid #ffffff; }
-        .export-btn { border: 1px solid #6c63ff; color: #6c63ff; background: transparent; transition: all 0.2s; }
-        .export-btn:hover { background: rgba(108, 99, 255, 0.15); color: #fff; border-color: #8b7fff; }
+        .tab-btn { padding: 12px 0; font-family: var(--font-heading); font-size: 13px; font-weight: 600; color: var(--on-surface-variant); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; background: transparent; border-top:none; border-left:none; border-right:none; transition: all 0.2s; flex: 1; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--surface-container); }
+        .tab-btn:hover:not(.active) { color: var(--on-surface); background: var(--surface-container-low); }
+        .color-circle { width: 32px; height: 32px; border-radius: 4px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.1); }
+        .color-circle:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .color-circle.active { border: 2px solid var(--primary); }
         
-        .toggle-switch {
-          position: relative;
-          display: inline-block;
-          width: 44px;
-          height: 24px;
-        }
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider {
-          position: absolute; cursor: pointer;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background-color: #1a1a2e; transition: .3s; border-radius: 24px; border: 1px solid #2a2a3a;
-        }
-        .toggle-slider:before {
-          position: absolute; content: "";
-          height: 16px; width: 16px; left: 3px; bottom: 3px;
-          background-color: #888899; transition: .3s; border-radius: 50%;
-        }
-        input:checked + .toggle-slider { background-color: #6c63ff; border-color: #6c63ff; }
-        input:checked + .toggle-slider:before { transform: translateX(20px); background-color: #fff; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--surface-container-highest); transition: .3s; border-radius: 4px; border: 1px solid var(--outline-variant); }
+        .toggle-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: var(--on-surface-variant); transition: .3s; border-radius: 2px; }
+        input:checked + .toggle-slider { background-color: var(--primary); border-color: var(--primary); }
+        input:checked + .toggle-slider:before { transform: translateX(20px); background-color: var(--on-primary); }
       `}</style>
 
       {/* TOP BAR */}
       <div style={styles.topBar}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button className="text-btn" onClick={() => store.setScreen('selector')} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#888899', fontSize: 13 }}>
-            <span style={{ fontSize: 16 }}>←</span> Back
+          <button className="text-btn" onClick={() => store.setScreen('selector')} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--on-surface-variant)', fontSize: 13, fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: 16 }}>←</span> Studio
           </button>
-          <div style={{ fontWeight: 700, fontSize: 16, color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
-            Keycap Studio
-          </div>
         </div>
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontWeight: 600, color: '#fff' }}>
-          {store.selectedModel || 'Custom'} {store.selectedFormFactor && <span style={{ color: '#6c63ff', fontSize: 12, marginLeft: 8 }}>— {store.selectedFormFactor}</span>}
+        <div style={styles.topBarCenter}>
+          [{store.selectedModel || 'CUSTOM FORMAT'}] {store.selectedFormFactor && <span style={{ color: 'var(--on-surface-variant)' }}>// {store.selectedFormFactor}</span>}
         </div>
-        <div style={{ display: 'flex', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 12 }}>
           <button className="text-btn" onClick={() => setViewMode(v => v === 'single' ? 'full' : 'single')} style={styles.viewToggleBtn}>
-            {viewMode === 'full' ? 'Single Key' : 'Full Keyboard'}
+            {viewMode === 'full' ? 'ISOLATE KEY' : 'FULL BOARD'}
           </button>
-          <button className="text-btn" onClick={() => store.setScreen('gallery')} style={{ marginRight: 24 }}>Gallery</button>
-          <button className="text-btn" onClick={handleExportPNG}>
-            Export ↓
+          <button className="text-btn" onClick={() => store.setScreen('gallery')} style={{ ...styles.viewToggleBtn, backgroundColor: 'transparent', borderColor: 'transparent' }}>GALLERY</button>
+          <button className="text-btn" onClick={handleExportPNG} style={{ ...styles.viewToggleBtn, backgroundColor: 'var(--primary)', color: 'var(--on-primary)', borderColor: 'var(--primary)' }}>
+            EXPORT ↓
           </button>
         </div>
       </div>
@@ -424,8 +407,8 @@ export default function StudioScreen() {
             {activeTab === 'DESIGN' && (
               <div style={styles.section}>
                 <div style={styles.pillToggleContainer}>
-                  <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>All Keys</button>
-                  <button style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('selected')}>Selected Key</button>
+                  <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>GLOBAL CONFIG</button>
+                  <button style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('selected')}>TARGET KEY</button>
                 </div>
 
                 {targetScope === 'selected' && !targetKeyId && (
@@ -472,8 +455,8 @@ export default function StudioScreen() {
                 {/* MATERIAL TOGGLE */}
                 <div style={{ marginTop: 16 }}>
                   <div style={styles.pillToggleContainer}>
-                    <button style={store.materialPreset === 'abs' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('abs')}>ABS — Glossy</button>
-                    <button style={store.materialPreset === 'pbt' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('pbt')}>PBT — Matte</button>
+                    <button style={store.materialPreset === 'abs' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('abs')}>ABS (GLOSSY)</button>
+                    <button style={store.materialPreset === 'pbt' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('pbt')}>PBT (MATTE)</button>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: 8 }}>
                     {store.materialPreset === 'abs' ? 'Shiny surface, brighter colors' : 'Matte texture, enthusiast preferred'}
@@ -825,17 +808,17 @@ export default function StudioScreen() {
             <button
               onClick={() => { store.setSelectedKey(null); resetCamera(); }}
               style={{
-                position: 'absolute', top: 12, left: 12, zIndex: 20,
-                padding: '6px 14px', background: 'rgba(10,10,15,0.85)',
-                border: '1px solid #6c63ff', borderRadius: 6,
-                color: '#6c63ff', fontSize: 13, fontWeight: 600,
+                position: 'absolute', top: 24, left: 24, zIndex: 20,
+                padding: '8px 16px', background: 'var(--surface-container)',
+                border: '1px solid var(--outline-variant)', borderRadius: 4,
+                color: 'var(--on-surface)', fontSize: 13, fontFamily: 'var(--font-heading)', fontWeight: 700,
                 cursor: 'pointer', backdropFilter: 'blur(8px)',
-                transition: 'all 0.2s',
+                transition: 'all 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#6c63ff'; e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(10,10,15,0.85)'; e.currentTarget.style.color = '#6c63ff'; }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-container-high)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-container)'; e.currentTarget.style.borderColor = 'var(--outline-variant)'; }}
             >
-              ← Full view
+              ← RETURN TO ORBIT
             </button>
           )}
         </div>
@@ -852,32 +835,26 @@ export default function StudioScreen() {
 }
 
 const styles = {
-  container: { height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-color)', overflow: 'hidden' },
-  topBar: { height: '48px', backgroundColor: 'var(--panel-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', zIndex: 100 },
-  topBarLeft: { display: 'flex', alignItems: 'center', gap: '16px' },
-  logoText: { fontWeight: 700 },
-  iconBtn: { padding: '4px 12px', backgroundColor: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '14px', borderRadius: '4px' },
-  topBarCenter: { fontWeight: 600, color: '#fff', fontSize: '14px' },
-  topBarRight: { display: 'flex', alignItems: 'center', gap: '16px' },
-  viewToggle: { display: 'flex', backgroundColor: 'var(--card-bg)', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' },
-  toggleBtn: { padding: '6px 16px', fontSize: '13px', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: '#fff' },
-  toggleActive: { backgroundColor: 'var(--primary-accent)', color: '#fff' },
+  container: { height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--surface-dim)', overflow: 'hidden' },
+  topBar: { height: '56px', backgroundColor: 'var(--surface)', borderBottom: '1px solid var(--outline-variant)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', zIndex: 100 },
+  topBarCenter: { fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--secondary)', fontSize: '13px', letterSpacing: '0.1em' },
+  viewToggleBtn: { fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '12px', padding: '10px 16px', backgroundColor: 'var(--surface-container-high)', color: 'var(--on-surface)', border: '1px solid var(--outline-variant)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s', letterSpacing: '0.05em', height: '36px', display: 'flex', alignItems: 'center' },
   workspace: { flex: 1, display: 'flex', position: 'relative' },
-  sidebar: { width: '320px', backgroundColor: 'var(--panel-bg)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', zIndex: 10 },
-  tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--border-color)', justifyContent: 'space-around', alignItems: 'center' },
-  panelContent: { flex: 1, overflowY: 'auto', padding: '24px' },
-  section: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  sectionLabel: { fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: 600 },
-  pillToggleContainer: { display: 'inline-flex', background: '#1a1a2e', borderRadius: '20px', padding: '3px', alignSelf: 'flex-start' },
-  pillActive: { background: '#6c63ff', borderRadius: '18px', padding: '6px 14px', color: '#fff', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },
-  pillInactive: { background: 'transparent', color: '#888899', padding: '6px 14px', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer' },
-  warning: { padding: '12px', backgroundColor: 'rgba(245, 166, 35, 0.1)', color: 'var(--warning)', fontSize: '13px', borderRadius: '8px' },
-  label: { fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' },
-  colorPickers: { display: 'flex', flexDirection: 'column', gap: '24px' },
-  presets: { display: 'flex', flexWrap: 'wrap', gap: '2px', marginTop: '8px' },
-  input: { width: '100%', padding: '10px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', color: '#fff', fontFamily: 'var(--font-mono)', boxSizing: 'border-box' },
-  uploadArea: { border: '2px dashed #2a2a3a', padding: '24px', textAlign: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', backgroundColor: 'var(--card-bg)', fontSize: 12 },
-  note: { fontSize: '12px', color: 'var(--text-muted)' },
+  sidebar: { width: '320px', minWidth: '320px', backgroundColor: 'var(--surface)', borderRight: '1px solid var(--outline-variant)', display: 'flex', flexDirection: 'column', zIndex: 10 },
+  tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--outline-variant)', justifyContent: 'space-around', alignItems: 'center', background: 'var(--surface-container-lowest)' },
+  panelContent: { flex: 1, overflowY: 'auto', padding: '32px 24px' },
+  section: { display: 'flex', flexDirection: 'column', gap: '24px' },
+  sectionLabel: { fontFamily: 'var(--font-mono)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--secondary)', marginBottom: '16px', fontWeight: 600, borderBottom: '1px solid var(--outline-variant)', paddingBottom: '8px' },
+  pillToggleContainer: { display: 'flex', background: 'var(--surface-container)', borderRadius: '4px', padding: '4px', alignSelf: 'stretch' },
+  pillActive: { flex: 1, background: 'var(--primary)', borderRadius: '2px', padding: '10px 0', color: 'var(--on-primary)', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 700, border: 'none', transition: 'all 0.2s', cursor: 'pointer', textAlign: 'center', letterSpacing: '0.05em' },
+  pillInactive: { flex: 1, background: 'transparent', color: 'var(--on-surface-variant)', padding: '10px 0', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer', textAlign: 'center', letterSpacing: '0.05em' },
+  warning: { padding: '16px', backgroundColor: 'var(--surface-container)', color: 'var(--warning)', fontSize: '13px', borderRadius: '4px', borderLeft: '4px solid var(--warning)', fontFamily: 'var(--font-body)' },
+  label: { fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 600, color: 'var(--on-surface)', marginBottom: '12px', display: 'block' },
+  colorPickers: { display: 'flex', flexDirection: 'column', gap: '32px' },
+  presets: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' },
+  input: { width: '100%', padding: '14px', backgroundColor: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', color: 'var(--on-surface)', fontFamily: 'var(--font-mono)', boxSizing: 'border-box', fontSize: '16px' },
+  uploadArea: { border: '1px dashed var(--primary)', padding: '32px 24px', textAlign: 'center', borderRadius: '4px', color: 'var(--primary)', cursor: 'pointer', backgroundColor: 'rgba(208,188,255,0.05)', fontSize: 14, fontFamily: 'var(--font-body)', fontWeight: 500 },
+  note: { fontSize: '12px', color: 'var(--on-surface-variant)', fontFamily: 'var(--font-body)', marginTop: '8px', lineHeight: 1.5 },
   flexRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   canvasArea: { flex: 1, position: 'relative' },
 };
