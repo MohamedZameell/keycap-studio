@@ -179,10 +179,10 @@ export default function EntryScreen() {
 
       {/* Nav */}
       <nav className="nav-bar">
-        <div className="nav-logo">Keycap Studio</div>
+        <div className="nav-logo" onClick={() => setScreen('entry')} style={{ cursor: 'pointer' }}>Keycap Studio</div>
         <div className="nav-links">
-          <a href="#" className="nav-link">About</a>
-          <a href="#" className="nav-link">Support</a>
+          <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); setScreen('about'); }}>About</a>
+          <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); setScreen('support'); }}>Support</a>
           <a href="https://github.com/MohamedZameel" target="_blank" rel="noopener noreferrer" className="nav-link">GitHub</a>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
