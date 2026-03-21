@@ -486,8 +486,8 @@ export default function StudioScreen() {
             {activeTab === 'DESIGN' && (
               <div style={styles.section}>
                 <div style={styles.pillToggleContainer}>
-                  <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>GLOBAL CONFIG</button>
-                  <button style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('selected')}>TARGET KEY</button>
+                  <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>ALL KEYS</button>
+                  <button style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('selected')}>SELECTED KEY</button>
                 </div>
 
                 {targetScope === 'selected' && !targetKeyId && (
