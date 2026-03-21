@@ -153,7 +153,10 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         if (!cancelled) setTileTexture(null);
       }
     );
-    return () => { cancelled = true; };
+    return () => { 
+      cancelled = true; 
+      setTileTexture(old => { if(old) old.dispose(); return null; });
+    };
   }, [imageUrl, imageMode]);
 
   // TASK 1 — Wrap mode: clone texture per-key with correct UV slice
@@ -172,7 +175,10 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     cloned.repeat.set(uvScale[0], uvScale[1]);
     cloned.needsUpdate = true;
     setWrapTexture(cloned);
-    return () => { cloned.dispose(); };
+    return () => { 
+      setWrapTexture(old => { if(old) old.dispose(); return null; }); 
+      cloned.dispose(); 
+    };
   }, [tileTexture, imageMode, uvOffset, uvScale]);
 
   // ============================================================
@@ -186,12 +192,18 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       setPerKeyTexture(null);
       return;
     }
+    let cancelled = false;
     const loader = new THREE.TextureLoader();
     loader.load(perKeyImage, (tex) => {
+      if (cancelled) { tex.dispose(); return; }
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.needsUpdate = true;
       setPerKeyTexture(tex);
     });
+    return () => {
+      cancelled = true;
+      setPerKeyTexture(old => { if(old) old.dispose(); return null; });
+    };
   }, [perKeyImage]);
 
   // Priority: perKey > wrap > tile > none
@@ -363,6 +375,9 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             transparent={true}
             depthWrite={false}
             alphaTest={0.01}
+            polygonOffset={true}
+            polygonOffsetFactor={-4}
+            polygonOffsetUnits={-4}
           />
         </mesh>
       )}

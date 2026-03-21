@@ -14,7 +14,7 @@ function PrimaryKeycap() {
   });
 
   return (
-    <group ref={groupRef} position={[0.3, 0, -1]} rotation={[-0.3, 0.4, 0]} scale={[2.5, 2.5, 2.5]}>
+    <group ref={groupRef} position={[1.5, 0, -1.5]} rotation={[-0.3, 0.4, 0]} scale={[2.0, 2.0, 2.0]}>
       <Keycap keyId="bg" label="K" isSelected={false} />
     </group>
   );
@@ -30,7 +30,7 @@ function SecondaryKeycap() {
   });
 
   return (
-    <group ref={groupRef} position={[-2.5, 0.8, -2]} rotation={[-0.3, -0.4, 0.1]} scale={[1.4, 1.4, 1.4]}>
+    <group ref={groupRef} position={[-2.5, 1.2, -3]} rotation={[-0.3, -0.4, 0.1]} scale={[1.2, 1.2, 1.2]}>
       <Keycap keyId="bg2" label="S" isSelected={false} />
     </group>
   );
@@ -90,8 +90,8 @@ export default function EntryScreen() {
       </div>
 
       <style>{`
-        .hover-scale { transition: transform 0.2s ease, border-color 0.2s ease; }
-        .hover-scale:hover { transform: translateY(-4px) scale(1.02); border-color: var(--primary-accent); }
+        .hover-scale { transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+        .hover-scale:hover { transform: translateY(-4px) scale(1.02); border-color: var(--primary-accent); box-shadow: 0 16px 32px rgba(108, 99, 255, 0.15); }
       `}</style>
     </div>
   );
@@ -110,23 +110,23 @@ const styles = {
   content: {
     position: 'relative', zIndex: 10,
     display: 'flex', flexDirection: 'column', alignItems: 'center',
-    gap: '64px', maxWidth: '1000px', padding: '0 24px', textAlign: 'center'
+    gap: 'clamp(40px, 6vh, 64px)', maxWidth: '1000px', padding: '0 24px', textAlign: 'center'
   },
   header: { display: 'flex', flexDirection: 'column', gap: '12px' },
   title: {
-    fontSize: '64px', fontWeight: 700, letterSpacing: '-1.5px',
+    fontSize: 'clamp(48px, 6vw, 80px)', fontWeight: 700, letterSpacing: '-1.5px',
     color: 'var(--text-primary)', margin: 0
   },
-  subtitle: { fontSize: '20px', color: 'var(--text-secondary)', margin: 0 },
-  cardsRow: { display: 'flex', gap: '32px', justifyContent: 'center', flexWrap: 'wrap' },
+  subtitle: { fontSize: 'clamp(16px, 2vw, 22px)', color: 'var(--text-secondary)', margin: 0 },
+  cardsRow: { display: 'flex', gap: '32px', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'stretch' },
   card: {
     display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
     backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)',
-    borderRadius: '16px', padding: '32px', width: '380px', textAlign: 'left',
+    borderRadius: '16px', padding: '32px', width: '380px', height: '100%', textAlign: 'left',
     position: 'relative', overflow: 'hidden', backdropFilter: 'blur(10px)'
   },
-  icon: { fontSize: '48px', marginBottom: '24px' },
-  cardTitle: { fontSize: '28px', marginBottom: '12px', color: 'var(--text-primary)' },
+  icon: { fontSize: '48px', marginBottom: '16px' },
+  cardTitle: { fontSize: 'clamp(22px, 2.5vw, 28px)', marginBottom: '12px', color: 'var(--text-primary)' },
   cardDesc: { fontSize: '16px', lineHeight: 1.5, color: 'var(--text-secondary)', marginBottom: '32px' },
   tagBeginner: {
     marginTop: 'auto', backgroundColor: 'rgba(13, 158, 117, 0.15)',

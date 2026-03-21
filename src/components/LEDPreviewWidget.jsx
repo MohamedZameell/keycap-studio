@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useStore } from '../store';
 
 export default function LEDPreviewWidget() {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const isExpanded = useStore(s => s.ledPreviewExpanded);
+  const setIsExpanded = useStore(s => s.setLedPreviewExpanded);
   
   const ledType = useStore(s => s.keyboardLEDType) || 'None';
   const backlitEnabled = useStore(s => s.backlitEnabled);
@@ -81,7 +82,7 @@ export default function LEDPreviewWidget() {
             {isPerKey && "Per-key"}
             {isNone && "None"}
           </div>
-          <span style={styles.collapseBtn} onClick={() => setIsExpanded(false)}>↓</span>
+          <span style={styles.collapseBtn} onClick={() => setIsExpanded(false)}>×</span>
         </div>
       </div>
 

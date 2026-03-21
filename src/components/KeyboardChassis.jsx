@@ -21,8 +21,8 @@ export default function KeyboardChassis({ totalW, totalH }) {
         receiveShadow
       >
         <meshPhysicalMaterial
-          color="#0c0c16"
-          roughness={0.45}
+          color="#08080c"
+          roughness={0.65}
           metalness={0.35}
           clearcoat={0.5}
           clearcoatRoughness={0.15}
@@ -41,7 +41,7 @@ export default function KeyboardChassis({ totalW, totalH }) {
         receiveShadow
       >
         <meshPhysicalMaterial
-          color="#111120"
+          color="#111116"
           roughness={0.6}
           metalness={0.2}
           clearcoat={0.2}
@@ -54,8 +54,8 @@ export default function KeyboardChassis({ totalW, totalH }) {
       <mesh position={[0, -0.33, plateZ / 2 - 0.05]}>
         <boxGeometry args={[plateW - 0.4, 0.04, 0.06]} />
         <meshPhysicalMaterial
-          color="#6c63ff"
-          roughness={0.3}
+          color="#5b54cc"
+          roughness={0.7}
           metalness={0.4}
           emissive="#000000"
           emissiveIntensity={0}

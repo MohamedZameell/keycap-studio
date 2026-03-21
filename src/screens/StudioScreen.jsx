@@ -309,6 +309,28 @@ export default function StudioScreen() {
         .color-circle { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-sizing: border-box; }
         .color-circle:hover { transform: scale(1.15); }
         .color-circle.active { border: 2px solid #ffffff; }
+        .export-btn { border: 1px solid #6c63ff; color: #6c63ff; background: transparent; transition: all 0.2s; }
+        .export-btn:hover { background: rgba(108, 99, 255, 0.15); color: #fff; border-color: #8b7fff; }
+        
+        .toggle-switch {
+          position: relative;
+          display: inline-block;
+          width: 44px;
+          height: 24px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+          position: absolute; cursor: pointer;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background-color: #1a1a2e; transition: .3s; border-radius: 24px; border: 1px solid #2a2a3a;
+        }
+        .toggle-slider:before {
+          position: absolute; content: "";
+          height: 16px; width: 16px; left: 3px; bottom: 3px;
+          background-color: #888899; transition: .3s; border-radius: 50%;
+        }
+        input:checked + .toggle-slider { background-color: #6c63ff; border-color: #6c63ff; }
+        input:checked + .toggle-slider:before { transform: translateX(20px); background-color: #fff; }
       `}</style>
 
       {/* TOP BAR */}
@@ -329,7 +351,9 @@ export default function StudioScreen() {
             <button style={{ ...styles.toggleBtn, ...(viewMode === 'single' ? styles.toggleActive : {}) }} onClick={() => setViewMode('single')}>Single Key</button>
             <button style={{ ...styles.toggleBtn, ...(viewMode === 'full' ? styles.toggleActive : {}) }} onClick={() => setViewMode('full')}>Full Keyboard</button>
           </div>
-          <button style={{ ...styles.iconBtn, display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', border: '1px solid #6c63ff', color: '#6c63ff' }} onClick={handleExportPNG}>Export 📥</button>
+          <button className="iconBtn export-btn" style={{ ...styles.iconBtn, display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 16px' }} onClick={handleExportPNG}>
+            Export <span style={{ fontSize: 16 }}>↓</span>
+          </button>
         </div>
       </div>
 
@@ -400,7 +424,7 @@ export default function StudioScreen() {
                     <button style={store.materialPreset === 'abs' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('abs')}>ABS — Glossy</button>
                     <button style={store.materialPreset === 'pbt' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('pbt')}>PBT — Matte</button>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#444460', textAlign: 'center', marginTop: 4 }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: 8 }}>
                     {store.materialPreset === 'abs' ? 'Shiny surface, brighter colors' : 'Matte texture, enthusiast preferred'}
                   </div>
                 </div>
@@ -572,7 +596,10 @@ export default function StudioScreen() {
 
                 <div style={styles.flexRow}>
                   <span style={styles.label}>RGB Backlight</span>
-                  <input type="checkbox" style={{ width: 20, height: 20 }} checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
+                  <label className="toggle-switch">
+                    <input type="checkbox" checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
+                    <span className="toggle-slider"></span>
+                  </label>
                 </div>
 
                 {store.backlitEnabled && (
@@ -582,7 +609,9 @@ export default function StudioScreen() {
                   </div>
                 )}
 
-                <div style={{ marginTop: '24px', fontSize: '11px', color: '#444460' }}>
+                <div 
+                  onClick={() => store.setLedPreviewExpanded(true)}
+                  style={{ marginTop: '24px', fontSize: '12px', color: '#6c63ff', cursor: 'pointer', textDecoration: 'underline' }}>
                   See the LED diagram →
                 </div>
               </div>
@@ -592,7 +621,7 @@ export default function StudioScreen() {
             {activeTab === 'EXPORT' && (
               <div style={styles.section}>
                 {[
-                  { icon: '🖼', label: 'PNG Render', desc: 'High quality 3D screenshot', size: '~2-4MB', onClick: handleExportPNG },
+                  { icon: '🖼', label: 'PNG Render', desc: 'High quality 3D screenshot', size: '~2-4MB', onClick: handleExportPNG, prominent: true },
                   { icon: '📐', label: 'SVG Layout', desc: 'Vector layout for manufacturers', size: '~50KB', onClick: handleExportSVG },
                   { icon: '🔗', label: 'Share URL', desc: 'Copy link to this design', size: '', onClick: handleShareURL },
                   { icon: '📄', label: 'Print-ready PDF', desc: 'High quality PDF render', size: '~2-4MB', onClick: handleExportPDF },
@@ -602,16 +631,16 @@ export default function StudioScreen() {
                     onClick={btn.disabled ? undefined : btn.onClick}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-                      background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8,
+                      background: btn.prominent ? '#252542' : '#1a1a2e', border: btn.prominent ? '1px solid #6c63ff' : '1px solid #2a2a3a', borderRadius: 8,
                       cursor: btn.disabled ? 'not-allowed' : 'pointer', transition: '0.2s',
                       opacity: btn.disabled ? 0.4 : 1, marginBottom: 10, width: '100%', textAlign: 'left',
                     }}
-                    onMouseEnter={(e) => { if (!btn.disabled) { e.currentTarget.style.borderColor = '#6c63ff'; e.currentTarget.style.background = '#6c63ff0a'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
+                    onMouseEnter={(e) => { if (!btn.disabled) { e.currentTarget.style.borderColor = '#8b7fff'; e.currentTarget.style.background = '#6c63ff15'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = btn.prominent ? '#6c63ff' : '#2a2a3a'; e.currentTarget.style.background = btn.prominent ? '#252542' : '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
                   >
                     <span style={{ fontSize: 24 }}>{btn.icon}</span>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{btn.label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: btn.prominent ? '#a09bf5' : '#fff' }}>{btn.label}</div>
                       <div style={{ fontSize: 11, color: '#666680' }}>{btn.desc}</div>
                       {btn.size && <div style={{ fontSize: 10, color: '#444460' }}>{btn.size}</div>}
                     </div>
@@ -715,7 +744,7 @@ export default function StudioScreen() {
 
                 {/* POST PROCESSING */}
                 <EffectComposer multisampling={0}>
-                  <SSAO samples={16} radius={0.08} intensity={25} luminanceInfluence={0.5} bias={0.04} color="black" />
+                  <SSAO samples={16} radius={0.10} intensity={1.5} luminanceInfluence={0.6} bias={0.04} color="black" />
                   <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
                 </EffectComposer>
               </Suspense>

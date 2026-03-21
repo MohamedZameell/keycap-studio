@@ -41,6 +41,8 @@ export default function SelectorScreen() {
     return { color: '#888899', icon: '—', text: "No backlight. Focus on strong color contrast between keycap and legend." };
   };
 
+  const getLEDColor = (type) => getLEDAdviceBox(type).color;
+
   const countMap = { '100%': 104, '96%': 98, 'TKL': 87, '75%': 84, '65%': 68, '60%': 61, '40%': 47 };
 
   return (
@@ -65,6 +67,8 @@ export default function SelectorScreen() {
           background-size: 200% auto;
           animation: shimmer 1.5s linear infinite;
         }
+        .secondary-btn { transition: background-color 0.2s, color 0.2s; }
+        .secondary-btn:hover { background-color: rgba(255,255,255,0.05); color: #fff; }
         .step-indicator { border-bottom: 2px solid transparent; padding-bottom: 2px; transition: all 0.3s ease; }
         .step-indicator.active { border-bottom-color: #6c63ff; }
       `}</style>
@@ -134,13 +138,16 @@ export default function SelectorScreen() {
                     return (
                       <div key={k.id} className="model-card" style={isCardSelected ? styles.modelCardSelected : styles.modelCard} onClick={() => handleSelectModel(k)}>
                         {isCardSelected && <div style={styles.cardCheckmark}>✓</div>}
-                        <h3 style={styles.modelName}>{k.model}</h3>
-                        <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
+                        <h3 style={styles.modelName}>
+                          {k.model}
+                          <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: getLEDColor(k.ledType), marginLeft: 8, verticalAlign: 'middle', marginBottom: 2 }} title={k.ledType} />
+                        </h3>
+                        <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0', flex: 1 }}>
                           <KeyboardSilhouette formFactor={k.formFactor} large={false} />
                         </div>
                         <div style={styles.badges}>
-                          <span style={styles.badge}>{k.formFactor}</span>
-                          <span style={styles.badge}>{k.keyCount} Keys</span>
+                          <span style={{ ...styles.badge, backgroundColor: 'rgba(108, 99, 255, 0.15)', color: '#b3b0ff' }}>{k.formFactor}</span>
+                          <span style={{ ...styles.badge, backgroundColor: 'rgba(13, 158, 117, 0.15)', color: '#4dffce' }}>{k.keyCount} Keys</span>
                         </div>
                         <div style={styles.modelSpecs}>
                           <div>{k.ledType}</div>
@@ -213,19 +220,19 @@ export default function SelectorScreen() {
 
               {/* Three info columns */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
-                <div>
+                <div style={styles.specColumn}>
                   <div style={styles.specLabel}>Form Factor</div>
                   <div style={styles.specValue}>{store.selectedFormFactor}</div>
                   <div style={{ ...styles.specLabel, marginTop: 12 }}>Key Count</div>
                   <div style={styles.specValue}>{countMap[store.selectedFormFactor] || '~60'}</div>
                 </div>
-                <div>
+                <div style={styles.specColumn}>
                   <div style={styles.specLabel}>Layout Standard</div>
                   <div style={styles.specValue}>{store.selectedLayout || 'ANSI'}</div>
                   <div style={{ ...styles.specLabel, marginTop: 12 }}>Profile</div>
                   <div style={styles.specValue}>{store.selectedProfile || 'Cherry'}</div>
                 </div>
-                <div>
+                <div style={styles.specColumn}>
                   <div style={styles.specLabel}>LED Type</div>
                   <div style={styles.specValue}>{store.keyboardLEDType || 'None'}</div>
                   <div style={{ ...styles.specLabel, marginTop: 12 }}>Hotswap</div>
@@ -253,7 +260,7 @@ export default function SelectorScreen() {
               <button className="enter-btn" style={styles.enterBtn} onClick={() => store.setScreen('studio')}>
                 Enter Designer →
               </button>
-              <button style={styles.secondaryBtn} onClick={() => {
+              <button className="secondary-btn" style={styles.secondaryBtn} onClick={() => {
                 setStep(path === 'beginner' ? 2 : 3);
                 setSelectedModelObj(null);
                 store.setSelectedModel(null);
@@ -285,13 +292,13 @@ const styles = {
   stepTitle: { fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)' },
   textLinkBtn: { color: 'var(--text-secondary)', textDecoration: 'underline', backgroundColor: 'transparent', padding: 0 },
 
-  brandGrid: { display: 'flex', flexWrap: 'wrap', gap: '16px' },
+  brandGrid: { display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center' },
   brandPill: { padding: '16px 32px', borderRadius: '32px', backgroundColor: 'var(--card-bg)', border: '1px solid var(--text-muted)', fontSize: '18px', color: 'var(--text-secondary)', cursor: 'pointer' },
   brandPillActive: { padding: '16px 32px', borderRadius: '32px', backgroundColor: 'var(--primary-accent)', border: '1px solid var(--primary-accent)', fontSize: '18px', color: '#fff', cursor: 'pointer', fontWeight: 600 },
 
-  modelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' },
-  modelCard: { position: 'relative', backgroundColor: 'var(--card-bg)', border: '2px solid var(--border-color)', borderRadius: '12px', padding: '24px', cursor: 'pointer' },
-  modelCardSelected: { position: 'relative', backgroundColor: 'var(--card-bg)', border: '2px solid var(--primary-accent)', borderRadius: '12px', padding: '24px', cursor: 'pointer', transform: 'translateY(-4px)' },
+  modelsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' },
+  modelCard: { position: 'relative', backgroundColor: 'var(--card-bg)', border: '2px solid var(--border-color)', borderRadius: '12px', padding: '24px', cursor: 'pointer', display: 'flex', flexDirection: 'column', height: '100%' },
+  modelCardSelected: { position: 'relative', backgroundColor: 'var(--card-bg)', border: '2px solid var(--primary-accent)', borderRadius: '12px', padding: '24px', cursor: 'pointer', transform: 'translateY(-4px)', display: 'flex', flexDirection: 'column', height: '100%' },
   cardCheckmark: { position: 'absolute', top: 16, right: 16, width: 24, height: 24, borderRadius: '50%', backgroundColor: 'var(--primary-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
   modelName: { fontSize: '24px', marginBottom: '16px' },
   badges: { display: 'flex', gap: '8px', marginBottom: '16px' },
@@ -307,6 +314,7 @@ const styles = {
   confirmWrapper: { display: 'flex', justifyContent: 'center', marginTop: '48px', paddingBottom: '48px' },
   confirmCard: { backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '40px', width: '100%', maxWidth: '800px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' },
 
+  specColumn: { backgroundColor: '#161626', padding: '16px 20px', borderRadius: '8px' },
   specLabel: { fontSize: 10, textTransform: 'uppercase', color: '#444460', fontWeight: 700, letterSpacing: '0.5px' },
   specValue: { fontSize: 14, fontWeight: 500, color: '#fff', marginTop: 2 },
 

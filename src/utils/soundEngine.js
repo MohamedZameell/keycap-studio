@@ -10,6 +10,9 @@ function getAudioContext() {
 export function playKeycapSound(material = 'abs') {
   try {
     const ctx = getAudioContext()
+    if (ctx.state === 'suspended') {
+      ctx.resume()
+    }
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     const filter = ctx.createBiquadFilter()

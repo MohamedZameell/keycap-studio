@@ -25,6 +25,7 @@ export const useStore = create((set) => ({
   perKeyDesigns: {},
   materialPreset: 'abs',
   soundEnabled: true,
+  ledPreviewExpanded: false,
 
   // IMAGE STATE
   keyboardImageMode: 'none',
@@ -54,6 +55,7 @@ export const useStore = create((set) => ({
   setBacklitColor: (color) => set({ backlitColor: color }),
   setMaterialPreset: (p) => set({ materialPreset: p }),
   setSoundEnabled: (v) => set({ soundEnabled: v }),
+  setLedPreviewExpanded: (v) => set({ ledPreviewExpanded: v }),
   
   setPerKeyDesign: (keyId, designObj) => set((state) => ({
     perKeyDesigns: {
