@@ -1,6 +1,8 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import EntryScreen from './screens/EntryScreen';
 import SelectorScreen from './screens/SelectorScreen';
+import AboutScreen from './screens/AboutScreen';
+import SupportScreen from './screens/SupportScreen';
 import SignInModal from './components/SignInModal';
 import { useStore } from './store';
 
@@ -35,6 +37,8 @@ export default function App() {
 
   if (screen === 'entry') return <><EntryScreen /><SignInModal /></>;
   if (screen === 'selector') return <><SelectorScreen /><SignInModal /></>;
+  if (screen === 'about') return <><AboutScreen /><SignInModal /></>;
+  if (screen === 'support') return <><SupportScreen /><SignInModal /></>;
   if (screen === 'studio' || screen === 'gallery') {
     return (
       <>
