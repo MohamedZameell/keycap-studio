@@ -278,22 +278,23 @@ export default function EntryScreen() {
         <h2 className="headline" style={{ fontSize: '24px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Designer Concepts</h2>
         <div className="gallery-preview-grid">
           {[
-            { n: 'NEON_DRIFT 65', s: 'ALEX_STUDIO', t1: 'PBT', t2: 'GASKET', c: '#d0bcff' },
-            { n: 'RAW_ALUM TKL', s: 'KBD_LAB', t1: 'ALU', t2: 'WKL', c: '#44e2cd' },
-            { n: 'VINTAGE_90', s: 'NOSTALGIA_HUB', t1: 'ABS', t2: 'TRAY', c: '#ffb869' }
-          ].map((g, i) => (
+            { title: 'NEON_DRIFT 65', by: 'ALEX_STUDIO', tags: ['PBT', 'GASKET'], c: '#d0bcff' },
+            { title: 'RAW_ALUM TKL', by: 'KBD_LAB', tags: ['ALU', 'WKL'], c: '#44e2cd' },
+            { title: 'VINTAGE_90', by: 'NOSTALGIA_HUB', tags: ['ABS', 'TRAY'], c: '#ffb869' }
+          ].map((card, i) => (
             <div key={i} className="gallery-card" onClick={() => setScreen('gallery')}>
-              <div className="gc-image">
-                <div style={{ width: '100%', height: '100%', background: g.c, opacity: 0.2 }}></div>
-              </div>
-              <div className="gc-content">
-                <div className="gc-title">
-                  <span className="headline" style={{ fontSize: '16px' }}>{g.n}</span>
-                  <span className="mono-sm">BY {g.s}</span>
+              <div className="gc-image" style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: `${card.c}22` }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '8px', backgroundColor: card.c, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 'bold', fontSize: '24px', color: '#1a1a1a', boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.4)' }}>
+                  {card.title.charAt(0)}
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <span className="tag-chip">{g.t1}</span>
-                  <span className="tag-chip">{g.t2}</span>
+              </div>
+              <div style={{ padding: '20px 24px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom: 10 }}>
+                  <span style={{ fontFamily:'var(--font-heading, Space Grotesk)', fontWeight:700, fontSize:15, color:'var(--on-surface, #fff)' }}>{card.title}</span>
+                  <span style={{ fontFamily:'var(--font-mono, JetBrains Mono)', fontSize:10, color:'var(--secondary, #44e2cd)' }}>{card.by}</span>
+                </div>
+                <div style={{ display:'flex', gap:8 }}>
+                  {card.tags.map(t => <span key={t} style={{ fontFamily:'var(--font-mono, JetBrains Mono)', fontSize:10, padding:'3px 10px', background:'var(--surface-container-high, #2a2a2c)', borderRadius:20, color:'var(--on-surface-variant, #958ea0)' }}>{t}</span>)}
                 </div>
               </div>
             </div>
