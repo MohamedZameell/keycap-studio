@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import EntryScreen from './screens/EntryScreen';
 import SelectorScreen from './screens/SelectorScreen';
-import StudioScreen from './screens/StudioScreen';
-import GalleryScreen from './screens/GalleryScreen';
 import { useStore } from './store';
+
+const StudioScreen = lazy(() => import('./screens/StudioScreen'));
+const GalleryScreen = lazy(() => import('./screens/GalleryScreen'));
 
 export default function App() {
   const screen = useStore(s => s.screen);
@@ -33,8 +34,14 @@ export default function App() {
 
   if (screen === 'entry') return <EntryScreen />;
   if (screen === 'selector') return <SelectorScreen />;
-  if (screen === 'studio') return <StudioScreen />;
-  if (screen === 'gallery') return <GalleryScreen />;
+  if (screen === 'studio' || screen === 'gallery') {
+    return (
+      <Suspense fallback={<div style={{background:'#0a0a0f', width:'100vw', height:'100vh'}} />}>
+        {screen === 'studio' && <StudioScreen />}
+        {screen === 'gallery' && <GalleryScreen />}
+      </Suspense>
+    );
+  }
   
   return <div style={{color: 'white', padding: 20}}>Unknown screen</div>;
 }

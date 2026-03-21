@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { KEYBOARDS, BRANDS, FORM_FACTORS, PROFILES, LAYOUTS } from '../data/keyboards';
+import { BRANDS, FORM_FACTORS, PROFILES, LAYOUTS, getBrandModels } from '../data/keyboards';
+import { FixedSizeList as List } from 'react-window';
 import KeyboardSilhouette from '../components/KeyboardSilhouette';
 
 export default function SelectorScreen() {
@@ -14,6 +15,18 @@ export default function SelectorScreen() {
   const [localFormFactor, setLocalFormFactor] = useState(null);
   const [localLayout, setLocalLayout] = useState(null);
   const [brandSearch, setBrandSearch] = useState('');
+  const [brandModels, setBrandModels] = useState([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+
+  const handleBrandSelect = async (b) => {
+    setLocalBrand(b);
+    setStep(2);
+    setSelectedModelObj(null);
+    setModelsLoading(true);
+    const m = await getBrandModels(b);
+    setBrandModels(m || []);
+    setModelsLoading(false);
+  };
 
   const handleSelectModel = (model) => {
     setSelectedModelObj(model);
@@ -128,7 +141,7 @@ export default function SelectorScreen() {
                     const isSelected = localBrand === b;
                     return (
                       <button key={b} className="brand-pill" style={isSelected ? styles.brandPillActive : styles.brandPill}
-                        onClick={() => { setLocalBrand(b); setStep(2); setSelectedModelObj(null); }}>
+                        onClick={() => handleBrandSelect(b)}>
                         {b}
                       </button>
                     );
@@ -144,32 +157,54 @@ export default function SelectorScreen() {
                   <button style={styles.textLinkBtn} onClick={() => { setStep(1); setLocalBrand(null); setSelectedModelObj(null); }}>← Back to brands</button>
                 </div>
 
-                <div style={styles.modelsGrid}>
-                  {KEYBOARDS.filter(k => k.brand === localBrand).map(k => {
-                    const isCardSelected = selectedModelObj?.id === k.id;
-                    return (
-                      <div key={k.id} className="model-card" style={isCardSelected ? styles.modelCardSelected : styles.modelCard} onClick={() => handleSelectModel(k)}>
-                        {isCardSelected && <div style={styles.cardCheckmark}>✓</div>}
-                        <h3 style={styles.modelName}>
-                          {k.model}
-                          <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: getLEDColor(k.ledType), marginLeft: 8, verticalAlign: 'middle', marginBottom: 2 }} title={k.ledType} />
-                        </h3>
-                        <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0', flex: 1 }}>
-                          <KeyboardSilhouette formFactor={k.formFactor} large={false} />
-                        </div>
-                        <div style={styles.badges}>
-                          <span style={{ ...styles.badge, backgroundColor: 'rgba(108, 99, 255, 0.15)', color: '#b3b0ff' }}>{k.formFactor}</span>
-                          <span style={{ ...styles.badge, backgroundColor: 'rgba(13, 158, 117, 0.15)', color: '#4dffce' }}>{k.keyCount} Keys</span>
-                        </div>
-                        <div style={styles.modelSpecs}>
-                          <div>{k.ledType}</div>
-                          <div>{k.profile} Profile</div>
-                          {k.hotswap && <div style={{ color: 'var(--success)' }}>Hotswap</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                {modelsLoading ? (
+                  <div style={{color: '#888899', padding: '40px 0', textAlign: 'center'}}>Loading models...</div>
+                ) : (
+                  <div style={{ height: 440, width: '100%', marginTop: 16 }}>
+                    <List
+                      height={440}
+                      itemCount={Math.ceil(brandModels.length / 3)}
+                      itemSize={260}
+                      width="100%"
+                    >
+                      {({ index, style }) => {
+                        const items = [];
+                        for(let i=0; i<3; i++) {
+                          const k = brandModels[index * 3 + i];
+                          if(k) {
+                            const isCardSelected = selectedModelObj?.id === k.id;
+                            items.push(
+                              <div key={k.id} style={{ flex: 1, padding: '0 12px' }}>
+                                <div className="model-card" style={isCardSelected ? styles.modelCardSelected : styles.modelCard} onClick={() => handleSelectModel(k)}>
+                                  {isCardSelected && <div style={styles.cardCheckmark}>✓</div>}
+                                  <h3 style={styles.modelName}>
+                                    {k.model}
+                                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: getLEDColor(k.ledType), marginLeft: 8, verticalAlign: 'middle', marginBottom: 2 }} title={k.ledType} />
+                                  </h3>
+                                  <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0', flex: 1 }}>
+                                    <KeyboardSilhouette formFactor={k.formFactor} large={false} />
+                                  </div>
+                                  <div style={styles.badges}>
+                                    <span style={{ ...styles.badge, backgroundColor: 'rgba(108, 99, 255, 0.15)', color: '#b3b0ff' }}>{k.formFactor}</span>
+                                    <span style={{ ...styles.badge, backgroundColor: 'rgba(13, 158, 117, 0.15)', color: '#4dffce' }}>{k.keyCount} Keys</span>
+                                  </div>
+                                  <div style={styles.modelSpecs}>
+                                    <div>{k.ledType}</div>
+                                    <div>{k.profile} Profile</div>
+                                    {k.hotswap && <div style={{ color: 'var(--success)' }}>Hotswap</div>}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            items.push(<div key={`empty-${i}`} style={{ flex: 1, padding: '0 12px' }} />);
+                          }
+                        }
+                        return <div style={{ ...style, display: 'flex', paddingBottom: 16 }}>{items}</div>;
+                      }}
+                    </List>
+                  </div>
+                )}
               </>
             )}
           </div>

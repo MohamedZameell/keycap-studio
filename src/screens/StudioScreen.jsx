@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows, Stars, Stats } from '@react-three/drei';
 import { EffectComposer, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { HexColorPicker } from 'react-colorful';
@@ -728,6 +728,7 @@ export default function StudioScreen() {
               }}
             >
               <Suspense fallback={null}>
+                <Stats />
                 {/* STUDIO LIGHTING */}
                 <ambientLight intensity={0.4} color="#ffffff" />
                 <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
