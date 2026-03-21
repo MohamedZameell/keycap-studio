@@ -371,33 +371,112 @@ export default function StudioScreen() {
       `}</style>
 
       {/* TOP BAR */}
-      <div style={styles.topBar}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button className="text-btn" onClick={() => store.setScreen('selector')} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--on-surface-variant)', fontSize: 13, fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <span style={{ fontSize: 16 }}>←</span> Studio
-          </button>
+      <div style={{
+        height: 56,
+        background: '#1b1b1d',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 20px 0 16px',
+        flexShrink: 0,
+        zIndex: 10,
+      }}>
+        {/* Left */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={() => store.setScreen('entry')}
+            style={{ background: 'none', border: 'none', color: '#cbc3d7', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+          >←</button>
+          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 15, color: '#e5e1e4' }}>
+            Keycap Studio
+          </span>
         </div>
-        <div style={styles.topBarCenter}>
-          [{store.selectedModel || 'CUSTOM FORMAT'}] {store.selectedFormFactor && <span style={{ color: 'var(--on-surface-variant)' }}>// {store.selectedFormFactor}</span>}
-        </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button className="text-btn" onClick={() => setViewMode(v => v === 'single' ? 'full' : 'single')} style={styles.viewToggleBtn}>
-            {viewMode === 'full' ? 'ISOLATE KEY' : 'FULL BOARD'}
-          </button>
-          <button className="text-btn" onClick={() => store.setScreen('gallery')} style={{ ...styles.viewToggleBtn, backgroundColor: 'transparent', borderColor: 'transparent' }}>GALLERY</button>
-          <button className="text-btn" onClick={handleExportPNG} style={{ ...styles.viewToggleBtn, backgroundColor: 'var(--primary)', color: 'var(--on-primary)', borderColor: 'var(--primary)' }}>
-            EXPORT ↓
-          </button>
+
+        {/* Center — keyboard name */}
+        <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: 15, color: '#e5e1e4' }}>
+          {store.selectedModel ? `${store.selectedModel} — ${store.selectedFormFactor}` : 'Custom Layout'}
+        </span>
+
+        {/* Right — actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {['SINGLE', 'FULL'].map(v => (
+            <button key={v}
+              onClick={() => setViewMode(v === 'SINGLE' ? 'single' : 'full')}
+              style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 11,
+                padding: '5px 12px',
+                borderRadius: 2,
+                border: `1px solid ${viewMode === (v === 'SINGLE' ? 'single' : 'full') ? '#d0bcff' : 'rgba(149,142,160,0.2)'}`,
+                background: viewMode === (v === 'SINGLE' ? 'single' : 'full') ? 'rgba(208,188,255,0.1)' : 'transparent',
+                color: viewMode === (v === 'SINGLE' ? 'single' : 'full') ? '#d0bcff' : '#cbc3d7',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >{v}</button>
+          ))}
+
+          <button style={{
+            fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: 13,
+            padding: '6px 16px', borderRadius: 2,
+            border: '1px solid rgba(149,142,160,0.3)',
+            background: 'transparent', color: '#e5e1e4', cursor: 'pointer',
+          }}>SAVE</button>
+
+          <button
+            onClick={() => setActiveTab('EXPORT')}
+            style={{
+              fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 13,
+              padding: '6px 18px', borderRadius: 2,
+              background: '#d0bcff', color: '#3c0091',
+              border: 'none', cursor: 'pointer',
+            }}
+          >EXPORT CONFIG</button>
+
+          <button
+            onClick={() => store.setScreen('gallery')}
+            style={{
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+              padding: '5px 12px', borderRadius: 2,
+              border: '1px solid rgba(149,142,160,0.2)',
+              background: 'transparent', color: '#cbc3d7', cursor: 'pointer',
+            }}
+          >GALLERY</button>
         </div>
       </div>
 
       <div style={styles.workspace}>
         {/* CONTROL PANEL */}
         <div style={styles.sidebar}>
-          <div style={styles.tabs}>
-            {['Design', 'Legend', 'Image', 'Backlit', 'Export'].map(t => (
-              <button key={t} className={`tab-btn ${activeTab === t.toUpperCase() ? 'active' : ''}`} onClick={() => setActiveTab(t.toUpperCase())}>
-                {t}
+          <div style={{ display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--outline-variant)', justifyContent: 'space-around', alignItems: 'center', background: '#201f21' }}>
+            {[
+              { key: 'design', icon: '◉', label: 'DESIGN' },
+              { key: 'legend', icon: 'T', label: 'LEGEND' },
+              { key: 'image', icon: '⊞', label: 'IMAGE' },
+              { key: 'backlit', icon: '◌', label: 'BACKLIT' },
+              { key: 'export', icon: '↑', label: 'EXPORT' },
+            ].map(tab => (
+              <button key={tab.key}
+                onClick={() => setActiveTab(tab.key.toUpperCase())}
+                style={{
+                  flex: 1,
+                  padding: '14px 4px 10px',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: `2px solid ${activeTab === tab.key.toUpperCase() ? '#d0bcff' : 'transparent'}`,
+                  color: activeTab === tab.key.toUpperCase() ? '#d0bcff' : '#958ea0',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ fontSize: 16 }}>{tab.icon}</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.08em' }}>
+                  {tab.label}
+                </span>
               </button>
             ))}
           </div>
@@ -418,30 +497,54 @@ export default function StudioScreen() {
                 {/* THEMES */}
                 <div style={{ marginBottom: 8 }}>
                   <div style={styles.sectionLabel}>Themes</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
-                    {THEMES.map(t => (
-                      <div key={t.name} style={{ textAlign: 'center' }}>
-                        <button
-                          onClick={() => { store.setGlobalColor(t.keycap); store.setGlobalLegendColor(t.legend); store.setMaterialPreset(t.material); }}
-                          style={{ width: '100%', height: 36, background: t.keycap, borderRadius: 6, border: getVal('color') === t.keycap ? '2px solid #6c63ff' : '2px solid transparent', position: 'relative', cursor: 'pointer', transition: 'border 0.15s' }}
-                          onMouseEnter={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid rgba(255,255,255,0.3)'; }}
-                          onMouseLeave={(e) => { if (getVal('color') !== t.keycap) e.currentTarget.style.border = '2px solid transparent'; }}
-                        >
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.legend, position: 'absolute', bottom: 4, right: 4 }} />
-                        </button>
-                        <div style={{ fontSize: '9px', color: '#666680', marginTop: 2 }}>{t.name}</div>
-                      </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
+                    {THEMES.map(theme => (
+                      <button key={theme.name}
+                        onClick={() => { store.setGlobalColor(theme.keycap); store.setGlobalLegendColor(theme.legend); store.setMaterialPreset(theme.material); }}
+                        title={theme.name}
+                        style={{
+                          aspectRatio: '1',
+                          background: theme.keycap,
+                          border: '2px solid transparent',
+                          borderRadius: 2,
+                          cursor: 'pointer',
+                          transition: 'border 0.15s',
+                          position: 'relative',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.border = '2px solid rgba(255,255,255,0.5)'}
+                        onMouseLeave={e => e.currentTarget.style.border = '2px solid transparent'}
+                      >
+                        <div style={{
+                          position: 'absolute', bottom: 3, right: 3,
+                          width: 6, height: 6, borderRadius: '50%',
+                          background: theme.legend,
+                        }} />
+                      </button>
                     ))}
                   </div>
                 </div>
 
                 <div style={styles.colorPickers}>
                   <div>
-                    <label style={styles.label}>Keycap Base Color</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', color: '#958ea0' }}>
+                        BASE COLOR
+                      </div>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#d0bcff' }}>
+                        {(getVal('color') || '#6c63ff').toUpperCase()}
+                      </div>
+                    </div>
                     <HexColorPicker color={getVal('color') || '#6c63ff'} onChange={(c) => updateDesign('color', c)} style={{ width: '100%' }} />
                   </div>
                   <div>
-                    <label style={styles.label}>Legend Color</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', color: '#958ea0' }}>
+                        LEGEND COLOR
+                      </div>
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#d0bcff' }}>
+                        {(getVal('legendColor') || '#ffffff').toUpperCase()}
+                      </div>
+                    </div>
                     <HexColorPicker color={getVal('legendColor') || '#ffffff'} onChange={(c) => updateDesign('legendColor', c)} style={{ width: '100%' }} />
                   </div>
                 </div>
@@ -454,12 +557,27 @@ export default function StudioScreen() {
 
                 {/* MATERIAL TOGGLE */}
                 <div style={{ marginTop: 16 }}>
-                  <div style={styles.pillToggleContainer}>
-                    <button style={store.materialPreset === 'abs' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('abs')}>ABS (GLOSSY)</button>
-                    <button style={store.materialPreset === 'pbt' ? styles.pillActive : styles.pillInactive} onClick={() => store.setMaterialPreset('pbt')}>PBT (MATTE)</button>
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: 8 }}>
-                    {store.materialPreset === 'abs' ? 'Shiny surface, brighter colors' : 'Matte texture, enthusiast preferred'}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    {[
+                      { label: 'MATTE PBT', value: 'pbt' },
+                      { label: 'GLOSSY ABS', value: 'abs' },
+                    ].map(m => (
+                      <button key={m.value}
+                        onClick={() => store.setMaterialPreset(m.value)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 8px',
+                          fontFamily: 'Space Grotesk, sans-serif',
+                          fontSize: 12, fontWeight: 600,
+                          borderRadius: 2,
+                          border: '1px solid rgba(149,142,160,0.2)',
+                          background: store.materialPreset === m.value ? 'rgba(208,188,255,0.12)' : '#2a2a2c',
+                          color: store.materialPreset === m.value ? '#d0bcff' : '#cbc3d7',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >{m.label}</button>
+                    ))}
                   </div>
                 </div>
 
@@ -683,6 +801,28 @@ export default function StudioScreen() {
               </div>
             )}
           </div>
+
+          {/* SPEC RAIL */}
+          <div style={{
+            marginTop: 'auto',
+            padding: '14px 16px',
+            borderTop: '1px solid rgba(149,142,160,0.1)',
+          }}>
+            {[
+              { label: 'PROFILE', value: 'CHERRY' },
+              { label: 'THICKNESS', value: '1.5 MM' },
+              { label: 'WEIGHT', value: '1.2 G / KEY' },
+            ].map(s => (
+              <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#958ea0', letterSpacing: '0.08em' }}>
+                  {s.label}
+                </span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#e5e1e4', fontWeight: 500 }}>
+                  {s.value}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* 3D CANVAS */}
@@ -707,7 +847,7 @@ export default function StudioScreen() {
                 far: 1000
               }}
               onCreated={(state) => {
-                state.gl.setClearColor('#0a0a0f');
+                state.gl.setClearColor('#131315');
               }}
             >
               <Suspense fallback={null}>
@@ -823,6 +963,25 @@ export default function StudioScreen() {
         </div>
       </div>
 
+      {/* STATUS BAR */}
+      <div style={{
+        height: 28,
+        background: '#0e0e10',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 16px',
+        flexShrink: 0,
+        borderTop: '1px solid rgba(149,142,160,0.1)',
+      }}>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#958ea0' }}>
+          ACTIVE PROJECT: {(store.selectedModel || 'UNTITLED').replace(/ /g, '_').toUpperCase()}
+        </span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#958ea0' }}>
+          RENDER ENGINE: WEBGL_RTX
+        </span>
+      </div>
+
       {/* Toast notification */}
       {toastVisible && (
         <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#0d9e75', color: '#fff', padding: '10px 16px', borderRadius: 8, fontSize: '13px', zIndex: 9999, transition: 'opacity 0.3s', pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
@@ -839,11 +998,11 @@ const styles = {
   topBarCenter: { fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--secondary)', fontSize: '13px', letterSpacing: '0.1em' },
   viewToggleBtn: { fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '12px', padding: '10px 16px', backgroundColor: 'var(--surface-container-high)', color: 'var(--on-surface)', border: '1px solid var(--outline-variant)', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s', letterSpacing: '0.05em', height: '36px', display: 'flex', alignItems: 'center' },
   workspace: { flex: 1, display: 'flex', position: 'relative' },
-  sidebar: { width: '320px', minWidth: '320px', backgroundColor: 'var(--surface)', borderRight: '1px solid var(--outline-variant)', display: 'flex', flexDirection: 'column', zIndex: 10 },
+  sidebar: { width: 300, background: '#201f21', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0, borderRight: '1px solid var(--outline-variant)', zIndex: 10 },
   tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--outline-variant)', justifyContent: 'space-around', alignItems: 'center', background: 'var(--surface-container-lowest)' },
   panelContent: { flex: 1, overflowY: 'auto', padding: '32px 24px' },
   section: { display: 'flex', flexDirection: 'column', gap: '24px' },
-  sectionLabel: { fontFamily: 'var(--font-mono)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--secondary)', marginBottom: '16px', fontWeight: 600, borderBottom: '1px solid var(--outline-variant)', paddingBottom: '8px' },
+  sectionLabel: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#958ea0', marginBottom: 12 },
   pillToggleContainer: { display: 'flex', background: 'var(--surface-container)', borderRadius: '4px', padding: '4px', alignSelf: 'stretch' },
   pillActive: { flex: 1, background: 'var(--primary)', borderRadius: '2px', padding: '10px 0', color: 'var(--on-primary)', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 700, border: 'none', transition: 'all 0.2s', cursor: 'pointer', textAlign: 'center', letterSpacing: '0.05em' },
   pillInactive: { flex: 1, background: 'transparent', color: 'var(--on-surface-variant)', padding: '10px 0', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 600, border: 'none', transition: 'all 0.2s', cursor: 'pointer', textAlign: 'center', letterSpacing: '0.05em' },
