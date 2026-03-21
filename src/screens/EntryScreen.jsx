@@ -28,10 +28,9 @@ function KeycapGrid() {
             ctx.roundRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size, 8);
             ctx.fill();
           } else {
-            // Fallback if roundRect not supported
             ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size);
           }
-          ctx.fillStyle = 'rgba(255,255,255,0.05)';
+          ctx.fillStyle = 'rgba(208,188,255,0.05)';
           ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size/2);
         }
       }
@@ -47,7 +46,6 @@ function KeycapGrid() {
       <div className="keycap-grid">
         <canvas ref={canvasRef} width={1300} height={850} />
       </div>
-      <div className="grid-overlay" />
     </div>
   );
 }
@@ -55,216 +53,279 @@ function KeycapGrid() {
 export default function EntryScreen() {
   const setScreen = useStore(s => s.setScreen);
   const setSelectionPath = useStore(s => s.setSelectionPath);
-  const [showAbout, setShowAbout] = useState(false);
-  const [showSupport, setShowSupport] = useState(false);
 
-  const handleBeginner = () => {
+  const handleStart = () => {
     setSelectionPath('beginner');
-    setScreen('selector');
-  };
-
-  const handleEnthusiast = () => {
-    setSelectionPath('enthusiast');
     setScreen('selector');
   };
 
   return (
     <div className="entry-container">
       <style>{`
-        .entry-container {
-          position: relative; width: 100%; min-height: 100vh;
-          background-color: #050508; overflow: hidden;
-          font-family: 'Inter', sans-serif;
-        }
-
-        /* Nav Bar */
+        .entry-container { position: relative; width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        /* Typography Helpers */
+        .headline { font-family: var(--font-heading); font-weight: 700; letter-spacing: -0.03em; color: var(--on-surface); }
+        .mono-sm { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--secondary); }
+        
+        /* Navigation */
         .nav-bar {
           position: fixed; top: 0; left: 0; right: 0; height: 56px;
-          background: rgba(10, 10, 15, 0.8); backdrop-filter: blur(12px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          background: rgba(19, 19, 21, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
           display: flex; align-items: center; justify-content: space-between;
           padding: 0 32px; z-index: 100;
         }
-        .nav-logo { display: flex; align-items: center; gap: 8px; color: white; font-weight: 600; font-size: 18px; }
-        .nav-logo-accent { width: 12px; height: 12px; background: #6c63ff; border-radius: 3px; }
+        .nav-logo { font-family: var(--font-heading); color: var(--on-surface); font-weight: 600; font-size: 18px; }
         .nav-links { display: flex; gap: 24px; }
         .nav-link { 
-          color: #888899; font-size: 14px; text-decoration: none; cursor: pointer;
-          transition: color 0.2s ease; background: none; border: none; padding: 0;
+          color: var(--on-surface-variant); font-size: 14px; font-weight: 500; font-family: var(--font-body);
+          transition: color 0.2s ease; 
         }
-        .nav-link:hover { color: white; }
+        .nav-link:hover { color: var(--primary); }
+        .btn-ghost { color: var(--on-surface-variant); font-family: var(--font-heading); font-weight: 700; padding: 8px 16px; font-size: 14px; }
+        .btn-ghost:hover { color: var(--on-surface); }
+        .btn-filled { background: var(--primary); color: var(--on-primary); font-family: var(--font-heading); font-weight: 700; padding: 8px 24px; font-size: 14px; border-radius: 4px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4); transition: transform 0.1s; }
+        .btn-filled:active { transform: translateY(2px); box-shadow: none; }
 
-        /* Animated Grid */
+        /* Animated Grid Overlay */
         .keycap-grid-container {
-          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-          z-index: 0; overflow: hidden;
-          perspective: 1000px;
+          position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; overflow: hidden; opacity: 0.6; pointer-events: none;
         }
         .keycap-grid {
-          position: absolute;
-          top: 50%; left: 50%;
-          transform: translate(-50%, -50%) rotateX(30deg) scale(1.3);
-          transform-style: preserve-3d;
-          width: 1300px; height: 850px;
+          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(20deg) scale(1.4);
+          transform-style: preserve-3d; width: 1300px; height: 850px;
+        }
+        .hero-fade {
+          position: absolute; inset: 0; z-index: 1; pointer-events: none;
+          background: linear-gradient(to bottom, rgba(14,14,16,0.2) 0%, rgba(14,14,16,0.5) 50%, var(--surface-dim) 100%);
         }
 
-        /* Content */
-        .main-content {
-          position: relative; z-index: 10;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          min-height: 100vh; padding-top: 56px; gap: 48px;
+        /* Hero Content */
+        .hero-section {
+          position: relative; width: 100%; min-height: 100vh;
+          display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+          z-index: 10; padding: 0 32px;
         }
-        .header-title {
-          font-size: clamp(40px, 6vw, 72px); font-weight: 800; letter-spacing: -2px;
-          color: white; margin: 0; text-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        .hero-badge {
+          display: inline-block; padding: 4px 16px; border-radius: 100px;
+          border: 1px solid rgba(208,188,255,0.3); background: rgba(208,188,255,0.1); backdrop-filter: blur(12px);
+          margin-bottom: 24px; animation: pulse 2s infinite; color: var(--primary);
         }
-        .header-subtitle {
-          font-size: clamp(16px, 2vw, 20px); color: #888899; margin: 12px 0 0 0;
-          font-weight: 400; text-shadow: 0 2px 12px rgba(0,0,0,0.5);
-        }
+        .hero-headline { font-size: clamp(48px, 8vw, 72px); max-width: 900px; margin-bottom: 32px; text-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .hero-accent { color: var(--primary); display: block; filter: drop-shadow(0 0 15px rgba(208,188,255,0.4)); }
         
-        .cards-row { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+        .hero-actions { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+        .btn-hero-primary { 
+          background: var(--primary); color: var(--on-primary); padding: 20px 48px; border-radius: 4px;
+          font-family: var(--font-heading); font-size: 20px; font-weight: 700;
+          box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4); transition: all 0.2s;
+        }
+        .btn-hero-primary:hover { box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4), 0 0 20px rgba(208,188,255,0.3); transform: translateY(-2px); }
+        .btn-hero-ghost {
+          background: rgba(208,188,255,0.05); color: var(--on-surface); border: 1px solid rgba(208,188,255,0.3);
+          padding: 20px 48px; border-radius: 4px; font-family: var(--font-heading); font-size: 20px; font-weight: 700; transition: all 0.2s; backdrop-filter: blur(10px);
+        }
+        .btn-hero-ghost:hover { background: var(--surface-container-high); border-color: var(--primary); }
+
+        .tech-rail { position: absolute; bottom: 48px; left: 48px; display: flex; flex-direction: column; gap: 12px; }
+        .tech-rail-item {
+          background: rgba(32,31,33,0.8); backdrop-filter: blur(24px);
+          padding: 8px 16px; border-left: 4px solid var(--secondary);
+          color: var(--secondary); display: flex; align-items: center; gap: 12px;
+        }
+        .tech-dot { width: 8px; height: 8px; background: var(--secondary); border-radius: 50%; box-shadow: 0 0 10px var(--secondary); }
+
+        /* Features Bento */
+        .page-section { padding: 120px 32px; width: 100%; max-width: 1200px; margin: 0 auto; z-index: 10; position: relative; }
+        .bento-grid { display: grid; gap: 24px; grid-template-columns: repeat(4, 1fr); }
+        .bento-card { padding: 32px; border-radius: 4px; border-top: 1px solid rgba(208,188,255,0.1); transition: background 0.3s; }
         
-        .glass-card {
-          width: 360px; height: 220px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border-radius: 20px; padding: 32px;
-          display: flex; flex-direction: column; align-items: flex-start; text-align: left;
-          cursor: pointer;
-          transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
-                      border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        .glass-card:hover {
-          border-color: rgba(108, 99, 255, 0.5);
-          transform: translateY(-8px);
-          box-shadow: 0 20px 60px rgba(108, 99, 255, 0.15), inset 0 0 0 1px rgba(255,255,255,0.05);
-        }
-        .glass-card:hover .inner-glow { opacity: 1; }
+        .c-span-2 { grid-column: span 2; }
+        .c-span-4 { grid-column: span 4; display: flex; justify-content: space-between; align-items: center; }
+        @media (max-width: 900px) { .c-span-2 { grid-column: span 4; } .c-span-4 { flex-direction: column; align-items: flex-start; gap: 24px; } }
+        @media (max-width: 600px) { .bento-grid { grid-template-columns: 1fr; } .bento-card { grid-column: span 1 !important; } }
+        
+        .bento-icon { font-size: 32px; margin-bottom: 24px; color: var(--primary); }
+        .bento-title { font-size: 24px; margin-bottom: 12px; color: var(--on-surface); }
+        .bento-text { font-size: 15px; color: var(--on-surface-variant); line-height: 1.6; }
+        .tag-chip { background: var(--surface-container-highest); padding: 8px 16px; border-radius: 100px; font-family: var(--font-mono); font-size: 11px; }
 
-        .inner-glow {
-          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-          background: radial-gradient(circle at 50% 0%, rgba(108, 99, 255, 0.1) 0%, transparent 60%);
-          opacity: 0; transition: opacity 0.5s; border-radius: 20px; pointer-events: none;
-        }
+        /* Process Steps */
+        .process-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; margin-top: 64px; }
+        @media (max-width: 800px) { .process-grid { grid-template-columns: 1fr; } }
+        .process-step { position: relative; }
+        .step-number { position: absolute; top: -64px; left: -16px; font-size: 120px; font-family: var(--font-heading); font-weight: 700; color: var(--surface-container-highest); opacity: 0.5; z-index: -1; line-height: 1; }
 
-        .card-icon { font-size: 36px; margin-bottom: 16px; line-height: 1; }
-        .card-title { font-size: 24px; font-weight: 700; color: white; margin: 0 0 8px 0; }
-        .card-desc { font-size: 14px; color: #888899; line-height: 1.5; margin: 0; }
-        .card-pill {
-          margin-top: auto; padding: 6px 12px; border-radius: 100px;
-          font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .pill-beginner { background: rgba(13, 158, 117, 0.15); color: #4dffce; }
-        .pill-enthusiast { background: rgba(108, 99, 255, 0.15); color: #b3b0ff; }
+        /* Gallery Previews */
+        .gallery-preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 48px; }
+        @media (max-width: 900px) { .gallery-preview-grid { grid-template-columns: 1fr; } }
+        .gallery-card { background: var(--surface-container-low); border-radius: 4px; overflow: hidden; border-bottom: 4px solid transparent; transition: border-color 0.3s; cursor: pointer; }
+        .gallery-card:hover { border-bottom-color: var(--primary); }
+        .gc-image { width: 100%; aspect-ratio: 1; background: var(--surface-container-highest); position: relative; overflow: hidden; }
+        .gc-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s; opacity: 0.8; }
+        .gallery-card:hover .gc-image img { transform: scale(1.1); opacity: 1; }
+        .gc-content { padding: 24px; }
+        .gc-title { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
 
         /* Footer */
-        .footer {
-          position: absolute; bottom: 24px; left: 0; right: 0;
-          text-align: center; font-size: 12px; color: #444460;
-          letter-spacing: 0.5px;
-        }
-
-        /* Modal */
-        .modal-overlay {
-          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
-          display: flex; align-items: center; justify-content: center; z-index: 200;
-          animation: fadeIn 0.2s ease-out;
-        }
-        .modal-content {
-          background: #11111a; border: 1px solid #2a2a4a;
-          border-top: 4px solid #6c63ff; border-radius: 16px;
-          padding: 32px; width: 100%; max-width: 400px;
-          box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-          position: relative;
-        }
-        .modal-title { color: white; font-size: 20px; font-weight: 700; margin: 0 0 16px 0; }
-        .modal-text { color: #888899; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0; }
-        .modal-close {
-          position: absolute; top: 16px; right: 16px;
-          background: none; border: none; color: #888899;
-          font-size: 24px; cursor: pointer; line-height: 1;
-        }
-        .modal-close:hover { color: white; }
-
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
+        .footer { background: var(--surface); border-top: 1px solid rgba(229, 225, 228, 0.1); padding: 64px 32px; width: 100%; font-family: var(--font-body); }
+        .footer-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; }
+        @media (max-width: 800px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+        .footer-heading { font-family: var(--font-heading); font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--primary); margin-bottom: 16px; letter-spacing: 0.1em; }
+        .footer-link { display: block; color: rgba(229, 225, 228, 0.5); font-family: var(--font-heading); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; margin-bottom: 12px; transition: color 0.2s; }
+        .footer-link:hover { color: var(--primary); }
       `}</style>
 
       {/* Nav */}
-      <div className="nav-bar">
-        <div className="nav-logo">
-          <div className="nav-logo-accent" />
-          Keycap Studio
+      <nav className="nav-bar">
+        <div className="nav-logo">Keycap Studio</div>
+        <div className="nav-links" style={{ display: 'none' }}>
+          {/* Hidden on mobile, but this is a rough implementation */}
         </div>
-        <div className="nav-links">
-          <button className="nav-link" onClick={() => setShowAbout(true)}>About</button>
-          <button className="nav-link" onClick={() => setScreen('gallery')}>Gallery</button>
-          <button className="nav-link" onClick={() => setShowSupport(true)}>Support</button>
-          <a href="https://github.com" target="_blank" rel="noreferrer" className="nav-link">GitHub ↗</a>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button className="btn-ghost" onClick={() => document.dispatchEvent(new CustomEvent('showSignIn'))}>Sign In</button>
+          <button className="btn-filled" onClick={handleStart}>Build Now</button>
         </div>
-      </div>
+      </nav>
 
-      <KeycapGrid />
-
-      <div className="main-content">
-        <div style={{ textAlign: 'center' }}>
-          <h1 className="header-title">Keycap Studio</h1>
-          <p className="header-subtitle">Design your dream keyboard. In 3D. Free.</p>
-        </div>
-
-        <div className="cards-row">
-          <button className="glass-card" onClick={handleBeginner}>
-            <div className="inner-glow" />
-            <div className="card-icon">⌨️</div>
-            <h2 className="card-title">I have a keyboard</h2>
-            <p className="card-desc">Select from our database of 80+ real mechanical keyboards. We automatically set form factor and layout.</p>
-            <div className="card-pill pill-beginner">Recommended for beginners</div>
-          </button>
-
-          <button className="glass-card" onClick={handleEnthusiast}>
-            <div className="inner-glow" />
-            <div className="card-icon">⚙️</div>
-            <h2 className="card-title">I know my setup</h2>
-            <p className="card-desc">Start from scratch. Choose your keycap profile, layout size, and ANSI/ISO standard manually.</p>
-            <div className="card-pill pill-enthusiast">For keyboard enthusiasts</div>
-          </button>
-        </div>
-      </div>
-
-      <div className="footer">
-        Keycap Studio — Free & Open Source — keycap-studio.vercel.app
-      </div>
-
-      {showAbout && (
-        <div className="modal-overlay" onClick={() => setShowAbout(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowAbout(false)}>×</button>
-            <h3 className="modal-title">About Keycap Studio</h3>
-            <p className="modal-text">Keycap Studio is a free, open-source 3D keycap designer. Design your dream keyboard in real-time 3D and export manufacturer-ready files instantly.</p>
-            <p className="modal-text">Check out the <b>Community Gallery</b> to see what others are creating!</p>
-            <p className="modal-text" style={{ fontSize: 12, marginTop: 24, paddingTop: 16, borderTop: '1px solid #2a2a4a' }}>Built by the community, for the community.</p>
+      {/* Hero */}
+      <div className="hero-section">
+        <KeycapGrid />
+        <div className="hero-fade" />
+        
+        <div style={{ position: 'relative', zIndex: 10 }}>
+          <div className="hero-badge mono-sm">Studio Engine V2 · Ready</div>
+          <h1 className="hero-headline headline">
+            Design your dream keyboard
+            <span className="hero-accent">in real-time 3D</span>
+          </h1>
+          <div className="hero-actions">
+            <button className="btn-hero-primary" onClick={handleStart}>Start Designing</button>
+            <button className="btn-hero-ghost" onClick={() => setScreen('gallery')}>Browse Gallery</button>
           </div>
         </div>
-      )}
 
-      {showSupport && (
-        <div className="modal-overlay" onClick={() => setShowSupport(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowSupport(false)}>×</button>
-            <h3 className="modal-title">Need help?</h3>
-            <p className="modal-text">• Check our GitHub issues</p>
-            <p className="modal-text">• Join the Discord community</p>
-            <p className="modal-text">• Email: support@keycapstudio.com</p>
+        <div className="tech-rail">
+          <div className="tech-rail-item mono-sm"><div className="tech-dot" /> LATENCY: 0.04MS</div>
+          <div className="tech-rail-item mono-sm" style={{ paddingLeft: '32px' }}>ENGINE: WEBGL_RTX</div>
+        </div>
+      </div>
+
+      {/* Bento Grid */}
+      <div className="page-section">
+        <div className="bento-grid">
+          <div className="bento-card c-span-2" style={{ background: 'var(--surface-container-low)' }}>
+            <div className="bento-icon">🧊</div>
+            <h3 className="bento-title headline">Real-time 3D</h3>
+            <p className="bento-text">Experience zero-latency rendering of every material swap, from polycarbonate textures to mirror-polished brass weights.</p>
+          </div>
+          <div className="bento-card" style={{ background: 'var(--surface-container-lowest)' }}>
+            <div className="bento-icon" style={{ color: 'var(--secondary)' }}>⌨️</div>
+            <h3 className="bento-title headline">Any Keyboard Model</h3>
+            <p className="bento-text">Upload your own plate files or choose from our extensive library of custom 60%, 65%, and TKL layouts.</p>
+          </div>
+          <div className="bento-card" style={{ background: 'var(--surface-container-low)' }}>
+            <div className="bento-icon">🖼️</div>
+            <h3 className="bento-title headline">Image Uploads</h3>
+            <p className="bento-text">Generate custom novelties by uploading vectors directly onto the 3D keycap surface.</p>
+          </div>
+          <div className="bento-card c-span-4" style={{ background: 'var(--surface-container)' }}>
+            <div style={{ maxWidth: '600px' }}>
+              <h3 className="bento-title headline">Manufacturer Ready</h3>
+              <p className="bento-text">We export production-ready files including CNC paths, PCB schematics, and dye-sublimation templates.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <span className="tag-chip">STEP/IGES</span>
+              <span className="tag-chip">PDF VECTORS</span>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
+      {/* Process Pipeline */}
+      <div className="page-section" style={{ background: 'var(--surface-container-lowest)', maxWidth: '100%' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '48px', flexWrap: 'wrap', gap: '24px' }}>
+            <div>
+              <h2 className="headline" style={{ fontSize: '36px', marginBottom: '16px' }}>Precision Engineering Pipeline</h2>
+              <p className="bento-text">From initial concept to final assembly, our studio provides the tools needed for professional-grade keyboard design.</p>
+            </div>
+            <div className="mono-sm" style={{ color: 'var(--primary)' }}>PROCESS_MANUAL_V1.0</div>
+          </div>
+          
+          <div className="process-grid">
+            <div className="process-step">
+              <div className="step-number">1</div>
+              <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: 'var(--primary)' }}/> Select Keyboard</h4>
+              <p className="bento-text">Choose your layout, mounting style, and material profile from our curated library.</p>
+            </div>
+            <div className="process-step">
+              <div className="step-number">2</div>
+              <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: 'var(--secondary)' }}/> Design Keycaps</h4>
+              <p className="bento-text">Apply custom legends, colors, and profiles. Use our procedural tool for gradient sets.</p>
+            </div>
+            <div className="process-step">
+              <div className="step-number">3</div>
+              <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: 'var(--primary)' }}/> Export & Order</h4>
+              <p className="bento-text">Receive an automated BOM and technical drawings. One-click order with our partners.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Gallery Previews */}
+      <div className="page-section">
+        <h2 className="headline" style={{ fontSize: '24px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Designer Concepts</h2>
+        <div className="gallery-preview-grid">
+          {[
+            { n: 'NEON_DRIFT 65', s: 'ALEX_STUDIO', t1: 'PBT', t2: 'GASKET', c: '#d0bcff' },
+            { n: 'RAW_ALUM TKL', s: 'KBD_LAB', t1: 'ALU', t2: 'WKL', c: '#44e2cd' },
+            { n: 'VINTAGE_90', s: 'NOSTALGIA_HUB', t1: 'ABS', t2: 'TRAY', c: '#ffb869' }
+          ].map((g, i) => (
+            <div key={i} className="gallery-card" onClick={() => setScreen('gallery')}>
+              <div className="gc-image">
+                <div style={{ width: '100%', height: '100%', background: g.c, opacity: 0.2 }}></div>
+              </div>
+              <div className="gc-content">
+                <div className="gc-title">
+                  <span className="headline" style={{ fontSize: '16px' }}>{g.n}</span>
+                  <span className="mono-sm">BY {g.s}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span className="tag-chip">{g.t1}</span>
+                  <span className="tag-chip">{g.t2}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="footer">
+        <div className="footer-grid">
+          <div>
+            <div className="footer-heading">Keycap Studio</div>
+            <p className="footer-link" style={{ textTransform: 'none', lineHeight: 1.6 }}>Precision milled digital tools for the mechanical keyboard enthusiast. Built by designers for creators.</p>
+          </div>
+          <div>
+            <div className="footer-heading">Resources</div>
+            <a href="#" className="footer-link">Privacy Policy</a>
+            <a href="#" className="footer-link">Terms of Service</a>
+            <a href="#" className="footer-link">Developer API</a>
+          </div>
+          <div>
+            <div className="footer-heading">Community</div>
+            <a href="#" className="footer-link">Discord</a>
+            <a href="#" className="footer-link">Twitter / X</a>
+            <a href="#" className="footer-link">GitHub</a>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div className="mono-sm" style={{ marginBottom: '16px' }}>Status: Optimal</div>
+            <div className="footer-link">© 2024 Keycap Studio.<br/>Precision Milled.</div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -96,16 +96,16 @@ export default function GalleryScreen() {
     <div style={styles.container}>
       <style>{`
         .gallery-card {
-          background: #16162a; border-radius: 12px; overflow: hidden; cursor: pointer;
+          background: var(--surface-container); border-radius: 4px; overflow: hidden; cursor: pointer;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
-          border: 1px solid rgba(255,255,255,0.05);
+          border: 1px solid var(--outline-variant); display: flex; flex-direction: column;
         }
-        .gallery-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.5); border-color: rgba(108,99,255,0.3); }
-        .gallery-card-top { height: 160px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .gallery-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.5); border-color: var(--primary); }
+        .gallery-card-top { height: 200px; display: flex; align-items: center; justify-content: center; position: relative; }
         .css-keycap {
-          width: 80px; height: 80px; border-radius: 12px;
+          width: 80px; height: 80px; border-radius: 8px;
           display: flex; align-items: center; justify-content: center;
-          font-family: var(--font-primary, sans-serif); font-weight: bold; font-size: 24px;
+          font-family: var(--font-heading, sans-serif); font-weight: bold; font-size: 24px;
           box-shadow: inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.4);
         }
       `}</style>
@@ -113,27 +113,29 @@ export default function GalleryScreen() {
       {/* Header */}
       <div style={styles.header}>
         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
-          <button style={styles.backBtn} onClick={() => setScreen('entry')}>← Back</button>
-          <h1 style={{fontSize: '24px', fontWeight: 700, margin: 0}}>Community Gallery</h1>
+          <button style={styles.backBtn} onClick={() => setScreen('entry')} onMouseEnter={e => e.target.style.borderColor = 'var(--primary)'} onMouseLeave={e => e.target.style.borderColor = 'var(--outline-variant)'}>← BACK</button>
+          <h1 style={{fontFamily: 'var(--font-heading)', fontSize: '24px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.02em', color: 'var(--on-surface)'}}>COMMUNITY GALLERY</h1>
         </div>
-        <button style={styles.shareBtn} onClick={() => setShowShareModal(true)}>Share Your Design</button>
+        <button style={styles.shareBtn} onClick={() => setShowShareModal(true)} onMouseEnter={e => { e.target.style.background = 'var(--surface-container-high)'; e.target.style.color = 'var(--primary)'; e.target.style.boxShadow = 'inset 0 0 0 1px var(--primary)'; }} onMouseLeave={e => { e.target.style.background = 'var(--primary)'; e.target.style.color = 'var(--on-primary)'; e.target.style.boxShadow = 'none'; }}>SHARE DESIGN</button>
       </div>
 
       {/* Filters Bar */}
       <div style={styles.filtersBar}>
-        <div style={{display: 'flex', gap: '12px'}}>
+        <div style={{display: 'flex', gap: '8px'}}>
           {['All', 'Most Liked', 'Recent'].map(f => (
             <button key={f} style={filter === f ? styles.filterBtnActive : styles.filterBtn} onClick={() => setFilter(f)}>
-              {f}
+              {f.toUpperCase()}
             </button>
           ))}
         </div>
         <input 
           type="text" 
-          placeholder="Search designs or keyboards..." 
+          placeholder="SEARCH DESIGNS OR BRANDS..." 
           value={search} 
           onChange={e => setSearch(e.target.value)}
           style={styles.searchInput}
+          onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+          onBlur={e => e.target.style.borderColor = 'var(--outline-variant)'}
         />
       </div>
 
@@ -150,14 +152,14 @@ export default function GalleryScreen() {
                     {d.name.charAt(0).toUpperCase()}
                   </div>
                 </div>
-                <div style={{ padding: '16px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '4px' }}>{d.name}</div>
-                  <div style={{ fontSize: '12px', color: '#a09bf5', marginBottom: '12px' }}>{d.keyboard}</div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ fontSize: '18px', fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--on-surface)', marginBottom: '8px', letterSpacing: '-0.02em' }}>{d.name}</div>
+                  <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--secondary)', marginBottom: '16px', letterSpacing: '0.1em' }}>{d.keyboard}</div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#888899' }}>
-                    <span>{d.theme}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{color: '#ff4b4b'}}>♥</span> {d.likes}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--on-surface-variant)', fontFamily: 'var(--font-heading)', fontWeight: 600 }}>
+                    <span style={{ backgroundColor: 'var(--surface-container-highest)', padding: '6px 12px', borderRadius: '4px' }}>{d.theme}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{color: 'var(--primary)'}}>★</span> {d.likes}
                     </span>
                   </div>
                 </div>
@@ -171,21 +173,23 @@ export default function GalleryScreen() {
       {showShareModal && (
         <div style={styles.modalOverlay} onClick={() => setShowShareModal(false)}>
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop: 0, marginBottom: '16px'}}>Share Your Design</h2>
-            <p style={{color: '#888899', fontSize: '14px', marginBottom: '24px'}}>
+            <h2 style={{marginTop: 0, marginBottom: '16px', fontFamily: 'var(--font-heading)', fontSize: '24px', color: 'var(--on-surface)', textTransform: 'uppercase', letterSpacing: '-0.02em'}}>SHARE DESIGN</h2>
+            <p style={{color: 'var(--on-surface-variant)', fontSize: '14px', marginBottom: '32px', fontFamily: 'var(--font-body)', lineHeight: 1.6}}>
               Give your current design a name to share it with the Community Gallery.
             </p>
             <input 
               autoFocus
               type="text" 
-              placeholder="e.g. Midnight Cyberpunk" 
+              placeholder="E.G. MIDNIGHT CYBERPUNK" 
               value={designName} 
               onChange={e => setDesignName(e.target.value)}
-              style={{...styles.searchInput, width: '100%', marginBottom: '24px'}}
+              style={{...styles.searchInput, width: '100%', marginBottom: '32px'}}
+              onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+              onBlur={e => e.target.style.borderColor = 'var(--outline-variant)'}
             />
-            <div style={{display: 'flex', gap: '12px', justifyContent: 'flex-end'}}>
-              <button style={styles.cancelBtn} onClick={() => setShowShareModal(false)}>Cancel</button>
-              <button style={styles.confirmBtn} onClick={handleShare}>Share Design</button>
+            <div style={{display: 'flex', gap: '16px', justifyContent: 'flex-end'}}>
+              <button style={styles.cancelBtn} onClick={() => setShowShareModal(false)} onMouseEnter={e => e.target.style.backgroundColor = 'var(--surface)'} onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}>CANCEL</button>
+              <button style={styles.confirmBtn} onClick={handleShare} onMouseEnter={e => { e.target.style.background = 'var(--surface-container-high)'; e.target.style.color = 'var(--primary)'; e.target.style.boxShadow = 'inset 0 0 0 1px var(--primary)'; }} onMouseLeave={e => { e.target.style.background = 'var(--primary)'; e.target.style.color = 'var(--on-primary)'; e.target.style.boxShadow = 'none'; }}>DEPLOY DESIGN</button>
             </div>
           </div>
         </div>
@@ -195,62 +199,18 @@ export default function GalleryScreen() {
 }
 
 const styles = {
-  container: {
-    minHeight: '100vh', width: '100%',
-    backgroundColor: '#0a0a0f', color: '#fff',
-    display: 'flex', flexDirection: 'column'
-  },
-  header: {
-    height: '72px', padding: '0 40px',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
-    backgroundColor: 'rgba(10,10,15,0.8)', backdropFilter: 'blur(10px)',
-    position: 'sticky', top: 0, zIndex: 10
-  },
-  backBtn: {
-    backgroundColor: '#16162a', border: '1px solid #2a2a4a', color: '#888899',
-    padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px'
-  },
-  shareBtn: {
-    backgroundColor: '#6c63ff', color: '#fff', border: 'none',
-    padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px'
-  },
-  filtersBar: {
-    padding: '24px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  },
-  filterBtn: {
-    backgroundColor: 'transparent', border: 'none', color: '#888899',
-    padding: '6px 12px', cursor: 'pointer', fontSize: '14px', fontWeight: 500
-  },
-  filterBtnActive: {
-    backgroundColor: 'rgba(108,99,255,0.15)', border: 'none', color: '#b3b0ff',
-    padding: '6px 16px', cursor: 'pointer', fontSize: '14px', fontWeight: 600, borderRadius: '16px'
-  },
-  searchInput: {
-    backgroundColor: '#16162a', border: '1px solid #2a2a4a', color: '#fff',
-    padding: '10px 16px', borderRadius: '8px', width: '300px', outline: 'none'
-  },
-  content: {
-    padding: '0 40px 60px', flex: 1
-  },
-  grid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px'
-  },
-  modalOverlay: {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
-  },
-  modalContent: {
-    backgroundColor: '#11111a', border: '1px solid #2a2a4a', borderRadius: '16px',
-    padding: '32px', width: '100%', maxWidth: '400px'
-  },
-  cancelBtn: {
-    backgroundColor: 'transparent', border: '1px solid #2a2a4a', color: '#888899',
-    padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500
-  },
-  confirmBtn: {
-    backgroundColor: '#6c63ff', border: 'none', color: '#fff',
-    padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600
-  }
+  container: { minHeight: '100vh', width: '100%', backgroundColor: 'var(--surface-dim)', color: 'var(--on-surface)', display: 'flex', flexDirection: 'column' },
+  header: { height: '72px', padding: '0 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--outline-variant)', backgroundColor: 'var(--surface)', position: 'sticky', top: 0, zIndex: 10 },
+  backBtn: { backgroundColor: 'var(--surface-container)', border: '1px solid var(--outline-variant)', color: 'var(--on-surface-variant)', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' },
+  shareBtn: { backgroundColor: 'var(--primary)', color: 'var(--on-primary)', border: 'none', padding: '10px 24px', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' },
+  filtersBar: { padding: '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  filterBtn: { backgroundColor: 'transparent', border: 'none', color: 'var(--on-surface-variant)', padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s' },
+  filterBtnActive: { backgroundColor: 'var(--surface-container-high)', border: 'none', color: 'var(--on-surface)', padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontSize: '14px', fontWeight: 600, borderRadius: '4px', boxShadow: 'inset 0 0 0 1px var(--primary)' },
+  searchInput: { backgroundColor: 'var(--surface-container)', border: '1px solid var(--outline-variant)', color: 'var(--on-surface)', padding: '12px 16px', borderRadius: '4px', width: '320px', outline: 'none', fontFamily: 'var(--font-mono)', fontSize: '13px', transition: '0.2s' },
+  content: { padding: '0 48px 64px', flex: 1, maxWidth: '1400px', margin: '0 auto', width: '100%' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '32px' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  modalContent: { backgroundColor: 'var(--surface)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '48px', width: '100%', maxWidth: '480px', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' },
+  cancelBtn: { backgroundColor: 'transparent', border: '1px solid var(--outline-variant)', color: 'var(--on-surface-variant)', padding: '12px 24px', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', transition: '0.2s' },
+  confirmBtn: { backgroundColor: 'var(--primary)', border: 'none', color: 'var(--on-primary)', padding: '12px 24px', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', transition: '0.2s' }
 };

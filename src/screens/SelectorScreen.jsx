@@ -120,30 +120,29 @@ export default function SelectorScreen() {
     <div style={styles.container}>
       <style>{`
         .brand-pill { 
-          background-color: #16162a; border: 1px solid #2a2a3a; padding: 14px 20px; 
-          border-radius: 8px; color: var(--text-secondary); cursor: pointer; 
-          transition: all 0.2s; font-size: 15px; font-weight: 500; text-align: center;
+          background-color: var(--surface-container); border: 1px solid transparent; padding: 14px 20px; 
+          border-radius: 4px; color: var(--on-surface-variant); cursor: pointer; 
+          font-family: var(--font-heading); font-size: 14px; font-weight: 600; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s;
         }
-        .brand-pill:hover { border-color: #6c63ff; color: #fff; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(108,99,255,0.15); }
-        .brand-pill.active { background-color: #6c63ff; border-color: #6c63ff; color: #fff; box-shadow: 0 4px 12px rgba(108,99,255,0.3); }
+        .brand-pill:hover { background-color: var(--surface-container-high); color: var(--on-surface); transform: translateY(-2px); }
+        .brand-pill.active { background-color: var(--primary); color: var(--on-primary); font-weight: 700; }
         
         .model-card { 
-          background-color: #16162a; border: 1px solid #2a2a3a; border-radius: 12px; 
-          padding: 24px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; height: 100%;
+          background-color: var(--surface-container); border: 1px solid transparent; border-radius: 4px; 
+          padding: 24px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; height: 100%; position: relative; overflow: hidden;
         }
-        .model-card:hover { transform: translateY(-4px); border-color: #6c63ff; box-shadow: 0 12px 24px rgba(0,0,0,0.5), 0 0 0 1px #6c63ff inset; }
+        .model-card:hover { transform: translateY(-4px); background-color: var(--surface-container-high); border-color: var(--primary); }
         
-        .enter-btn { width: 100%; height: 52px; background: #6c63ff; color: #fff; font-size: 18px; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; }
-        .enter-btn:hover { background: #5a52d9; transform: translateY(-1px); }
+        .enter-btn { width: 100%; height: 52px; background: var(--primary); color: var(--on-primary); font-family: var(--font-heading); font-size: 16px; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .enter-btn:hover { background: var(--surface-container-high); color: var(--primary); border: 1px solid var(--primary); transform: translateY(-1px); }
         
-        .secondary-btn { width: 100%; height: 44px; background: transparent; color: #aaa; font-size: 14px; font-weight: 500; border-radius: 8px; border: 1px solid #2a2a3a; cursor: pointer; transition: all 0.2s; }
-        .secondary-btn:hover { background-color: rgba(255,255,255,0.05); color: #fff; border-color: #444; }
+        .secondary-btn { width: 100%; height: 44px; background: transparent; color: var(--on-surface-variant); font-family: var(--font-heading); font-size: 14px; font-weight: 600; border-radius: 4px; border: 1px solid var(--outline-variant); cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+        .secondary-btn:hover { background-color: var(--surface-container); color: var(--on-surface); }
         
-        .step-indicator { border-bottom: 2px solid transparent; padding-bottom: 2px; transition: all 0.3s ease; color: #666; font-size: 14px; }
-        .step-indicator.active { border-bottom-color: #6c63ff; color: #6c63ff; font-weight: 600; }
+        .step-indicator { border-bottom: 2px solid transparent; padding-bottom: 4px; transition: all 0.3s ease; color: var(--on-surface-variant); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+        .step-indicator.active { border-bottom-color: var(--primary); color: var(--primary); font-weight: 600; }
         
-        /* Grid definitions */
-        .brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; margin-top: 24px; }
+        .brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-top: 24px; }
         .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px; }
         
         @media (max-width: 1100px) { .model-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -191,18 +190,20 @@ export default function SelectorScreen() {
             {/* STEP 1: BRAND SELECTION */}
             {step === 1 && (
               <div style={styles.fadeContainer}>
-                <div style={styles.stepTitle}>Select Keyboard Brand</div>
+                <div style={styles.stepTitle}>SELECT KEYBOARD BRAND</div>
                 <input 
                   type="text" 
-                  placeholder="Search brands or exact models (e.g. 'Keychron' or 'Q3')..." 
+                  placeholder="SEARCH BRANDS OR EXACT MODELS (E.G. 'KEYCHRON' OR 'Q3')..." 
                   value={brandSearch}
                   onChange={e => setBrandSearch(e.target.value)}
-                  style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '1px solid #2a2a4a', backgroundColor: '#0a0a18', color: '#fff', fontSize: '18px', outline: 'none', marginTop: 20, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}
+                  style={{ width: '100%', padding: '16px 24px', borderRadius: '4px', border: '1px solid var(--outline-variant)', backgroundColor: 'var(--surface-container)', color: 'var(--on-surface)', fontSize: '13px', fontFamily: 'var(--font-mono)', outline: 'none', marginTop: 20, transition: '0.2s' }}
+                  onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--outline-variant)'}
                 />
                 
                 {filteredBrands.length > 0 && (
                   <>
-                    <div style={{ marginTop: 32, fontSize: 14, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Brands</div>
+                    <div style={{ marginTop: 48, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>BRANDS</div>
                     <div className="brand-grid">
                       {filteredBrands.map(b => (
                         <button key={b} className={`brand-pill ${localBrand === b ? 'active' : ''}`} onClick={() => handleBrandSelect(b)}>
@@ -371,22 +372,21 @@ export default function SelectorScreen() {
 
 const styles = {
   container: {
-    width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column',
-    background: 'radial-gradient(ellipse at 20% 50%, rgba(108,99,255,0.05) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(13,158,117,0.04) 0%, transparent 60%), #0a0a0f',
+    width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--surface-dim)',
   },
-  header: { display: 'flex', alignItems: 'center', padding: '24px 48px', borderBottom: '1px solid var(--border-color)', justifyContent: 'space-between' },
-  progressContainer: { display: 'flex', gap: '12px', alignItems: 'center' },
-  backBtn: { color: 'var(--text-secondary)', fontSize: '15px', padding: '8px 16px', borderRadius: '8px', backgroundColor: '#16162a', border: '1px solid #2a2a3a', cursor: 'pointer' },
-  content: { flex: 1, padding: '48px', maxWidth: '1200px', margin: '0 auto', width: '100%' },
+  header: { display: 'flex', alignItems: 'center', padding: '24px 48px', borderBottom: '1px solid var(--outline-variant)', justifyContent: 'space-between', backgroundColor: 'var(--surface)' },
+  progressContainer: { display: 'flex', gap: '24px', alignItems: 'center' },
+  backBtn: { color: 'var(--on-surface-variant)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--surface-container)', border: '1px solid var(--outline-variant)', cursor: 'pointer', transition: 'all 0.2s' },
+  content: { flex: 1, padding: '64px 48px', maxWidth: '1200px', margin: '0 auto', width: '100%' },
   fadeContainer: { animation: 'fadeIn 0.3s ease-out' },
-  stepTitle: { fontSize: '32px', fontWeight: 700, color: '#fff', margin: 0 },
+  stepTitle: { fontFamily: 'var(--font-heading)', fontSize: '40px', fontWeight: 700, color: 'var(--on-surface)', margin: 0, letterSpacing: '-0.02em', textTransform: 'uppercase' },
 
-  enthusiastGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginTop: 24 },
-  selectCard: { backgroundColor: '#16162a', border: '2px solid #2a2a3a', borderRadius: '12px', padding: '32px 16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', color: '#fff' },
-  selectCardActive: { backgroundColor: '#6c63ff11', border: '2px solid #6c63ff', borderRadius: '12px', padding: '32px 16px', textAlign: 'center', cursor: 'pointer', color: '#fff' },
+  enthusiastGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '24px', marginTop: 32 },
+  selectCard: { backgroundColor: 'var(--surface-container)', border: '1px solid transparent', borderRadius: '4px', padding: '48px 24px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', color: 'var(--on-surface)', fontFamily: 'var(--font-heading)' },
+  selectCardActive: { backgroundColor: 'var(--surface-container-high)', border: '1px solid var(--primary)', borderRadius: '4px', padding: '48px 24px', textAlign: 'center', cursor: 'pointer', color: 'var(--on-surface)', fontFamily: 'var(--font-heading)', boxShadow: 'inset 0 0 0 1px var(--primary)' },
 
-  confirmCard: { backgroundColor: '#16162a', border: '1px solid #2a2a3a', borderRadius: '16px', padding: '48px', width: '100%', maxWidth: '800px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' },
-  specColumn: { backgroundColor: '#0a0a0f', padding: '20px 24px', borderRadius: '12px', border: '1px solid #1a1a2a' },
-  specLabel: { fontSize: 11, textTransform: 'uppercase', color: '#666', fontWeight: 700, letterSpacing: '0.5px' },
-  specValue: { fontSize: 15, fontWeight: 500, color: '#fff', marginTop: 4 },
+  confirmCard: { backgroundColor: 'var(--surface)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '48px', width: '100%', maxWidth: '900px', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 48px rgba(0,0,0,0.6)' },
+  specColumn: { backgroundColor: 'var(--surface-container-lowest)', padding: '24px', borderRadius: '4px', border: '1px solid var(--outline-variant)', flex: 1, display: 'flex', flexDirection: 'column' },
+  specLabel: { fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', color: 'var(--secondary)', fontWeight: 600, letterSpacing: '0.1em' },
+  specValue: { fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 600, color: 'var(--on-surface)', marginTop: 8 },
 };
