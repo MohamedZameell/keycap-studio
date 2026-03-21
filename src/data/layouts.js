@@ -5,9 +5,11 @@ const generateRow = (keys, y, startX = 0, rowIdx = 0) => {
     // Basic standard width is 1u. 
     // We handle varying widths manually later if provided as object.
     const w = label.w !== undefined ? label.w : 1;
+    // FIX 4 — Ensure key ID is always a clean string, never [object Object]
+    const safeIdLabel = typeof label === 'string' ? label : String(label?.id ?? label?.label ?? idx);
     const keyDef = {
-      id: `key-R${rowIdx}-${idx}-${typeof label === 'string' ? label : (label?.id ?? label?.label ?? String(idx))}`,
-      label: label.label !== undefined ? label.label : label,
+      id: `key-R${rowIdx}-${idx}-${safeIdLabel}`,
+      label: label.label !== undefined ? label.label : (typeof label === 'string' ? label : ''),
       row: rowIdx,
       col: idx,
       x: currentX,

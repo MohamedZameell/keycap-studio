@@ -83,9 +83,12 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   
   const color = pkDesign.color || globalColor;
   const legendColor = pkDesign.legendColor || globalLegendColor;
-  let legendText = pkDesign.legendText || globalLegendText || label;
+  let legendText = pkDesign.legendText || globalLegendText;
   const font = pkDesign.font || globalFont;
   const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';
+
+  // FIX 5 — Use label as fallback when legendText empty
+  const displayText = legendText && legendText.trim() !== '' ? legendText : label;
   
   const bodyGeo = useMemo(() => buildFrustumBody(), []);
   const topGeo = useMemo(() => buildTopDish(), []);
@@ -95,11 +98,11 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const MaterialCmp = usePhysical ? 'meshPhysicalMaterial' : 'meshStandardMaterial';
 
   // ============================================================
-  // FIX 1 — Unified CanvasTexture for ALL fonts (no drei Text)
+  // FIX 5 — Unified CanvasTexture using displayText (label fallback)
   // Uses browser's own Canvas2D font rendering — zero crash risk
   // ============================================================
   const legendTexture = useMemo(() => {
-    if (!legendText || String(legendText).trim() === '') return null;
+    if (!displayText) return null;
     
     const size = 256;
     const canvas = document.createElement('canvas');
@@ -114,12 +117,12 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     ctx.fillStyle = legendColor || '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(legendText).slice(0, 4), size / 2, size / 2);
+    ctx.fillText(String(displayText).slice(0, 6), size / 2, size / 2);
     
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
     return tex;
-  }, [legendText, legendColor, font]);
+  }, [displayText, legendColor, font]);
 
   // ============================================================
   // FIX 2 — Image textures with callback form of TextureLoader
@@ -185,8 +188,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
 
   // Priority: perKey > tile/wrap > none
   const activeTexture = perKeyTexture || ((imageMode === 'tile' || imageMode === 'wrap') ? tileTexture : null);
-  // When texture is active, use white so it shows pure image colors
-  const resolvedColor = activeTexture ? '#ffffff' : color;
+  // FIX 1 — Body always uses keycap color; only the dish gets white when textured
+  const resolvedColor = color;
 
   // Imperative material update — the root-cause fix for textures not appearing.
   // R3F's dynamic component pattern (<MaterialCmp>) doesn't reliably re-create
@@ -205,12 +208,13 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   }, [activeTexture, color]);
 
   // Animation: singleKeyMode gets gentle bob + slow Y spin, keyboard keys stay still
+  // FIX 3 — Single key animation: force flat, slow spin + gentle bob
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     if (singleKeyMode) {
-      meshRef.current.rotation.x = 0;
-      meshRef.current.rotation.y = clock.elapsedTime * 0.5;
-      meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.06;
+      meshRef.current.rotation.x = 0;  // force flat, no row tilt
+      meshRef.current.rotation.y = clock.elapsedTime * 0.6;
+      meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.9) * 0.05;
     } else {
       meshRef.current.position.y = THREE.MathUtils.lerp(
         meshRef.current.position.y,
@@ -267,7 +271,6 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   if (legendPosition === 'top-left') { legendPos = [-0.25, topFaceY + 0.02, -0.2]; }
   if (legendPosition === 'top-right') { legendPos = [0.25, topFaceY + 0.02, -0.2]; }
   if (legendPosition === 'front') { legendPos = [0, 0.05, 0.48]; legendRot = [0, 0, 0]; }
-  if (legendPosition === 'none') legendText = '';
 
   const px = x !== undefined ? x * 1.08 : 0;
   const pz = y !== undefined ? y * 1.08 : 0;
@@ -340,7 +343,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       </group>
 
       {/* Legend via CanvasTexture — works for ALL fonts */}
-      {legendPosition !== 'none' && legendText && legendTexture && (
+      {legendPosition !== 'none' && displayText && legendTexture && (
         <mesh
           position={legendPos}
           rotation={legendRot}

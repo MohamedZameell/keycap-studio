@@ -59,14 +59,19 @@ export default function StudioScreen() {
   const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
 
   // Debounced color update (1 frame = ~16ms)
+  // FIX 2 — Scope-aware: routes to per-key design when targetScope is 'selected'
   const colorTimerRef = useRef(null);
   const debouncedColorUpdate = useCallback((key, value) => {
     if (colorTimerRef.current) clearTimeout(colorTimerRef.current);
     colorTimerRef.current = setTimeout(() => {
-      if (key === 'color') store.setGlobalColor(value);
-      if (key === 'legendColor') store.setGlobalLegendColor(value);
+      if (targetScope === 'selected' && targetKeyId) {
+        store.setPerKeyDesign(targetKeyId, { [key]: value });
+      } else {
+        if (key === 'color') store.setGlobalColor(value);
+        if (key === 'legendColor') store.setGlobalLegendColor(value);
+      }
     }, 16);
-  }, [store]);
+  }, [store, targetScope, targetKeyId]);
 
   const updateDesign = (key, value) => {
     if (targetScope === 'all' || !targetKeyId) {
@@ -297,7 +302,7 @@ export default function StudioScreen() {
 
                 <div style={styles.presets}>
                   {PRESET_COLORS.map(c => (
-                    <button key={c} className={`color-circle ${getVal('color') === c ? 'active' : ''}`} style={{ backgroundColor: c }} onClick={() => store.setGlobalColor(c)} />
+                    <button key={c} className={`color-circle ${getVal('color') === c ? 'active' : ''}`} style={{ backgroundColor: c }} onClick={() => updateDesign('color', c)} />
                   ))}
                 </div>
 
@@ -545,8 +550,8 @@ export default function StudioScreen() {
               dpr={[1, 2]}
               shadows="soft"
               camera={{
-                position: viewMode === 'full' ? [0, 8, 12] : [0, 1.2, 3.5],
-                fov: viewMode === 'full' ? 50 : 40,
+                position: viewMode === 'full' ? [0, 8, 12] : [0, 1.0, 3.2],
+                fov: viewMode === 'full' ? 50 : 38,
                 near: 0.1,
                 far: 1000
               }}
@@ -569,17 +574,17 @@ export default function StudioScreen() {
                 ) : (
                   <group position={[0, 0, 0]}>
                     {/* Dedicated neutral lighting for single key — overrides warm HDRI */}
-                    <directionalLight position={[3, 5, 3]} intensity={1.8} color="#ffffff" />
-                    <directionalLight position={[-2, 2, -2]} intensity={0.4} color="#e0e8ff" />
-                    <ambientLight intensity={0.5} />
+                    <directionalLight position={[3, 5, 3]} intensity={2.0} color="#ffffff" castShadow />
+                    <directionalLight position={[-2, 2, -1]} intensity={0.5} color="#ddeeff" />
+                    <ambientLight intensity={0.4} />
 
                     {/* Pedestal disc — envMapIntensity=0 blocks HDRI tinting */}
                     <mesh position={[0, -0.72, 0]} receiveShadow>
                       <cylinderGeometry args={[0.85, 0.95, 0.06, 48]} />
                       <meshPhysicalMaterial
                         color="#1a1a2e"
-                        roughness={0.2}
-                        metalness={0.7}
+                        roughness={0.15}
+                        metalness={0.75}
                         clearcoat={0.9}
                         clearcoatRoughness={0.05}
                         envMapIntensity={0}
@@ -593,8 +598,10 @@ export default function StudioScreen() {
                       <cylinderGeometry args={[0.08, 0.1, 0.28, 24]} />
                       <meshPhysicalMaterial
                         color="#0d0d1a"
-                        roughness={0.4}
-                        metalness={0.5}
+                        roughness={0.15}
+                        metalness={0.75}
+                        clearcoat={0.9}
+                        clearcoatRoughness={0.05}
                         envMapIntensity={0}
                         emissive="#000000"
                         emissiveIntensity={0}
