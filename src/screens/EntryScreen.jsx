@@ -194,7 +194,6 @@ export default function EntryScreen() {
         <div className="hero-fade" />
         
         <div style={{ position: 'relative', zIndex: 10 }}>
-          <div className="hero-badge mono-sm">Studio Engine V2 · Ready</div>
           <h1 className="hero-headline headline">
             Design your dream keyboard
             <span className="hero-accent">in real-time 3D</span>
@@ -203,11 +202,6 @@ export default function EntryScreen() {
             <button className="btn-hero-primary" onClick={handleStart}>Start Designing</button>
             <button className="btn-hero-ghost" onClick={() => setScreen('gallery')}>Browse Gallery</button>
           </div>
-        </div>
-
-        <div className="tech-rail">
-          <div className="tech-rail-item mono-sm"><div className="tech-dot" /> LATENCY: 0.04MS</div>
-          <div className="tech-rail-item mono-sm" style={{ paddingLeft: '32px' }}>ENGINE: WEBGL_RTX</div>
         </div>
       </div>
 
@@ -254,21 +248,29 @@ export default function EntryScreen() {
           </div>
           
           <div className="process-grid">
-            <div className="process-step">
-              <div className="step-number">1</div>
-              <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: 'var(--primary)' }}/> Select Keyboard</h4>
-              <p className="bento-text">Choose your layout, mounting style, and material profile from our curated library.</p>
-            </div>
-            <div className="process-step">
-              <div className="step-number">2</div>
-              <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: 'var(--secondary)' }}/> Design Keycaps</h4>
-              <p className="bento-text">Apply custom legends, colors, and profiles. Use our procedural tool for gradient sets.</p>
-            </div>
-            <div className="process-step">
-              <div className="step-number">3</div>
-              <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: 'var(--primary)' }}/> Export & Order</h4>
-              <p className="bento-text">Receive an automated BOM and technical drawings. One-click order with our partners.</p>
-            </div>
+            {[
+              {
+                title: 'Select Keyboard',
+                desc: 'Choose your layout, mounting style, and material profile from our curated library.',
+                color: 'var(--primary)'
+              },
+              {
+                title: 'Design Keycaps',
+                desc: 'Apply custom legends, colors, and profiles. Use our procedural tool for gradient sets.',
+                color: 'var(--secondary)'
+              },
+              {
+                title: 'Export & Order',
+                desc: 'Receive an automated BOM and technical drawings. One-click order with our partners.',
+                color: 'var(--primary)'
+              }
+            ].map((step, idx) => (
+              <div key={idx} className="process-step">
+                <div className="step-number">{idx + 1}</div>
+                <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: step.color }}/> {step.title}</h4>
+                <p className="bento-text">{step.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -711,7 +711,6 @@ export default function StudioScreen() {
               }}
             >
               <Suspense fallback={null}>
-                <Stats />
                 {/* STUDIO LIGHTING */}
                 <ambientLight intensity={0.4} color="#ffffff" />
                 <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
