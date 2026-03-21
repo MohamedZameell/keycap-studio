@@ -79,9 +79,10 @@ export default function EntryScreen() {
         .nav-links { display: flex; gap: 24px; }
         .nav-link { 
           color: var(--on-surface-variant); font-size: 14px; font-weight: 500; font-family: var(--font-body);
-          transition: color 0.2s ease; 
+          transition: color 0.2s ease; text-decoration: none;
         }
         .nav-link:hover { color: var(--primary); }
+        @media (max-width: 768px) { .nav-links { display: none !important; } }
         .btn-ghost { color: var(--on-surface-variant); font-family: var(--font-heading); font-weight: 700; padding: 8px 16px; font-size: 14px; }
         .btn-ghost:hover { color: var(--on-surface); }
         .btn-filled { background: var(--primary); color: var(--on-primary); font-family: var(--font-heading); font-weight: 700; padding: 8px 24px; font-size: 14px; border-radius: 4px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4); transition: transform 0.1s; }
@@ -179,8 +180,10 @@ export default function EntryScreen() {
       {/* Nav */}
       <nav className="nav-bar">
         <div className="nav-logo">Keycap Studio</div>
-        <div className="nav-links" style={{ display: 'none' }}>
-          {/* Hidden on mobile, but this is a rough implementation */}
+        <div className="nav-links">
+          <a href="#" className="nav-link">About</a>
+          <a href="#" className="nav-link">Support</a>
+          <a href="https://github.com/MohamedZameel" target="_blank" rel="noopener noreferrer" className="nav-link">GitHub</a>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <button className="btn-ghost" onClick={() => document.dispatchEvent(new CustomEvent('showSignIn'))}>Sign In</button>
