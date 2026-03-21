@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useStore } from '../store';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Stars } from '@react-three/drei';
 import { EffectComposer, SSAO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
@@ -16,18 +16,64 @@ import { getLayoutForFormFactor } from '../data/layouts';
 const KEY_UNIT = 1.08;
 
 // TASK 4 — Camera animator: lerps camera position and orbit target smoothly
-function CameraAnimator({ targetPos, targetLookAt, orbitRef }) {
+function CameraAnimator({ cameraStateRef, orbitRef }) {
   useFrame(({ camera }) => {
-    if (!orbitRef?.current) return;
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetPos[0], 0.05);
-    camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetPos[1], 0.05);
-    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetPos[2], 0.05);
-    orbitRef.current.target.x = THREE.MathUtils.lerp(orbitRef.current.target.x, targetLookAt[0], 0.05);
-    orbitRef.current.target.y = THREE.MathUtils.lerp(orbitRef.current.target.y, targetLookAt[1], 0.05);
-    orbitRef.current.target.z = THREE.MathUtils.lerp(orbitRef.current.target.z, targetLookAt[2], 0.05);
+    if (!orbitRef?.current || !cameraStateRef?.current) return;
+    const { pos, target } = cameraStateRef.current;
+    
+    const distPos = Math.abs(camera.position.x - pos[0]) + 
+      Math.abs(camera.position.y - pos[1]) + 
+      Math.abs(camera.position.z - pos[2]);
+    
+    if (distPos < 0.01) {
+      // Close enough — stop animating, let OrbitControls take over
+      cameraStateRef.current.isAnimating = false;
+      return;
+    }
+    
+    cameraStateRef.current.isAnimating = true;
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, pos[0], 0.06);
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, pos[1], 0.06);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, pos[2], 0.06);
+    
+    orbitRef.current.target.x = THREE.MathUtils.lerp(orbitRef.current.target.x, target[0], 0.06);
+    orbitRef.current.target.y = THREE.MathUtils.lerp(orbitRef.current.target.y, target[1], 0.06);
+    orbitRef.current.target.z = THREE.MathUtils.lerp(orbitRef.current.target.z, target[2], 0.06);
     orbitRef.current.update();
   });
   return null;
+}
+
+function StudioOrbitControls({ orbitRef, cameraStateRef, viewMode }) {
+  const { camera } = useThree();
+  return (
+    <OrbitControls
+      ref={orbitRef}
+      enableDamping
+      dampingFactor={0.05}
+      enableZoom
+      enablePan
+      minDistance={viewMode === 'single' ? 2 : 3}
+      maxDistance={viewMode === 'single' ? 8 : 35}
+      minPolarAngle={0}
+      maxPolarAngle={Math.PI / 2.1}
+      target={[0, 0, 0]}
+      onChange={() => {
+        if (!cameraStateRef.current.isAnimating) {
+          cameraStateRef.current.pos = [
+            camera.position.x,
+            camera.position.y,
+            camera.position.z
+          ];
+          cameraStateRef.current.target = [
+            orbitRef.current.target.x,
+            orbitRef.current.target.y,
+            orbitRef.current.target.z
+          ];
+        }
+      }}
+    />
+  );
 }
 
 const PRESET_COLORS = ['#1a1a1a', '#f0f0f0', '#1e3a5f', '#c0392b', '#6c63ff', '#0d9e75', '#e91e8c', '#f5c518'];
@@ -78,8 +124,11 @@ export default function StudioScreen() {
   // TASK 4 — Camera animation state
   const defaultCamPos = [0, 8, 12];
   const defaultCamTarget = [0, 0, 0];
-  const [cameraPos, setCameraPos] = useState(defaultCamPos);
-  const [cameraTarget, setCameraTarget] = useState(defaultCamTarget);
+  const cameraStateRef = useRef({
+    pos: [...defaultCamPos],
+    target: [...defaultCamTarget],
+    isAnimating: false
+  });
   const [isCameraFocused, setIsCameraFocused] = useState(false);
 
   // Compute layout bounds for camera positioning
@@ -106,14 +155,16 @@ export default function StudioScreen() {
     if (!key || viewMode !== 'full') return;
     const kx = (Number(key.x) - minX - maxW / 2 + (Number(key.w) || 1) / 2) * KEY_UNIT;
     const kz = (Number(key.y) - minZ - maxH / 2 + (Number(key.h) || 1) / 2) * KEY_UNIT;
-    setCameraTarget([kx, 0, kz]);
-    setCameraPos([kx, 3.5, kz + 5]);
+    cameraStateRef.current.target = [kx, 0, kz];
+    cameraStateRef.current.pos = [kx, 3.5, kz + 5];
+    cameraStateRef.current.isAnimating = true;
     setIsCameraFocused(true);
   }, [store, layoutData, viewMode]);
 
   const resetCamera = useCallback(() => {
-    setCameraPos(defaultCamPos);
-    setCameraTarget(defaultCamTarget);
+    cameraStateRef.current.pos = [...defaultCamPos];
+    cameraStateRef.current.target = [...defaultCamTarget];
+    cameraStateRef.current.isAnimating = true;
     setIsCameraFocused(false);
   }, []);
 
@@ -686,7 +737,7 @@ export default function StudioScreen() {
 
                 <Stars radius={100} depth={50} count={2000} factor={3} fade speed={0.5} />
 
-                {viewMode === 'full' && <CameraAnimator targetPos={cameraPos} targetLookAt={cameraTarget} orbitRef={orbitRef} />}
+                {viewMode === 'full' && <CameraAnimator cameraStateRef={cameraStateRef} orbitRef={orbitRef} />}
 
                 {viewMode === 'full' ? (
                   <KeyboardRenderer onKeyClick={handleKeyFocus} />
@@ -740,7 +791,7 @@ export default function StudioScreen() {
 
                 <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
 
-                <OrbitControls ref={orbitRef} enableDamping dampingFactor={0.05} enableZoom enablePan minDistance={viewMode === 'single' ? 2 : 3} maxDistance={viewMode === 'single' ? 8 : 35} minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
+                <StudioOrbitControls orbitRef={orbitRef} cameraStateRef={cameraStateRef} viewMode={viewMode} />
 
                 {/* POST PROCESSING */}
                 <EffectComposer multisampling={0}>
