@@ -15,9 +15,9 @@ export default function GalleryScreen() {
 
   useEffect(() => {
     async function loadDesigns() {
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured()) {
         try {
-          // Assume table name is 'designs'
+          const supabase = getSupabase();
           const { data, error } = await supabase.from('designs').select('*').order('likes', { ascending: false });
           if (error) throw error;
           setDesigns(data || []);
@@ -47,8 +47,9 @@ export default function GalleryScreen() {
       likes: 0
     };
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured()) {
       try {
+        const supabase = getSupabase();
         await supabase.from('designs').insert([newDesign]);
         const { data } = await supabase.from('designs').select('*').order('likes', { ascending: false });
         if (data) setDesigns(data);

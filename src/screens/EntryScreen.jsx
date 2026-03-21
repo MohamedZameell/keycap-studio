@@ -1,24 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 
 function KeycapGrid() {
-  const rows = 16;
-  const cols = 24;
-  const keycaps = [];
-  
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const delay = (r * 0.15) + (c * 0.1);
-      keycaps.push(
-        <div key={`${r}-${c}`} className="bg-keycap" style={{ animationDelay: `${delay}s` }} />
-      );
-    }
-  }
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let frameId;
+    let time = 0;
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cols = 24; const rows = 16; const size = 48; const gap = 6;
+      const offsetX = canvas.width / 2 - (cols * (size + gap)) / 2;
+      const offsetY = canvas.height / 2 - (rows * (size + gap)) / 2;
+      
+      for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+          const delay = (r * 0.15) + (c * 0.1);
+          const hue = (time * 20 + delay * 100) % 360;
+          ctx.fillStyle = `hsl(${230 + (hue * 0.1)}, 40%, ${10 + Math.sin(time + delay)*5}%)`;
+          
+          if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size, 8);
+            ctx.fill();
+          } else {
+            // Fallback if roundRect not supported
+            ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size);
+          }
+          ctx.fillStyle = 'rgba(255,255,255,0.05)';
+          ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size/2);
+        }
+      }
+      time += 0.02;
+      frameId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(frameId);
+  }, []);
 
   return (
     <div className="keycap-grid-container">
       <div className="keycap-grid">
-        {keycaps}
+        <canvas ref={canvasRef} width={1300} height={850} />
       </div>
       <div className="grid-overlay" />
     </div>
@@ -74,34 +101,11 @@ export default function EntryScreen() {
           perspective: 1000px;
         }
         .keycap-grid {
-          display: grid;
-          grid-template-columns: repeat(24, 48px);
-          grid-auto-rows: 48px;
-          gap: 6px;
           position: absolute;
           top: 50%; left: 50%;
-          transform: translate(-50%, -50%) rotateX(30deg) scale(1.5);
+          transform: translate(-50%, -50%) rotateX(30deg) scale(1.3);
           transform-style: preserve-3d;
-        }
-        .bg-keycap {
-          width: 48px; height: 48px;
-          border-radius: 8px;
-          background: #111122;
-          box-shadow: inset 0 4px 6px rgba(255,255,255,0.05), inset 0 -4px 6px rgba(0,0,0,0.5), 0 8px 16px rgba(0,0,0,0.4);
-          animation: colorWave 8s ease-in-out infinite alternate;
-        }
-        .grid-overlay {
-          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-          background: linear-gradient(to bottom, rgba(5,5,8,0.2) 0%, rgba(5,5,8,0.8) 100%);
-          z-index: 1; pointer-events: none;
-        }
-
-        @keyframes colorWave {
-          0% { background: #111122; transform: translateZ(0px); }
-          25% { background: #1a1a3a; transform: translateZ(4px); }
-          50% { background: #2f1b4a; transform: translateZ(8px); }
-          75% { background: #1a2a4a; transform: translateZ(4px); }
-          100% { background: #0f1f2f; transform: translateZ(0px); }
+          width: 1300px; height: 850px;
         }
 
         /* Content */
