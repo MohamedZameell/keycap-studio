@@ -4,8 +4,8 @@ import { RoundedBox } from '@react-three/drei';
 const KEY_UNIT = 1.12;
 
 export default function KeyboardChassis({ totalW, totalH }) {
-  const padX = 1.8;
-  const padZ = 1.4;
+  const padX = 1.2;
+  const padZ = 1.0;
   const plateW = totalW * KEY_UNIT + padX;
   const plateZ = totalH * KEY_UNIT + padZ;
 
@@ -13,10 +13,10 @@ export default function KeyboardChassis({ totalW, totalH }) {
     <group>
       {/* PART 1 — Bottom case (main body) */}
       <RoundedBox
-        args={[plateW, 0.45, plateZ]}
-        radius={0.12}
-        smoothness={6}
-        position={[0, -0.55, 0]}
+        args={[plateW, 0.28, plateZ]}
+        radius={0.10}
+        smoothness={4}
+        position={[0, -0.38, 0]}
         castShadow
         receiveShadow
       >
@@ -34,10 +34,10 @@ export default function KeyboardChassis({ totalW, totalH }) {
 
       {/* PART 2 — Switch plate (surface keys sit on) */}
       <RoundedBox
-        args={[plateW - 0.3, 0.06, plateZ - 0.3]}
-        radius={0.06}
+        args={[plateW - 0.3, 0.05, plateZ - 0.3]}
+        radius={0.04}
         smoothness={4}
-        position={[0, -0.29, 0]}
+        position={[0, -0.18, 0]}
         receiveShadow
       >
         <meshPhysicalMaterial
