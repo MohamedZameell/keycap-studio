@@ -38,18 +38,35 @@ export default function SupportScreen() {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '32px' }}>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 500, margin: '0 0 16px 0' }}>How do I select my keyboard?</h3>
-              <p style={{ color: 'var(--on-surface-variant)', lineHeight: 1.6, margin: 0 }}>Navigate to the <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>Build</span> tab in the SideNav. You can filter by form factor (60%, 65%, TKL) and case material. Once selected, the 3D viewport will update in real-time to reflect your chassis choice.</p>
-            </div>
-            <div style={{ background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '32px' }}>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 500, margin: '0 0 16px 0' }}>What file format do I export?</h3>
-              <p style={{ color: 'var(--on-surface-variant)', lineHeight: 1.6, margin: 0 }}>We offer high-fidelity exports in <span style={{ color: 'var(--secondary)', fontFamily: 'var(--font-mono)' }}>.JSON</span> for layout configurations and <span style={{ color: 'var(--secondary)', fontFamily: 'var(--font-mono)' }}>.SVG</span> for custom plate milling templates. If you are ordering through our partners, the automated link will handle the handshake.</p>
-            </div>
-            <div style={{ background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '32px' }}>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 500, margin: '0 0 16px 0' }}>What is a keycap profile?</h3>
-              <p style={{ color: 'var(--on-surface-variant)', lineHeight: 1.6, margin: 0 }}>A profile refers to the physical shape and height of the keycaps. <span style={{ color: 'var(--tertiary)' }}>Cherry</span> is the gold standard for ergonomics, while <span style={{ color: 'var(--tertiary)' }}>SA</span> offers a high-profile, retro spherical aesthetic. Check our Glossary below for a full technical breakdown.</p>
-            </div>
+            <details style={{ background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '24px', cursor: 'pointer' }} open>
+              <summary style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 500, outline: 'none', listStyle: 'none', display: 'flex', justifyContent: 'space-between' }}>
+                How do I select my keyboard?
+                <span style={{ fontSize: '14px', color: 'var(--outline)' }}>▼</span>
+              </summary>
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ color: 'var(--on-surface-variant)', lineHeight: 1.6, margin: 0 }}>Navigate to the <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>Build</span> tab in the SideNav. You can filter by form factor (60%, 65%, TKL) and case material. Once selected, the 3D viewport will update in real-time to reflect your chassis choice.</p>
+              </div>
+            </details>
+            
+            <details style={{ background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '24px', cursor: 'pointer' }}>
+              <summary style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 500, outline: 'none', listStyle: 'none', display: 'flex', justifyContent: 'space-between' }}>
+                What file format do I export?
+                <span style={{ fontSize: '14px', color: 'var(--outline)' }}>▼</span>
+              </summary>
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ color: 'var(--on-surface-variant)', lineHeight: 1.6, margin: 0 }}>We offer high-fidelity exports in <span style={{ color: 'var(--secondary)', fontFamily: 'var(--font-mono)' }}>.JSON</span> for layout configurations and <span style={{ color: 'var(--secondary)', fontFamily: 'var(--font-mono)' }}>.SVG</span> for custom plate milling templates. If you are ordering through our partners, the automated link will handle the handshake.</p>
+              </div>
+            </details>
+            
+            <details style={{ background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '24px', cursor: 'pointer' }}>
+              <summary style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 500, outline: 'none', listStyle: 'none', display: 'flex', justifyContent: 'space-between' }}>
+                What is a keycap profile?
+                <span style={{ fontSize: '14px', color: 'var(--outline)' }}>▼</span>
+              </summary>
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ color: 'var(--on-surface-variant)', lineHeight: 1.6, margin: 0 }}>A profile refers to the physical shape and height of the keycaps. <span style={{ color: 'var(--tertiary)' }}>Cherry</span> is the gold standard for ergonomics, while <span style={{ color: 'var(--tertiary)' }}>SA</span> offers a high-profile, retro spherical aesthetic. Check our Glossary below for a full technical breakdown.</p>
+              </div>
+            </details>
           </div>
         </section>
 
