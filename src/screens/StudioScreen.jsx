@@ -13,7 +13,7 @@ import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
 
-const KEY_UNIT = 1.08;
+const KEY_UNIT = 1.05;
 
 // TASK 4 — Camera animator: lerps camera position and orbit target smoothly
 function CameraAnimator({ cameraStateRef, orbitRef }) {

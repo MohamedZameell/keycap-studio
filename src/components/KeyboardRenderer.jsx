@@ -5,7 +5,7 @@ import KeyboardChassis from './KeyboardChassis';
 import { getLayoutForFormFactor } from '../data/layouts';
 import { Text } from '@react-three/drei';
 
-const KEY_UNIT = 1.08;
+const KEY_UNIT = 1.05;
 
 const ROW_HEIGHT = {
   0: 0.50,  // function row
@@ -16,12 +16,12 @@ const ROW_HEIGHT = {
   5: 0.50,  // bottom row
 };
 const ROW_TILT = {
-  0: 0.04,
-  1: 0.02,
-  2: 0.01,
-  3: 0,
-  4: -0.01,
-  5: -0.02,
+  0: -0.04,  // function row — tilts back
+  1: -0.02,
+  2: -0.01,
+  3: 0,      // ASDF row — neutral
+  4: 0.01,
+  5: 0.02,   // bottom row — tilts forward
 };
 
 export default function KeyboardRenderer({ onKeyClick }) {

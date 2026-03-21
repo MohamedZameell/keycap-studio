@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { RoundedBox } from '@react-three/drei';
 
-const KEY_UNIT = 1.12;
+const KEY_UNIT = 1.05;
 
 export default function KeyboardChassis({ totalW, totalH }) {
   const padX = 1.2;

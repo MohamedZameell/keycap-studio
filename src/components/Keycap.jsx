@@ -321,7 +321,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       }}
     >
       <group scale={singleKeyMode ? [1.6, 1.6, 1.6] : [1, 1, 1]}>
-      <group ref={meshRef} scale={[w, rowHeight || 0.48, h]}>
+      <group ref={meshRef} scale={[w * 0.96, rowHeight || 0.48, h * 0.96]}>
         
         {/* Selected Key Highlight */}
         {isSelected && (
