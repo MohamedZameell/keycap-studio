@@ -11,6 +11,17 @@ function KeycapGrid() {
     let frameId;
     let time = 0;
 
+    const COLORS = [
+      { bg: '#3a2b58', shadow: '#22193b', text: '#d0bcff' },
+      { bg: '#2b3a58', shadow: '#19223b', text: '#44e2cd' },
+      { bg: '#582b3a', shadow: '#3b1922', text: '#ffb4ab' },
+      { bg: '#2b5840', shadow: '#193b2a', text: '#62fae3' },
+      { bg: '#1c1c24', shadow: '#101015', text: '#e5e1e4' },
+      { bg: '#7c6ff7', shadow: '#5a4ed4', text: '#fff' },  // bright purple
+      { bg: '#4fc3f7', shadow: '#0288d1', text: '#1a1a2e' }, // bright blue
+      { bg: '#ff8a65', shadow: '#e64a19', text: '#fff' },   // orange
+    ];
+
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const cols = 24; const rows = 16; const size = 48; const gap = 6;
@@ -20,8 +31,12 @@ function KeycapGrid() {
       for(let r=0; r<rows; r++) {
         for(let c=0; c<cols; c++) {
           const delay = (r * 0.15) + (c * 0.1);
-          const hue = (time * 20 + delay * 100) % 360;
-          ctx.fillStyle = `hsl(${230 + (hue * 0.1)}, 40%, ${10 + Math.sin(time + delay)*5}%)`;
+          const wave = (Math.sin(time + delay) + 1) / 2;
+          const alpha = 0.45 + wave * 0.4;
+          ctx.globalAlpha = alpha;
+          
+          const color = COLORS[(r * cols + c) % COLORS.length];
+          ctx.fillStyle = color.bg;
           
           if (ctx.roundRect) {
             ctx.beginPath();
@@ -30,7 +45,7 @@ function KeycapGrid() {
           } else {
             ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size);
           }
-          ctx.fillStyle = 'rgba(208,188,255,0.05)';
+          ctx.fillStyle = color.shadow;
           ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size/2);
         }
       }
