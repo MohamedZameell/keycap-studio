@@ -279,7 +279,7 @@ export default function EntryScreen() {
         /* Process Steps */
         .process-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; margin-top: 64px; }
         @media (max-width: 800px) { .process-grid { grid-template-columns: 1fr; } }
-        .process-step { position: relative; }
+        .process-step { position: relative; isolation: isolate; }
         .step-number { position: absolute; top: -64px; left: -16px; font-size: 120px; font-family: var(--font-heading); font-weight: 700; color: var(--surface-container-highest); opacity: 0.5; z-index: -1; line-height: 1; }
 
         /* Gallery Previews */
@@ -367,34 +367,36 @@ export default function EntryScreen() {
       {/* Process Pipeline */}
       <div className="page-section" style={{ background: 'var(--surface-container-lowest)', maxWidth: '100%' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '48px', flexWrap: 'wrap', gap: '24px' }}>
+          <div style={{ marginBottom: '48px' }}>
             <div>
               <h2 className="headline" style={{ fontSize: '36px', marginBottom: '16px' }}>Precision Engineering Pipeline</h2>
               <p className="bento-text">From initial concept to final assembly, our studio provides the tools needed for professional-grade keyboard design.</p>
             </div>
-            <div className="mono-sm" style={{ color: 'var(--primary)' }}>PROCESS_MANUAL_V1.0</div>
           </div>
           
           <div className="process-grid">
             {[
               {
+                number: 1,
                 title: 'Select Keyboard',
                 desc: 'Choose your layout, mounting style, and material profile from our curated library.',
                 color: 'var(--primary)'
               },
               {
+                number: 2,
                 title: 'Design Keycaps',
                 desc: 'Apply custom legends, colors, and profiles. Use our procedural tool for gradient sets.',
                 color: 'var(--secondary)'
               },
               {
-                title: 'Export & Order',
+                number: 3,
+                title: 'Export',
                 desc: 'Receive an automated BOM and technical drawings. One-click order with our partners.',
                 color: 'var(--primary)'
               }
-            ].map((step, idx) => (
-              <div key={idx} className="process-step">
-                <div className="step-number">{idx + 1}</div>
+            ].map((step) => (
+              <div key={step.number} className="process-step">
+                <div className="step-number">{step.number}</div>
                 <h4 className="headline" style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '32px', height: '2px', background: step.color }}/> {step.title}</h4>
                 <p className="bento-text">{step.desc}</p>
               </div>

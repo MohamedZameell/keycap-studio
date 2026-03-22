@@ -76,7 +76,6 @@ function StudioOrbitControls({ orbitRef, cameraStateRef, viewMode }) {
   );
 }
 
-const PRESET_COLORS = ['#1a1a1a', '#f0f0f0', '#1e3a5f', '#c0392b', '#6c63ff', '#0d9e75', '#e91e8c', '#f5c518'];
 const FONTS = [
   { label: 'Inter — Aa',           value: 'Inter',           tag: 'Modern clean' },
   { label: 'Oswald — Aa',          value: 'Oswald',          tag: 'Bold condensed' },
@@ -528,6 +527,32 @@ export default function StudioScreen() {
                   </div>
                 </div>
 
+                {/* MATERIAL TOGGLE */}
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[
+                      { label: 'MATTE PBT', value: 'pbt' },
+                      { label: 'GLOSSY ABS', value: 'abs' },
+                    ].map(m => (
+                      <button key={m.value}
+                        onClick={() => store.setMaterialPreset(m.value)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 8px',
+                          fontFamily: 'Space Grotesk, sans-serif',
+                          fontSize: 12, fontWeight: 600,
+                          borderRadius: 2,
+                          border: '1px solid rgba(149,142,160,0.2)',
+                          background: store.materialPreset === m.value ? 'rgba(208,188,255,0.12)' : '#2a2a2c',
+                          color: store.materialPreset === m.value ? '#d0bcff' : '#cbc3d7',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >{m.label}</button>
+                    ))}
+                  </div>
+                </div>
+
                 <div style={styles.colorPickers}>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -550,38 +575,6 @@ export default function StudioScreen() {
                       </div>
                     </div>
                     <HexColorPicker color={getVal('legendColor') || '#ffffff'} onChange={(c) => updateDesign('legendColor', c)} style={{ width: '100%' }} />
-                  </div>
-                </div>
-
-                <div style={styles.presets}>
-                  {PRESET_COLORS.map(c => (
-                    <button key={c} className={`color-circle ${getVal('color') === c ? 'active' : ''}`} style={{ backgroundColor: c }} onClick={() => updateDesign('color', c)} />
-                  ))}
-                </div>
-
-                {/* MATERIAL TOGGLE */}
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    {[
-                      { label: 'MATTE PBT', value: 'pbt' },
-                      { label: 'GLOSSY ABS', value: 'abs' },
-                    ].map(m => (
-                      <button key={m.value}
-                        onClick={() => store.setMaterialPreset(m.value)}
-                        style={{
-                          flex: 1,
-                          padding: '10px 8px',
-                          fontFamily: 'Space Grotesk, sans-serif',
-                          fontSize: 12, fontWeight: 600,
-                          borderRadius: 2,
-                          border: '1px solid rgba(149,142,160,0.2)',
-                          background: store.materialPreset === m.value ? 'rgba(208,188,255,0.12)' : '#2a2a2c',
-                          color: store.materialPreset === m.value ? '#d0bcff' : '#cbc3d7',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
-                      >{m.label}</button>
-                    ))}
                   </div>
                 </div>
 
@@ -1001,7 +994,6 @@ const styles = {
   warning: { padding: '16px', backgroundColor: 'var(--surface-container)', color: 'var(--warning)', fontSize: '13px', borderRadius: '4px', borderLeft: '4px solid var(--warning)', fontFamily: 'var(--font-body)' },
   label: { fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 600, color: 'var(--on-surface)', marginBottom: '12px', display: 'block' },
   colorPickers: { display: 'flex', flexDirection: 'column', gap: '32px' },
-  presets: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' },
   input: { width: '100%', padding: '14px', backgroundColor: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: '4px', color: 'var(--on-surface)', fontFamily: 'var(--font-mono)', boxSizing: 'border-box', fontSize: '16px' },
   uploadArea: { border: '1px dashed var(--primary)', padding: '32px 24px', textAlign: 'center', borderRadius: '4px', color: 'var(--primary)', cursor: 'pointer', backgroundColor: 'rgba(208,188,255,0.05)', fontSize: 14, fontFamily: 'var(--font-body)', fontWeight: 500 },
   note: { fontSize: '12px', color: 'var(--on-surface-variant)', fontFamily: 'var(--font-body)', marginTop: '8px', lineHeight: 1.5 },
