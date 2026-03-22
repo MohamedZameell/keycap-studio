@@ -12,18 +12,21 @@ function KeycapGrid() {
     let time = 0;
 
     const COLORS = [
-      { bg: '#fdfaf5', shadow: '#d4cfc6', text: '#4a4a4a' },  // creamy white
-      { bg: '#e8e4f0', shadow: '#c4bdd8', text: '#4a4065' },  // soft lavender
-      { bg: '#f5c5c5', shadow: '#d4a0a0', text: '#7d2d2d' },  // soft pink
-      { bg: '#c5d8f5', shadow: '#9ab8e8', text: '#1a3a6a' },  // soft blue
-      { bg: '#c5f0e8', shadow: '#9ad4c8', text: '#1a5a48' },  // soft teal
-      { bg: '#f5e8c5', shadow: '#d4c89a', text: '#6a4a1a' },  // soft cream
-      { bg: '#d4c5f5', shadow: '#b0a0d8', text: '#3a1a7a' },  // soft purple
-      { bg: '#f5d4c5', shadow: '#d4b0a0', text: '#7a3a1a' },  // soft peach
-      { bg: '#c5c5f5', shadow: '#a0a0d8', text: '#1a1a7a' },  // periwinkle
-      { bg: '#e8f5c5', shadow: '#c8d8a0', text: '#3a5a1a' },  // soft green
-      { bg: '#f0f0f0', shadow: '#c8c8c8', text: '#333333' },  // light gray
-      { bg: '#b8d4f0', shadow: '#8ab0d4', text: '#1a3a6a' },  // cornflower
+      { bg: '#fdfaf5', shadow: '#c8c3b8' },  // creamy white
+      { bg: '#b8d4ff', shadow: '#7aa8e8' },  // pastel blue
+      { bg: '#ffb8c8', shadow: '#e88a9a' },  // pastel pink
+      { bg: '#b8f0e0', shadow: '#7ad4bc' },  // pastel mint
+      { bg: '#e8b8ff', shadow: '#c48ae8' },  // pastel purple
+      { bg: '#ffd8b8', shadow: '#e8b08a' },  // pastel peach
+      { bg: '#b8e8ff', shadow: '#7ac8e8' },  // pastel sky
+      { bg: '#fff0b8', shadow: '#e8d08a' },  // pastel yellow
+      { bg: '#d4b8ff', shadow: '#a88ae8' },  // soft violet
+      { bg: '#b8ffda', shadow: '#7ae8b4' },  // soft green
+      { bg: '#ffb8f0', shadow: '#e88ad4' },  // soft magenta
+      { bg: '#f5f0ff', shadow: '#c8c0e8' },  // near white lavender
+      { bg: '#ffc8c8', shadow: '#e8a0a0' },  // soft red/coral
+      { bg: '#c8f5c8', shadow: '#a0d8a0' },  // soft green
+      { bg: '#ffe0c8', shadow: '#e8c0a0' },  // warm peach
     ];
 
     const hexToRgb = (hex) => {
@@ -56,7 +59,7 @@ function KeycapGrid() {
     }
 
     const drawKeycap = (ctx, x, y, size, col, pressAmount) => {
-      const r = size * 0.22;
+      const r = size * 0.28;
       const shadowDepth = size * 0.12;
       const actualY = y + pressAmount;
 
@@ -82,8 +85,12 @@ function KeycapGrid() {
       ctx.fill();
     };
 
-    const COLS_COUNT = Math.ceil(window.innerWidth / 76) + 1;
-    const ROWS_COUNT = Math.ceil(window.innerHeight / 76) + 1;
+    const SIZE = 68;
+    const GAP = 2;
+    const UNIT = SIZE + GAP;
+
+    const COLS_COUNT = Math.ceil(canvas.width / UNIT) + 3;
+    const ROWS_COUNT = Math.ceil(canvas.height / UNIT) + 3;
     const totalKeys = COLS_COUNT * ROWS_COUNT;
 
     const keyStates = Array.from({ length: totalKeys }, () => ({
@@ -95,10 +102,6 @@ function KeycapGrid() {
       pressed: false,
       pressAmt: 0
     }));
-
-    const SIZE = 64;
-    const GAP = 10;
-    const UNIT = SIZE + GAP;
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -120,13 +123,19 @@ function KeycapGrid() {
         key.pressTimer -= 1;
         if (key.pressTimer <= 0) {
           key.pressed = true;
-          key.pressTimer = 120 + Math.random() * 300;
+          key.pressTimer = 180 + Math.random() * 400;  // 3-6 seconds between presses
         }
         if (key.pressed) {
-          key.pressAmt = Math.min(key.pressAmt + 0.8, 5);
-          if (key.pressAmt >= 5) { key.pressed = false; }
+          key.pressAmt = Math.min(key.pressAmt + 0.3, 6);
+          if (key.pressAmt >= 6) {
+            key.pressed = false;
+            // Change color when key finishes pressing
+            key.colorIdx = key.targetIdx;
+            key.targetIdx = Math.floor(Math.random() * COLORS.length);
+            key.progress = 0;
+          }
         } else {
-          key.pressAmt = Math.max((key.pressAmt || 0) - 0.6, 0);
+          key.pressAmt = Math.max((key.pressAmt || 0) - 0.25, 0);
         }
       });
 
@@ -136,8 +145,8 @@ function KeycapGrid() {
           const key = keyStates[i++];
           if (!key) continue;
           
-          const x = col * UNIT - 5;
-          const y = row * UNIT - 5;
+          const x = col * UNIT - UNIT * 0.5;
+          const y = row * UNIT - UNIT * 0.5;
           
           const fromCol = COLORS[key.colorIdx];
           const toCol = COLORS[key.targetIdx];
