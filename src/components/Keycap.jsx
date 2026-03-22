@@ -252,12 +252,19 @@ function buildKeycapTextureFallback(color, legend, legendColor, legendFont, lege
 }
 
 async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition }) {
-  // Ensure font is loaded before drawing
   const fontFamily = legendFont || 'Inter';
+  
+  // Try multiple weight/size combinations to ensure font is found
   try {
-    await document.fonts.load(`160px "${fontFamily}"`);
+    await Promise.race([
+      Promise.all([
+        document.fonts.load(`bold 160px "${fontFamily}"`),
+        document.fonts.load(`700 160px "${fontFamily}"`),
+      ]),
+      new Promise(resolve => setTimeout(resolve, 800)) // 800ms max wait
+    ]);
   } catch (e) {
-    // fallback silently
+    // continue with fallback
   }
 
   const canvas = document.createElement('canvas');
@@ -288,8 +295,12 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
     const pos = posMap[legendPosition] || posMap['center'];
     if (pos) {
       const [tx, ty] = pos;
-      ctx.fillStyle = legendColor || '#ffffff';
       const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
+      
+      // Log to verify font is actually changing
+      console.log(`[Keycap] Drawing legend "${legend}" with font: ${fontFamily}`);
+      
+      ctx.fillStyle = legendColor || '#ffffff';
       ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

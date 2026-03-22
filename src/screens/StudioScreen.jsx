@@ -77,12 +77,16 @@ function StudioOrbitControls({ orbitRef, cameraStateRef, viewMode }) {
 }
 
 const PRESET_COLORS = ['#1a1a1a', '#f0f0f0', '#1e3a5f', '#c0392b', '#6c63ff', '#0d9e75', '#e91e8c', '#f5c518'];
-const FONTS = ['Inter', 'Oswald', 'Press Start 2P', 'Share Tech Mono', 'Playfair Display', 'Nunito', 'Rajdhani', 'Bebas Neue'];
-const FONT_DESCRIPTIONS = {
-  'Inter': 'Modern clean', 'Oswald': 'Bold condensed', 'Press Start 2P': 'Pixel',
-  'Share Tech Mono': 'Mono', 'Playfair Display': 'Elegant', 'Nunito': 'Rounded',
-  'Rajdhani': 'Futuristic', 'Bebas Neue': 'Bold display',
-};
+const FONTS = [
+  { label: 'Inter — Aa',           value: 'Inter',           tag: 'Modern clean' },
+  { label: 'Oswald — Aa',          value: 'Oswald',          tag: 'Bold condensed' },
+  { label: 'Press Start 2P — Aa',  value: 'Press Start 2P',  tag: 'Pixel' },
+  { label: 'Share Tech Mono — Aa', value: 'Share Tech Mono', tag: 'Mono' },
+  { label: 'Playfair Display — Aa',value: 'Playfair Display',tag: 'Elegant' },
+  { label: 'Nunito — Aa',          value: 'Nunito',          tag: 'Rounded' },
+  { label: 'Rajdhani — Aa',        value: 'Rajdhani',        tag: 'Futuristic' },
+  { label: 'Bebas Neue — Aa',      value: 'Bebas Neue',      tag: 'Bold display' },
+];
 
 const THEMES = [
   { name: 'Midnight', keycap: '#1a1a2e', legend: '#ffffff', material: 'pbt' },
@@ -622,21 +626,21 @@ export default function StudioScreen() {
                 <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Font</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {FONTS.map(f => {
-                    const isActive = store.globalFont === f;
+                    const isActive = getVal('font') === f.value;
                     return (
                       <button
-                        key={f}
+                        key={f.value}
                         style={{
                           padding: '8px 12px', background: isActive ? '#6c63ff15' : '#1a1a2e',
                           border: `1px solid ${isActive ? '#6c63ff' : '#2a2a3a'}`, borderRadius: 6,
-                          color: isActive ? '#a09bf5' : '#aaaacc', fontFamily: f, fontSize: 14,
+                          color: isActive ? '#a09bf5' : '#aaaacc', fontFamily: f.value, fontSize: 14,
                           cursor: 'pointer', width: '100%', textAlign: 'left', transition: '0.15s',
                           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}
-                        onClick={() => store.setGlobalFont(f)}
+                        onClick={() => updateDesign('font', f.value)}
                       >
-                        <span>{f} — Aa</span>
-                        <span style={{ fontSize: 10, color: '#444460' }}>{FONT_DESCRIPTIONS[f]}</span>
+                        <span>{f.label}</span>
+                        <span style={{ fontSize: 10, color: '#444460' }}>{f.tag}</span>
                       </button>
                     );
                   })}
