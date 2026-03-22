@@ -101,13 +101,13 @@ function KeycapGrid() {
       ctx.fill();
     };
 
-    const SIZE = 66;
-    const GAP = 4;
-    const UNIT = SIZE + GAP;
-
-    const COLS_COUNT = Math.ceil(canvas.width / UNIT) + 3;
-    const ROWS_COUNT = Math.ceil(canvas.height / UNIT) + 3;
+    const COLS_COUNT = Math.ceil(window.innerWidth / 76) + 1;
+    const ROWS_COUNT = Math.ceil(window.innerHeight / 76) + 1;
     const totalKeys = COLS_COUNT * ROWS_COUNT;
+
+    const SIZE = 64;
+    const GAP = 10;
+    const UNIT = SIZE + GAP;
 
     const keyStates = Array.from({ length: totalKeys }, () => ({
       colorIdx: Math.floor(Math.random() * COLORS.length),
@@ -161,8 +161,8 @@ function KeycapGrid() {
           const key = keyStates[i++];
           if (!key) continue;
           
-          const x = col * UNIT - UNIT * 0.5;
-          const y = row * UNIT - UNIT * 0.5;
+          const x = col * UNIT - 5;
+          const y = row * UNIT - 5;
           
           const fromCol = COLORS[key.colorIdx];
           const toCol = COLORS[key.targetIdx];
