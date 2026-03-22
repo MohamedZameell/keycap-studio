@@ -10,7 +10,14 @@ function KeycapGrid() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let frameId;
-    let time = 0;
+    let lastFrameTime = performance.now();
+
+    const PRESS_DOWN_MS = 200;
+    const HOLD_MS = 90;
+    const RELEASE_MS = 150;
+    const MAX_PRESS_PX = 4;
+    const MIN_IDLE_MS = 1800;
+    const MAX_IDLE_MS = 3500;
 
     const KEYCAP_COLORS = [
       '#005f73',
@@ -35,22 +42,6 @@ function KeycapGrid() {
       bg,
       shadow: darkenHex(bg, 0.68),
     }));
-
-    const hexToRgb = (hex) => {
-      const r = parseInt(hex.slice(1,3), 16);
-      const g = parseInt(hex.slice(3,5), 16);
-      const b = parseInt(hex.slice(5,7), 16);
-      return { r, g, b };
-    };
-
-    const lerpColor = (c1, c2, t) => {
-      const p1 = hexToRgb(c1);
-      const p2 = hexToRgb(c2);
-      const r = Math.round(p1.r + (p2.r - p1.r) * t);
-      const g = Math.round(p1.g + (p2.g - p1.g) * t);
-      const b = Math.round(p1.b + (p2.b - p1.b) * t);
-      return `rgb(${r},${g},${b})`;
-    };
 
     function roundRectPath(ctx, x, y, w, h, r) {
       ctx.moveTo(x + r, y);
@@ -100,55 +91,76 @@ function KeycapGrid() {
     const ROWS_COUNT = Math.ceil(canvas.height / UNIT) + 3;
     const totalKeys = COLS_COUNT * ROWS_COUNT;
 
+    const pickPendingColorIdx = (currentIdx) => {
+      if (paletteSwatches.length <= 1) return 0;
+      let p;
+      do {
+        p = Math.floor(Math.random() * paletteSwatches.length);
+      } while (p === currentIdx);
+      return p;
+    };
+
     const keyStates = Array.from({ length: totalKeys }, (_, i) => {
       const row = Math.floor(i / COLS_COUNT);
       const col = i % COLS_COUNT;
       const startIdx = (row + col) % paletteSwatches.length;
       return {
         colorIdx: startIdx,
-        targetIdx: (startIdx + 5) % paletteSwatches.length,
-        progress: 1.0,
-        timer: Math.random() * 120,
-        pressTimer: Math.random() * 200,
-        pressed: false,
+        pendingColorIdx: pickPendingColorIdx(startIdx),
+        phase: 'idle',
+        phaseElapsed: 0,
+        idleElapsed: Math.random() * MAX_IDLE_MS,
+        nextPressDelay: MIN_IDLE_MS + Math.random() * (MAX_IDLE_MS - MIN_IDLE_MS),
         pressAmt: 0,
       };
     });
 
-    const draw = () => {
+    const updateKey = (key, dtMs) => {
+      if (key.phase === 'idle') {
+        key.idleElapsed += dtMs;
+        if (key.idleElapsed >= key.nextPressDelay) {
+          key.phase = 'pressing';
+          key.phaseElapsed = 0;
+        }
+      } else if (key.phase === 'pressing') {
+        key.phaseElapsed += dtMs;
+        const t = Math.min(1, key.phaseElapsed / PRESS_DOWN_MS);
+        key.pressAmt = MAX_PRESS_PX * t;
+        if (key.phaseElapsed >= PRESS_DOWN_MS) {
+          key.colorIdx = key.pendingColorIdx;
+          key.pendingColorIdx = pickPendingColorIdx(key.colorIdx);
+          key.phase = 'holding';
+          key.phaseElapsed = 0;
+          key.pressAmt = MAX_PRESS_PX;
+        }
+      } else if (key.phase === 'holding') {
+        key.phaseElapsed += dtMs;
+        key.pressAmt = MAX_PRESS_PX;
+        if (key.phaseElapsed >= HOLD_MS) {
+          key.phase = 'releasing';
+          key.phaseElapsed = 0;
+        }
+      } else if (key.phase === 'releasing') {
+        key.phaseElapsed += dtMs;
+        const t = Math.min(1, key.phaseElapsed / RELEASE_MS);
+        key.pressAmt = MAX_PRESS_PX * (1 - t);
+        if (key.phaseElapsed >= RELEASE_MS) {
+          key.pressAmt = 0;
+          key.phase = 'idle';
+          key.idleElapsed = 0;
+          key.nextPressDelay = MIN_IDLE_MS + Math.random() * (MAX_IDLE_MS - MIN_IDLE_MS);
+        }
+      }
+    };
+
+    const draw = (now) => {
+      const dtMs = Math.min(Math.max(0, now - lastFrameTime), 48);
+      lastFrameTime = now;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       keyStates.forEach((key) => {
-        // Count down to next color change
-        key.timer -= 1;
-        if (key.timer <= 0) {
-          key.colorIdx = key.targetIdx;
-          key.targetIdx = Math.floor(Math.random() * paletteSwatches.length);
-          key.progress = 0;
-          key.timer = 60 + Math.random() * 180;  // change again in 1-3 seconds
-        }
-        
-        // Smooth color transition
-        if (key.progress < 1) key.progress = Math.min(1, key.progress + 0.04);
-        
-        // Random press animation
-        key.pressTimer -= 1;
-        if (key.pressTimer <= 0) {
-          key.pressed = true;
-          key.pressTimer = 180 + Math.random() * 400;  // 3-6 seconds between presses
-        }
-        if (key.pressed) {
-          key.pressAmt = Math.min(key.pressAmt + 0.3, 6);
-          if (key.pressAmt >= 6) {
-            key.pressed = false;
-            // Change color when key finishes pressing
-            key.colorIdx = key.targetIdx;
-            key.targetIdx = Math.floor(Math.random() * paletteSwatches.length);
-            key.progress = 0;
-          }
-        } else {
-          key.pressAmt = Math.max((key.pressAmt || 0) - 0.25, 0);
-        }
+        updateKey(key, dtMs);
       });
 
       let i = 0;
@@ -156,25 +168,21 @@ function KeycapGrid() {
         for (let col = 0; col < COLS_COUNT; col++) {
           const key = keyStates[i++];
           if (!key) continue;
-          
+
           const x = col * UNIT - UNIT * 0.5;
           const y = row * UNIT - UNIT * 0.5;
-          
-          const fromCol = paletteSwatches[key.colorIdx];
-          const toCol = paletteSwatches[key.targetIdx];
-          
-          const bgColor = lerpColor(fromCol.bg, toCol.bg, key.progress);
-          const shadowColor = lerpColor(fromCol.shadow, toCol.shadow, key.progress);
-          
+
+          const colSwatch = paletteSwatches[key.colorIdx];
+
           ctx.globalAlpha = 0.85;
-          drawKeycap(ctx, x, y, SIZE, { bg: bgColor, shadow: shadowColor }, key.pressAmt || 0);
+          drawKeycap(ctx, x, y, SIZE, { bg: colSwatch.bg, shadow: colSwatch.shadow }, key.pressAmt || 0);
           ctx.globalAlpha = 1;
         }
       }
 
       frameId = requestAnimationFrame(draw);
     };
-    draw();
+    frameId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frameId);
   }, []);
 
