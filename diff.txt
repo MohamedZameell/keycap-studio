@@ -1,0 +1,155 @@
+﻿diff --git a/src/components/Keycap.jsx b/src/components/Keycap.jsx
+index 5a8c6d9..e60a948 100644
+--- a/src/components/Keycap.jsx
++++ b/src/components/Keycap.jsx
+@@ -230,50 +230,71 @@ function createTopFaceGeometry(widthU = 1, heightU = 1) {
+ // ============================================================
+ // TASK 4 ΓÇö Bake legend into top-face canvas texture
+ // ============================================================
+-function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition }) {
++function buildKeycapTextureFallback(color, legend, legendColor, legendFont, legendPosition) {
++  const canvas = document.createElement('canvas');
++  canvas.width = 512;
++  canvas.height = 512;
++  const ctx = canvas.getContext('2d');
++  ctx.fillStyle = color || '#7c6bb0';
++  ctx.fillRect(0, 0, 512, 512);
++  if (legend && legend.trim() !== '') {
++    ctx.fillStyle = legendColor || '#ffffff';
++    const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
++    ctx.font = `bold ${fontSize}px sans-serif`;
++    ctx.textAlign = 'center';
++    ctx.textBaseline = 'middle';
++    ctx.fillText(legend, 256, 256);
++  }
++  const tex = new THREE.CanvasTexture(canvas);
++  tex.needsUpdate = true;
++  return tex;
++}
++
++async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition }) {
++  // Ensure font is loaded before drawing
++  const fontFamily = legendFont || 'Inter';
++  try {
++    await document.fonts.load(`bold 160px "${fontFamily}"`);
++  } catch (e) {
++    // fallback silently
++  }
++
+   const canvas = document.createElement('canvas');
+   canvas.width = 512;
+   canvas.height = 512;
+   const ctx = canvas.getContext('2d');
+ 
+-  // 1. Fill with keycap base color
+   ctx.fillStyle = color || '#7c6bb0';
+   ctx.fillRect(0, 0, 512, 512);
+ 
+-  // 2. Subtle inner highlight ΓÇö lighter ellipse in upper portion
+   const grad = ctx.createRadialGradient(256, 180, 20, 256, 200, 220);
+-  grad.addColorStop(0, 'rgba(255,255,255,0.12)');
++  grad.addColorStop(0, 'rgba(255,255,255,0.10)');
+   grad.addColorStop(1, 'rgba(255,255,255,0)');
+   ctx.fillStyle = grad;
+   ctx.fillRect(0, 0, 512, 512);
+ 
+-  // 3. Paint legend text
+   if (legend && legend.trim() !== '') {
+     const posMap = {
+-      'center': [256, 256],
+-      'top-center': [256, 160],
+-      'top-left': [110, 130],
+-      'top-right': [400, 130],
+-      'bottom-left': [110, 390],
++      'center':       [256, 256],
++      'top-center':   [256, 160],
++      'top-left':     [110, 130],
++      'top-right':    [400, 130],
++      'bottom-left':  [110, 390],
+       'bottom-right': [400, 390],
+-      'front': [256, 400],
+-      'none': null,
++      'front':        [256, 400],
++      'none':         null,
+     };
+     const pos = posMap[legendPosition] || posMap['center'];
+     if (pos) {
+       const [tx, ty] = pos;
+-
+       ctx.fillStyle = legendColor || '#ffffff';
+       const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
+-      ctx.font = `bold ${fontSize}px "${legendFont || 'Inter'}", sans-serif`;
++      ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
+       ctx.textAlign = 'center';
+       ctx.textBaseline = 'middle';
+-
+-      // Subtle text shadow for depth
+       ctx.shadowColor = 'rgba(0,0,0,0.4)';
+       ctx.shadowBlur = 8;
+       ctx.shadowOffsetY = 3;
+-
+       ctx.fillText(legend, tx, ty);
+     }
+   }
+@@ -321,14 +342,27 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
+   // ============================================================
+   // TASK 4 ΓÇö Baked legend texture (regenerated when design changes)
+   // ============================================================
+-  const topTexture = useMemo(() => {
+-    return buildKeycapTexture({
++  const [topTexture, setTopTexture] = useState(() =>
++    buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition)
++  );
++
++  useEffect(() => {
++    let cancelled = false;
++    buildKeycapTexture({
+       color,
+       legend: displayText,
+       legendColor,
+       legendFont: font,
+       legendPosition,
++    }).then((tex) => {
++      if (!cancelled) {
++        setTopTexture(prev => {
++          prev?.dispose();
++          return tex;
++        });
++      }
+     });
++    return () => { cancelled = true; };
+   }, [color, displayText, legendColor, font, legendPosition]);
+ 
+   // ============================================================
+@@ -403,21 +437,21 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
+   const sideColor = darkenColor(color, 0.82);
+ 
+   const topMatProps = useMemo(() => ({
+-    roughness: isABS ? 0.28 : 0.78,
++    roughness: isABS ? 0.38 : 0.82,
+     metalness: 0.0,
+-    clearcoat: isABS ? 0.6 : 0.0,
+-    clearcoatRoughness: isABS ? 0.25 : 1.0,
+-    reflectivity: isABS ? 0.4 : 0.1,
+-    envMapIntensity: isABS ? 0.35 : 0.15,
++    clearcoat: isABS ? 0.15 : 0.0,
++    clearcoatRoughness: isABS ? 0.6 : 1.0,
++    reflectivity: isABS ? 0.15 : 0.05,
++    envMapIntensity: isABS ? 0.2 : 0.1,
+   }), [isABS]);
+ 
+   const sideMatProps = useMemo(() => ({
+-    roughness: isABS ? 0.32 : 0.80,
++    roughness: isABS ? 0.42 : 0.85,
+     metalness: 0.0,
+-    clearcoat: isABS ? 0.4 : 0.0,
+-    clearcoatRoughness: isABS ? 0.3 : 1.0,
+-    reflectivity: isABS ? 0.3 : 0.08,
+-    envMapIntensity: isABS ? 0.25 : 0.1,
++    clearcoat: 0.0,
++    clearcoatRoughness: 1.0,
++    reflectivity: isABS ? 0.08 : 0.03,
++    envMapIntensity: isABS ? 0.12 : 0.06,
+   }), [isABS]);
+ 
+   // Animation
