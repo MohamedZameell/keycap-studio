@@ -88,7 +88,7 @@ function createTopFaceGeometry(widthU = 1, heightU = 1) {
   const tw = 14.0 * widthU * scale;
   const td = 13.0 * heightU * scale;
   const H = 9.4 * scale;
-  const dishDepth = 1.1 * scale;
+  const dishDepth = 0.6 * scale;
   const chamfer = 0.7 * scale;
   const dishCols = 10;
   const dishRows = 6;
@@ -114,7 +114,7 @@ function createTopFaceGeometry(widthU = 1, heightU = 1) {
       const x = -tw / 2 + chamfer + (tw - 2 * chamfer) * u;
       const z = -td / 2 + chamfer + (td - 2 * chamfer) * v;
 
-      const dishOffset = -dishDepth * (1 - Math.cos(Math.PI * u)) / 2;
+      const dishOffset = -dishDepth * Math.sin(Math.PI * u);
       const y = H + dishOffset;
 
       pushVert(x, y, z, u, v);
