@@ -8,20 +8,20 @@ import { Text } from '@react-three/drei';
 const KEY_UNIT = 1.05;
 
 const ROW_HEIGHT = {
-  0: 0.52,   // function row — tallest
-  1: 0.50,   // number row
-  2: 0.48,   // QWERTY row
-  3: 0.46,   // home row — shortest
-  4: 0.48,   // bottom row
-  5: 0.50,   // space row
+  0: 1.000,  // R1 — Fn row, 9.4mm (tallest)
+  1: 1.000,  // R1 — Number row, 9.4mm
+  2: 0.904,  // R2 — QWERTY row, 8.5mm
+  3: 0.787,  // R3 — Home row, 7.4mm (shortest)
+  4: 0.904,  // R4 — Bottom row, 8.5mm
+  5: 0.904,  // R4 — Spacebar row, 8.5mm
 };
 const ROW_TILT = {
-  0:  0.06,  // tilts back away from user
-  1:  0.03,
-  2:  0.01,
-  3:  0.00,  // home row is flat reference
-  4: -0.02,
-  5: -0.04,  // tilts forward toward user
+  0:  0.122,  // R1 — +7° tilts back away from user
+  1:  0.122,  // R1 — +7° tilts back
+  2:  0.087,  // R2 — +5° tilts back slightly
+  3:  0.000,  // R3 — 0° flat, home row reference
+  4: -0.105,  // R4 — -6° tilts forward toward user
+  5: -0.105,  // R4 — -6° tilts forward
 };
 
 export default function KeyboardRenderer({ onKeyClick }) {
