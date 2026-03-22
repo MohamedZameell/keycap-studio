@@ -58,46 +58,30 @@ function KeycapGrid() {
       ctx.closePath();
     }
 
-    const drawKeycap = (ctx, x, y, size, col, pressAmt) => {
-      const r = size * 0.22;
-      const press = pressAmt || 0;
-      const wallThickness = size * 0.08;  // dark side wall thickness
+    const drawKeycap = (ctx, x, y, size, col, pressAmount) => {
+      const r = size * 0.22;  // large corner radius — pillowy look
+      const shadowDepth = size * 0.12;  // 3D depth
+      const actualY = y + pressAmount;
 
-      // LAYER 1 — Outer dark border (the side walls/housing)
-      ctx.fillStyle = 'rgba(20, 18, 22, 0.9)';
+      // Bottom shadow layer (the "side wall" of the keycap)
+      ctx.fillStyle = col.shadow;
       ctx.beginPath();
-      roundRectPath(ctx, x, y, size, size, r);
+      roundRectPath(ctx, x, actualY + shadowDepth, size, size, r);
       ctx.fill();
 
-      // LAYER 2 — Inner keycap surface (slightly inset, slightly raised)
-      const inset = wallThickness;
-      const innerSize = size - inset * 2;
-      const innerR = r * 0.75;
-      ctx.fillStyle = col.shadow;  // slightly darker shade first (side of top surface)
-      ctx.beginPath();
-      roundRectPath(ctx, x + inset, y + inset + press * 0.3, innerSize, innerSize, innerR);
-      ctx.fill();
-
-      // LAYER 3 — Top face (main color, slightly smaller and raised)
-      const topInset = inset + size * 0.025;
-      const topSize = size - topInset * 2;
-      const topR = innerR * 0.85;
-      const topLift = press > 0 ? press * 0.4 : -(size * 0.025);  // slight lift when not pressed
+      // Top surface
       ctx.fillStyle = col.bg;
       ctx.beginPath();
-      roundRectPath(ctx, x + topInset, y + topInset + topLift, topSize, topSize, topR);
+      roundRectPath(ctx, x, actualY, size, size, r);
       ctx.fill();
 
-      // LAYER 4 — Highlight on top face (subtle sheen)
-      const hlGrad = ctx.createLinearGradient(
-        x + topInset, y + topInset + topLift,
-        x + topInset, y + topInset + topLift + topSize * 0.45
-      );
-      hlGrad.addColorStop(0, 'rgba(255,255,255,0.28)');
-      hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = hlGrad;
+      // Inner highlight — subtle lighter area on top portion
+      const gradient = ctx.createLinearGradient(x, actualY, x, actualY + size * 0.5);
+      gradient.addColorStop(0, 'rgba(255,255,255,0.35)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
       ctx.beginPath();
-      roundRectPath(ctx, x + topInset + 1, y + topInset + topLift + 1, topSize - 2, topSize * 0.45, topR * 0.7);
+      roundRectPath(ctx, x + 2, actualY + 2, size - 4, size * 0.5, r * 0.8);
       ctx.fill();
     };
 
