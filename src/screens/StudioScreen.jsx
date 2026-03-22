@@ -975,7 +975,7 @@ const styles = {
   workspace: { flex: 1, display: 'flex', position: 'relative' },
   sidebar: { width: 300, background: '#201f21', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0, borderRight: '1px solid var(--outline-variant)', zIndex: 10 },
   tabs: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--outline-variant)', justifyContent: 'space-around', alignItems: 'center', background: 'var(--surface-container-lowest)' },
-  panelContent: { flex: 1, overflowY: 'auto', padding: '32px 24px' },
+  panelContent: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '32px 24px' },
   section: { display: 'flex', flexDirection: 'column', gap: '24px' },
   sectionLabel: { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#958ea0', marginBottom: 12 },
   pillToggleContainer: { display: 'flex', background: 'var(--surface-container)', borderRadius: '4px', padding: '4px', alignSelf: 'stretch' },
