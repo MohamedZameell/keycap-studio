@@ -431,6 +431,8 @@ export default function EntryScreen() {
           </div>
           <div>
             <div className="footer-heading">Resources</div>
+            <a href="#" className="footer-link" onClick={(e) => { e.preventDefault(); setScreen('about'); }}>About</a>
+            <a href="#" className="footer-link" onClick={(e) => { e.preventDefault(); setScreen('support'); }}>Support</a>
             <a href="#" className="footer-link">Privacy Policy</a>
             <a href="#" className="footer-link">Terms of Service</a>
             <a href="#" className="footer-link">Developer API</a>
@@ -442,7 +444,10 @@ export default function EntryScreen() {
             <a href="#" className="footer-link">GitHub</a>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div className="mono-sm" style={{ marginBottom: '16px' }}>Status: Optimal</div>
+            <div className="footer-heading" style={{ textAlign: 'right' }}>Product</div>
+            <a href="#" className="footer-link" onClick={(e) => { e.preventDefault(); setScreen('gallery'); }}>Gallery</a>
+            <a href="#" className="footer-link" onClick={(e) => { e.preventDefault(); setScreen('studio'); }}>Studio</a>
+            <a href="https://github.com/MohamedZameel/keycap-studio/releases" target="_blank" rel="noopener noreferrer" className="footer-link">Changelog</a>
             <div className="footer-link">© 2024 Keycap Studio.<br/>Precision Milled.</div>
           </div>
         </div>
