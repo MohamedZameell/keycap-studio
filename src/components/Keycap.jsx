@@ -1,72 +1,294 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 
-function buildFrustumBody() {
-  try {
-    const bottomW = 0.945;
-    const height = 0.493;
-    const topW = 0.787;
-    
-    const geo = new RoundedBoxGeometry(bottomW, height, bottomW, 8, 0.06);
-    const pos = geo.attributes.position;
-    
-    for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i);
-      const normalizedY = (y + height / 2) / height;
-      const taper = 1 - (1 - topW/bottomW) * normalizedY;
-      
-      pos.setX(i, pos.getX(i) * taper);
-      pos.setZ(i, pos.getZ(i) * taper);
-    }
-    
-    geo.computeVertexNormals();
-    return geo;
-  } catch(e) {
-    console.warn("Frustum build failed", e);
-    return new THREE.BoxGeometry(0.945, 0.493, 0.945);
-  }
+// ============================================================
+// TASK 6 — Darken a hex color by a luminance factor
+// ============================================================
+function darkenColor(hex, factor) {
+  const c = hex || '#888888';
+  const r = parseInt(c.slice(1, 3), 16);
+  const g = parseInt(c.slice(3, 5), 16);
+  const b = parseInt(c.slice(5, 7), 16);
+  return `rgb(${Math.round(r * factor)},${Math.round(g * factor)},${Math.round(b * factor)})`;
 }
 
-function buildTopDish() {
-  try {
-    const topWidth = 0.787;
-    const topDepth = 0.735;
-    const geo = new THREE.PlaneGeometry(topWidth, topDepth, 20, 20);
-    const pos = geo.attributes.position;
-    
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const dist = Math.sqrt(x*x + y*y);
-      const maxDist = Math.sqrt((topWidth/2)**2 + (topDepth/2)**2);
-      const normalDist = dist / maxDist;
-      const dip = -0.025 * (1 - normalDist * normalDist);
-      pos.setZ(i, dip);
-    }
-    
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-    geo.rotateX(-Math.PI / 2);
-    return geo;
-  } catch(e) {
-    console.warn("Top dish build failed", e);
-    const plane = new THREE.PlaneGeometry(0.787, 0.735);
-    plane.rotateX(-Math.PI/2);
-    return plane;
+// ============================================================
+// TASK 3 — Cherry MX profile keycap geometry (body only: sides + bottom)
+// ============================================================
+function createBodyGeometry(widthU = 1, heightU = 1) {
+  const scale = 1 / 19.05;
+  const W = 17.5 * widthU * scale;
+  const D = 17.5 * heightU * scale;
+  const tw = 14.0 * widthU * scale;
+  const td = 13.0 * heightU * scale;
+  const H = 9.4 * scale;
+
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+
+  function pushVert(x, y, z, u, v) {
+    positions.push(x, y, z);
+    uvs.push(u, v);
+    return (positions.length / 3) - 1;
   }
+
+  // --- BOTTOM FACE ---
+  const b0 = pushVert(-W / 2, 0, -D / 2, 0, 0);
+  const b1 = pushVert(W / 2, 0, -D / 2, 1, 0);
+  const b2 = pushVert(W / 2, 0, D / 2, 1, 1);
+  const b3 = pushVert(-W / 2, 0, D / 2, 0, 1);
+  indices.push(b0, b2, b1, b0, b3, b2);
+
+  // --- SIDE WALLS (4 sides, each a quad from base to top) ---
+  const baseCorners = [
+    [-W / 2, 0, -D / 2],
+    [W / 2, 0, -D / 2],
+    [W / 2, 0, D / 2],
+    [-W / 2, 0, D / 2],
+  ];
+  const topCorners = [
+    [-tw / 2, H, -td / 2],
+    [tw / 2, H, -td / 2],
+    [tw / 2, H, td / 2],
+    [-tw / 2, H, td / 2],
+  ];
+
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4;
+    const bl = baseCorners[i];
+    const br = baseCorners[j];
+    const tr = topCorners[j];
+    const tl = topCorners[i];
+    const uL = i / 4;
+    const uR = (i + 1) / 4;
+    const v0 = pushVert(bl[0], bl[1], bl[2], uL, 0);
+    const v1 = pushVert(br[0], br[1], br[2], uR, 0);
+    const v2 = pushVert(tr[0], tr[1], tr[2], uR, 1);
+    const v3 = pushVert(tl[0], tl[1], tl[2], uL, 1);
+    indices.push(v0, v1, v2, v0, v2, v3);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
-const TOP_SURFACE_W = 0.787;
-const TOP_SURFACE_D = 0.735;
+// ============================================================
+// TASK 3 — Cherry MX profile keycap top face geometry (dish + chamfers)
+// ============================================================
+function createTopFaceGeometry(widthU = 1, heightU = 1) {
+  const scale = 1 / 19.05;
+  const tw = 14.0 * widthU * scale;
+  const td = 13.0 * heightU * scale;
+  const H = 9.4 * scale;
+  const dishDepth = 1.1 * scale;
+  const chamfer = 0.7 * scale;
+  const dishCols = 10;
+  const dishRows = 6;
 
-export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0,0], uvScale = [1,1], isSelected, isPerformanceMode, singleKeyMode = false, onClick }) {
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+
+  function pushVert(x, y, z, u, v) {
+    positions.push(x, y, z);
+    uvs.push(u, 1 - v);
+    return (positions.length / 3) - 1;
+  }
+
+  // --- DISHED TOP FACE GRID ---
+  const topStartIdx = 0;
+
+  for (let row = 0; row <= dishRows; row++) {
+    for (let col = 0; col <= dishCols; col++) {
+      const u = col / dishCols;
+      const v = row / dishRows;
+
+      const x = -tw / 2 + chamfer + (tw - 2 * chamfer) * u;
+      const z = -td / 2 + chamfer + (td - 2 * chamfer) * v;
+
+      const dishOffset = -dishDepth * (1 - Math.cos(Math.PI * u)) / 2;
+      const y = H + dishOffset;
+
+      pushVert(x, y, z, u, v);
+    }
+  }
+
+  for (let row = 0; row < dishRows; row++) {
+    for (let col = 0; col < dishCols; col++) {
+      const a = topStartIdx + row * (dishCols + 1) + col;
+      const b = a + 1;
+      const c = a + (dishCols + 1);
+      const d = c + 1;
+      indices.push(a, c, b);
+      indices.push(b, c, d);
+    }
+  }
+
+  // --- CHAMFER STRIPS ---
+  // Front edge: z = -td/2
+  for (let col = 0; col < dishCols; col++) {
+    const u0 = col / dishCols;
+    const u1 = (col + 1) / dishCols;
+    const dishA = topStartIdx + col;
+    const dishB = topStartIdx + col + 1;
+    const wallA = pushVert(-tw / 2 + chamfer + (tw - 2 * chamfer) * u0, H, -td / 2, u0, 0);
+    const wallB = pushVert(-tw / 2 + chamfer + (tw - 2 * chamfer) * u1, H, -td / 2, u1, 0);
+    indices.push(wallA, dishA, dishB);
+    indices.push(wallA, dishB, wallB);
+  }
+
+  // Back edge: z = td/2
+  for (let col = 0; col < dishCols; col++) {
+    const u0 = col / dishCols;
+    const u1 = (col + 1) / dishCols;
+    const dishA = topStartIdx + dishRows * (dishCols + 1) + col;
+    const dishB = topStartIdx + dishRows * (dishCols + 1) + col + 1;
+    const wallA = pushVert(-tw / 2 + chamfer + (tw - 2 * chamfer) * u0, H, td / 2, u0, 1);
+    const wallB = pushVert(-tw / 2 + chamfer + (tw - 2 * chamfer) * u1, H, td / 2, u1, 1);
+    indices.push(wallA, dishB, dishA);
+    indices.push(wallA, wallB, dishB);
+  }
+
+  // Left edge: x = -tw/2
+  for (let row = 0; row < dishRows; row++) {
+    const v0 = row / dishRows;
+    const v1 = (row + 1) / dishRows;
+    const dishA = topStartIdx + row * (dishCols + 1);
+    const dishB = topStartIdx + (row + 1) * (dishCols + 1);
+    const wallA = pushVert(-tw / 2, H, -td / 2 + chamfer + (td - 2 * chamfer) * v0, 0, v0);
+    const wallB = pushVert(-tw / 2, H, -td / 2 + chamfer + (td - 2 * chamfer) * v1, 0, v1);
+    indices.push(wallA, dishB, dishA);
+    indices.push(wallA, wallB, dishB);
+  }
+
+  // Right edge: x = tw/2
+  for (let row = 0; row < dishRows; row++) {
+    const v0 = row / dishRows;
+    const v1 = (row + 1) / dishRows;
+    const dishA = topStartIdx + row * (dishCols + 1) + dishCols;
+    const dishB = topStartIdx + (row + 1) * (dishCols + 1) + dishCols;
+    const wallA = pushVert(tw / 2, H, -td / 2 + chamfer + (td - 2 * chamfer) * v0, 1, v0);
+    const wallB = pushVert(tw / 2, H, -td / 2 + chamfer + (td - 2 * chamfer) * v1, 1, v1);
+    indices.push(wallA, dishA, dishB);
+    indices.push(wallA, dishB, wallB);
+  }
+
+  // Corner patches (4 triangles connecting chamfer strip endpoints to wall top corners)
+  // Front-left corner
+  {
+    const corner = pushVert(-tw / 2, H, -td / 2, 0, 0);
+    const dishCorner = topStartIdx; // row=0, col=0
+    const frontEdge = pushVert(-tw / 2 + chamfer, H, -td / 2, 0, 0);
+    const leftEdge = pushVert(-tw / 2, H, -td / 2 + chamfer, 0, 0);
+    indices.push(corner, frontEdge, dishCorner);
+    indices.push(corner, dishCorner, leftEdge);
+  }
+  // Front-right corner
+  {
+    const corner = pushVert(tw / 2, H, -td / 2, 1, 0);
+    const dishCorner = topStartIdx + dishCols; // row=0, col=dishCols
+    const frontEdge = pushVert(tw / 2 - chamfer, H, -td / 2, 1, 0);
+    const rightEdge = pushVert(tw / 2, H, -td / 2 + chamfer, 1, 0);
+    indices.push(corner, dishCorner, frontEdge);
+    indices.push(corner, rightEdge, dishCorner);
+  }
+  // Back-left corner
+  {
+    const corner = pushVert(-tw / 2, H, td / 2, 0, 1);
+    const dishCorner = topStartIdx + dishRows * (dishCols + 1); // row=dishRows, col=0
+    const backEdge = pushVert(-tw / 2 + chamfer, H, td / 2, 0, 1);
+    const leftEdge = pushVert(-tw / 2, H, td / 2 - chamfer, 0, 1);
+    indices.push(corner, dishCorner, backEdge);
+    indices.push(corner, leftEdge, dishCorner);
+  }
+  // Back-right corner
+  {
+    const corner = pushVert(tw / 2, H, td / 2, 1, 1);
+    const dishCorner = topStartIdx + dishRows * (dishCols + 1) + dishCols;
+    const backEdge = pushVert(tw / 2 - chamfer, H, td / 2, 1, 1);
+    const rightEdge = pushVert(tw / 2, H, td / 2 - chamfer, 1, 1);
+    indices.push(corner, backEdge, dishCorner);
+    indices.push(corner, dishCorner, rightEdge);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+// ============================================================
+// TASK 4 — Bake legend into top-face canvas texture
+// ============================================================
+function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition }) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+
+  // 1. Fill with keycap base color
+  ctx.fillStyle = color || '#7c6bb0';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // 2. Subtle inner highlight — lighter ellipse in upper portion
+  const grad = ctx.createRadialGradient(256, 180, 20, 256, 200, 220);
+  grad.addColorStop(0, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // 3. Paint legend text
+  if (legend && legend.trim() !== '') {
+    const posMap = {
+      'center': [256, 256],
+      'top-center': [256, 160],
+      'top-left': [110, 130],
+      'top-right': [400, 130],
+      'bottom-left': [110, 390],
+      'bottom-right': [400, 390],
+      'front': [256, 400],
+      'none': null,
+    };
+    const pos = posMap[legendPosition] || posMap['center'];
+    if (pos) {
+      const [tx, ty] = pos;
+
+      ctx.fillStyle = legendColor || '#ffffff';
+      const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
+      ctx.font = `bold ${fontSize}px "${legendFont || 'Inter'}", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Subtle text shadow for depth
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+
+      ctx.fillText(legend, tx, ty);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ============================================================
+// Main Keycap component
+// ============================================================
+export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPerformanceMode, singleKeyMode = false, onClick }) {
   const meshRef = useRef();
-  const topMatRef = useRef();
-  
+
   const [hovered, setHovered] = useState(false);
   const globalColor = useStore(s => s.globalColor);
   const globalLegendColor = useStore(s => s.globalLegendColor);
@@ -77,55 +299,40 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const soundEnabled = useStore(s => s.soundEnabled);
   const imageMode = useStore(s => s.keyboardImageMode);
   const imageUrl = useStore(s => s.keyboardImageUrl);
-  
+
   const perKeyDesigns = useStore(s => s.perKeyDesigns);
   const pkDesign = perKeyDesigns[keyId] || {};
-  
+
   const color = pkDesign.color || globalColor;
   const legendColor = pkDesign.legendColor || globalLegendColor;
   let legendText = pkDesign.legendText || globalLegendText;
   const font = pkDesign.font || globalFont;
   const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';
 
-  // FIX 5 — Use label as fallback when legendText empty
   const displayText = legendText && legendText.trim() !== '' ? legendText : label;
-  
-  const bodyGeo = useMemo(() => buildFrustumBody(), []);
-  const topGeo = useMemo(() => buildTopDish(), []);
-
   const isSingleView = (x === undefined && y === undefined);
-  const usePhysical = !isPerformanceMode || isSingleView;
-  const MaterialCmp = usePhysical ? 'meshPhysicalMaterial' : 'meshStandardMaterial';
 
   // ============================================================
-  // FIX 5 — Unified CanvasTexture using displayText (label fallback)
-  // Uses browser's own Canvas2D font rendering — zero crash risk
+  // Separate body and top-face geometries (memoized per width/height)
   // ============================================================
-  const legendTexture = useMemo(() => {
-    if (!displayText) return null;
-    
-    const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.clearRect(0, 0, size, size);
-    
-    // Font must already be loaded in CSS via Google Fonts @import
-    ctx.font = `bold 110px "${font}", sans-serif`;
-    ctx.fillStyle = legendColor || '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(displayText).slice(0, 6), size / 2, size / 2);
-    
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    return tex;
-  }, [displayText, legendColor, font]);
+  const bodyGeo = useMemo(() => createBodyGeometry(w, h), [w, h]);
+  const topGeo = useMemo(() => createTopFaceGeometry(w, h), [w, h]);
 
   // ============================================================
-  // FIX 2 — Image textures with callback form of TextureLoader
+  // TASK 4 — Baked legend texture (regenerated when design changes)
+  // ============================================================
+  const topTexture = useMemo(() => {
+    return buildKeycapTexture({
+      color,
+      legend: displayText,
+      legendColor,
+      legendFont: font,
+      legendPosition,
+    });
+  }, [color, displayText, legendColor, font, legendPosition]);
+
+  // ============================================================
+  // Image texture handling
   // ============================================================
   const [tileTexture, setTileTexture] = useState(null);
 
@@ -148,19 +355,11 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         setTileTexture(tex);
       },
       undefined,
-      (err) => {
-        console.error('Texture load failed:', err);
-        if (!cancelled) setTileTexture(null);
-      }
+      () => { if (!cancelled) setTileTexture(null); }
     );
-    return () => { 
-      cancelled = true; 
-      setTileTexture(old => { if(old) old.dispose(); return null; });
-    };
+    return () => { cancelled = true; };
   }, [imageUrl, imageMode]);
 
-  // TASK 1 — Wrap mode: clone texture per-key with correct UV slice
-  // Each key needs its own texture clone so offset/repeat don't conflict
   const [wrapTexture, setWrapTexture] = useState(null);
 
   useEffect(() => {
@@ -175,23 +374,14 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     cloned.repeat.set(uvScale[0], uvScale[1]);
     cloned.needsUpdate = true;
     setWrapTexture(cloned);
-    return () => { 
-      setWrapTexture(old => { if(old) old.dispose(); return null; }); 
-      cloned.dispose(); 
-    };
+    return () => { cloned.dispose(); };
   }, [tileTexture, imageMode, uvOffset, uvScale]);
 
-  // ============================================================
-  // FIX 3 — Per-key image texture with callback
-  // ============================================================
   const perKeyImage = pkDesign?.imageUrl;
   const [perKeyTexture, setPerKeyTexture] = useState(null);
 
   useEffect(() => {
-    if (!perKeyImage) {
-      setPerKeyTexture(null);
-      return;
-    }
+    if (!perKeyImage) { setPerKeyTexture(null); return; }
     let cancelled = false;
     const loader = new THREE.TextureLoader();
     loader.load(perKeyImage, (tex) => {
@@ -200,39 +390,41 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       tex.needsUpdate = true;
       setPerKeyTexture(tex);
     });
-    return () => {
-      cancelled = true;
-      setPerKeyTexture(old => { if(old) old.dispose(); return null; });
-    };
+    return () => { cancelled = true; };
   }, [perKeyImage]);
 
-  // Priority: perKey > wrap > tile > none
-  const activeTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : (imageMode === 'tile' ? tileTexture : null));
-  // FIX 1 — Body always uses keycap color; only the dish gets white when textured
-  const resolvedColor = color;
+  // Priority: perKey > wrap > tile > baked legend texture
+  const activeTopTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : (imageMode === 'tile' ? tileTexture : topTexture));
 
-  // Imperative material update — the root-cause fix for textures not appearing.
-  // R3F's dynamic component pattern (<MaterialCmp>) doesn't reliably re-create
-  // the material when map changes. Imperative ref mutation works every time.
-  useEffect(() => {
-    if (!topMatRef.current) return;
-    if (activeTexture) {
-      topMatRef.current.map = activeTexture;
-      topMatRef.current.color.set('#ffffff');
-    } else {
-      topMatRef.current.map = null;
-      const topCol = new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.05);
-      topMatRef.current.color.copy(topCol);
-    }
-    topMatRef.current.needsUpdate = true;
-  }, [activeTexture, color]);
+  // ============================================================
+  // TASK 6 — Material presets
+  // ============================================================
+  const isABS = materialPreset === 'abs';
+  const sideColor = darkenColor(color, 0.82);
 
-  // Animation: singleKeyMode gets gentle bob + slow Y spin, keyboard keys stay still
-  // FIX 3 — Single key animation: force flat, slow spin + gentle bob
+  const topMatProps = useMemo(() => ({
+    roughness: isABS ? 0.28 : 0.78,
+    metalness: 0.0,
+    clearcoat: isABS ? 0.6 : 0.0,
+    clearcoatRoughness: isABS ? 0.25 : 1.0,
+    reflectivity: isABS ? 0.4 : 0.1,
+    envMapIntensity: isABS ? 0.35 : 0.15,
+  }), [isABS]);
+
+  const sideMatProps = useMemo(() => ({
+    roughness: isABS ? 0.32 : 0.80,
+    metalness: 0.0,
+    clearcoat: isABS ? 0.4 : 0.0,
+    clearcoatRoughness: isABS ? 0.3 : 1.0,
+    reflectivity: isABS ? 0.3 : 0.08,
+    envMapIntensity: isABS ? 0.25 : 0.1,
+  }), [isABS]);
+
+  // Animation
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     if (singleKeyMode) {
-      meshRef.current.rotation.x = 0;  // force flat, no row tilt
+      meshRef.current.rotation.x = 0;
       meshRef.current.rotation.y = clock.elapsedTime * 0.6;
       meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.9) * 0.05;
     } else {
@@ -244,63 +436,15 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     }
   });
 
-  const isBg = keyId === 'bg' || keyId === 'bg2';
-
-  // Material preset overrides
-  const isABS = materialPreset === 'abs';
-  const presetRoughness = isBg ? 0.4 : (isABS ? 0.35 : 0.72);
-  const presetClearcoat = isBg ? 0.2 : (isABS ? 0.04 : 0.0);
-  const presetEnvMap = isBg ? 1.5 : (isABS ? 0.2 : 0.12);
-
-  const bodyMaterialParams = {
-    color: resolvedColor,
-    roughness: presetRoughness,
-    metalness: 0.0,
-    emissive: '#000000',
-    emissiveIntensity: 0,
-    ...(usePhysical ? { 
-      clearcoat: presetClearcoat, 
-      clearcoatRoughness: 0.4, 
-      reflectivity: 0.5, 
-      envMapIntensity: presetEnvMap 
-    } : {})
-  };
-  
-  const topColorObj = new THREE.Color(resolvedColor).lerp(new THREE.Color('#ffffff'), 0.05).getHexString();
-  const topMaterialParams = {
-    color: activeTexture ? '#ffffff' : ('#' + topColorObj),
-    map: activeTexture || undefined,
-    roughness: isABS ? 0.2 : 0.7,
-    metalness: 0.0,
-    emissive: '#000000',
-    emissiveIntensity: 0,
-    ...(usePhysical ? { clearcoat: isABS ? 0.06 : 0.0, clearcoatRoughness: 0.35, envMapIntensity: isABS ? 0.3 : 0.15 } : {})
-  };
-
-  const stemMaterialParams = {
-    color: '#0a0a0a',
-    roughness: 0.8,
-    metalness: 0.0,
-    emissive: '#000000',
-    emissiveIntensity: 0
-  };
-
-  const topFaceY = 0.2465;
-  let legendPos = [0, topFaceY + 0.02, -0.026];
-  let legendRot = [-Math.PI / 2, 0, 0];
-  if (legendPosition === 'top-left') { legendPos = [-0.25, topFaceY + 0.02, -0.2]; }
-  if (legendPosition === 'top-right') { legendPos = [0.25, topFaceY + 0.02, -0.2]; }
-  if (legendPosition === 'front') { legendPos = [0, 0.05, 0.48]; legendRot = [0, 0, 0]; }
-
-  const px = x !== undefined ? x * 1.08 : 0;
-  const pz = y !== undefined ? y * 1.08 : 0;
+  const px = x !== undefined ? x * 1.05 : 0;
+  const pz = y !== undefined ? y * 1.05 : 0;
 
   return (
-    <group 
+    <group
       position={[px, 0, pz]}
       rotation={[rowTilt || 0, 0, 0]}
       onClick={(e) => {
-        if(onClick) {
+        if (onClick) {
           e.stopPropagation();
           if (soundEnabled) playKeycapSound(materialPreset);
           onClick();
@@ -321,66 +465,50 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       }}
     >
       <group scale={singleKeyMode ? [1.6, 1.6, 1.6] : [1, 1, 1]}>
-      <group ref={meshRef} scale={[w * 0.96, rowHeight || 0.48, h * 0.96]}>
-        
-        {/* Selected Key Highlight */}
-        {isSelected && (
-          <mesh scale={[1.04, 1.08, 1.04]} geometry={bodyGeo}>
-            <meshStandardMaterial 
-              color="#6c63ff"
-              emissive="#000000"
-              emissiveIntensity={0}
-              wireframe={false}
-              transparent
-              opacity={0.25}
-              side={THREE.BackSide}
+        <group ref={meshRef} scale={[1, rowHeight || 0.48, 1]}>
+
+          {/* Selected Key Highlight */}
+          {isSelected && (
+            <mesh scale={[1.06, 1.1, 1.06]} geometry={bodyGeo}>
+              <meshStandardMaterial
+                color="#6c63ff"
+                transparent
+                opacity={0.25}
+                side={THREE.BackSide}
+              />
+            </mesh>
+          )}
+
+          {/* Body mesh: sides + bottom — darkened color, no texture */}
+          <mesh geometry={bodyGeo} castShadow receiveShadow>
+            <meshPhysicalMaterial
+              color={sideColor}
+              {...sideMatProps}
             />
           </mesh>
-        )}
 
-        {/* 1. Frustum body */}
-        <mesh geometry={bodyGeo} castShadow receiveShadow>
-          <MaterialCmp {...bodyMaterialParams} color={bodyMaterialParams.color} />
-        </mesh>
-
-        {/* 2. Concave top dish surface — image texture applied here */}
-        <mesh geometry={topGeo} position={[0, topFaceY, -0.026]} castShadow receiveShadow>
-          <MaterialCmp ref={topMatRef} {...topMaterialParams} color={topMaterialParams.color} />
-        </mesh>
-
-        {/* Cherry MX stem underneath */}
-        <group position={[0, -0.3865, 0]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.14, 0.24, 0.44]} />
-            <MaterialCmp {...stemMaterialParams} color={stemMaterialParams.color} />
+          {/* Top face mesh: dish + chamfers — legend texture applied here */}
+          <mesh geometry={topGeo} castShadow receiveShadow>
+            <meshPhysicalMaterial
+              map={activeTopTexture}
+              color="#ffffff"
+              {...topMatProps}
+            />
           </mesh>
-          <mesh castShadow>
-            <boxGeometry args={[0.44, 0.24, 0.14]} />
-            <MaterialCmp {...stemMaterialParams} color={stemMaterialParams.color} />
-          </mesh>
+
+          {/* Cherry MX stem underneath */}
+          <group position={[0, -0.15, 0]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.07, 0.12, 0.22]} />
+              <meshStandardMaterial color="#0a0a0a" roughness={0.8} metalness={0.0} />
+            </mesh>
+            <mesh castShadow>
+              <boxGeometry args={[0.22, 0.12, 0.07]} />
+              <meshStandardMaterial color="#0a0a0a" roughness={0.8} metalness={0.0} />
+            </mesh>
+          </group>
         </group>
       </group>
-      </group>
-
-      {/* Legend via CanvasTexture — works for ALL fonts */}
-      {legendPosition !== 'none' && displayText && legendTexture && (
-        <mesh
-          position={legendPos}
-          rotation={legendRot}
-          renderOrder={2}
-        >
-          <planeGeometry args={[TOP_SURFACE_W * 0.72, TOP_SURFACE_D * 0.72]} />
-          <meshBasicMaterial
-            map={legendTexture}
-            transparent={true}
-            depthWrite={false}
-            alphaTest={0.01}
-            polygonOffset={true}
-            polygonOffsetFactor={-4}
-            polygonOffsetUnits={-4}
-          />
-        </mesh>
-      )}
     </group>
   );
 }

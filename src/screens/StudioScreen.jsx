@@ -887,35 +887,6 @@ export default function StudioScreen() {
                     </mesh>
                   </group>
                 )}
-                    {/* Pedestal disc — envMapIntensity=0 blocks HDRI tinting */}
-                    <mesh position={[0, -0.72, 0]} receiveShadow>
-                      <cylinderGeometry args={[0.85, 0.95, 0.06, 48]} />
-                      <meshPhysicalMaterial
-                        color="#1a1a2e"
-                        roughness={0.15}
-                        metalness={0.75}
-                        clearcoat={0.9}
-                        clearcoatRoughness={0.05}
-                        envMapIntensity={0}
-                        emissive="#000000"
-                        emissiveIntensity={0}
-                      />
-                    </mesh>
-
-                    {/* Pedestal stem */}
-                    <mesh position={[0, -0.88, 0]} receiveShadow>
-                      <cylinderGeometry args={[0.08, 0.1, 0.28, 24]} />
-                      <meshPhysicalMaterial
-                        color="#0d0d1a"
-                        roughness={0.15}
-                        metalness={0.75}
-                        clearcoat={0.9}
-                        clearcoatRoughness={0.05}
-                        envMapIntensity={0}
-                        emissive="#000000"
-                        emissiveIntensity={0}
-                      />
-                    </mesh>
 
                     {/* Single keycap with animation */}
                     <Keycap
