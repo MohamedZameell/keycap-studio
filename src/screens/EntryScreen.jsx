@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
+import KeyboardSilhouette from '../components/KeyboardSilhouette';
 
 function KeycapGrid() {
   const canvasRef = useRef(null);
@@ -11,23 +12,29 @@ function KeycapGrid() {
     let frameId;
     let time = 0;
 
-    const COLORS = [
-      { bg: '#fdfaf5', shadow: '#c8c3b8' },  // creamy white
-      { bg: '#b8d4ff', shadow: '#7aa8e8' },  // pastel blue
-      { bg: '#ffb8c8', shadow: '#e88a9a' },  // pastel pink
-      { bg: '#b8f0e0', shadow: '#7ad4bc' },  // pastel mint
-      { bg: '#e8b8ff', shadow: '#c48ae8' },  // pastel purple
-      { bg: '#ffd8b8', shadow: '#e8b08a' },  // pastel peach
-      { bg: '#b8e8ff', shadow: '#7ac8e8' },  // pastel sky
-      { bg: '#fff0b8', shadow: '#e8d08a' },  // pastel yellow
-      { bg: '#d4b8ff', shadow: '#a88ae8' },  // soft violet
-      { bg: '#b8ffda', shadow: '#7ae8b4' },  // soft green
-      { bg: '#ffb8f0', shadow: '#e88ad4' },  // soft magenta
-      { bg: '#f5f0ff', shadow: '#c8c0e8' },  // near white lavender
-      { bg: '#ffc8c8', shadow: '#e8a0a0' },  // soft red/coral
-      { bg: '#c8f5c8', shadow: '#a0d8a0' },  // soft green
-      { bg: '#ffe0c8', shadow: '#e8c0a0' },  // warm peach
+    const KEYCAP_COLORS = [
+      '#005f73',
+      '#0a9396',
+      '#94d2bd',
+      '#e9d8a6',
+      '#ee9b00',
+      '#ca6702',
+      '#bb3e03',
+      '#ae2012',
+      '#9b2226',
     ];
+
+    const darkenHex = (hex, factor) => {
+      const r = Math.round(parseInt(hex.slice(1, 3), 16) * factor);
+      const g = Math.round(parseInt(hex.slice(3, 5), 16) * factor);
+      const b = Math.round(parseInt(hex.slice(5, 7), 16) * factor);
+      return `#${[r, g, b].map((x) => Math.min(255, Math.max(0, x)).toString(16).padStart(2, '0')).join('')}`;
+    };
+
+    const paletteSwatches = KEYCAP_COLORS.map((bg) => ({
+      bg,
+      shadow: darkenHex(bg, 0.68),
+    }));
 
     const hexToRgb = (hex) => {
       const r = parseInt(hex.slice(1,3), 16);
@@ -93,15 +100,20 @@ function KeycapGrid() {
     const ROWS_COUNT = Math.ceil(canvas.height / UNIT) + 3;
     const totalKeys = COLS_COUNT * ROWS_COUNT;
 
-    const keyStates = Array.from({ length: totalKeys }, () => ({
-      colorIdx: Math.floor(Math.random() * COLORS.length),
-      targetIdx: Math.floor(Math.random() * COLORS.length),
-      progress: 1.0,  // 0 = start of transition, 1 = complete
-      timer: Math.random() * 120,  // random frames until next change
-      pressTimer: Math.random() * 200,  // random press animation timer
-      pressed: false,
-      pressAmt: 0
-    }));
+    const keyStates = Array.from({ length: totalKeys }, (_, i) => {
+      const row = Math.floor(i / COLS_COUNT);
+      const col = i % COLS_COUNT;
+      const startIdx = (row + col) % paletteSwatches.length;
+      return {
+        colorIdx: startIdx,
+        targetIdx: (startIdx + 5) % paletteSwatches.length,
+        progress: 1.0,
+        timer: Math.random() * 120,
+        pressTimer: Math.random() * 200,
+        pressed: false,
+        pressAmt: 0,
+      };
+    });
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -111,7 +123,7 @@ function KeycapGrid() {
         key.timer -= 1;
         if (key.timer <= 0) {
           key.colorIdx = key.targetIdx;
-          key.targetIdx = Math.floor(Math.random() * COLORS.length);
+          key.targetIdx = Math.floor(Math.random() * paletteSwatches.length);
           key.progress = 0;
           key.timer = 60 + Math.random() * 180;  // change again in 1-3 seconds
         }
@@ -131,7 +143,7 @@ function KeycapGrid() {
             key.pressed = false;
             // Change color when key finishes pressing
             key.colorIdx = key.targetIdx;
-            key.targetIdx = Math.floor(Math.random() * COLORS.length);
+            key.targetIdx = Math.floor(Math.random() * paletteSwatches.length);
             key.progress = 0;
           }
         } else {
@@ -148,8 +160,8 @@ function KeycapGrid() {
           const x = col * UNIT - UNIT * 0.5;
           const y = row * UNIT - UNIT * 0.5;
           
-          const fromCol = COLORS[key.colorIdx];
-          const toCol = COLORS[key.targetIdx];
+          const fromCol = paletteSwatches[key.colorIdx];
+          const toCol = paletteSwatches[key.targetIdx];
           
           const bgColor = lerpColor(fromCol.bg, toCol.bg, key.progress);
           const shadowColor = lerpColor(fromCol.shadow, toCol.shadow, key.progress);
@@ -398,14 +410,36 @@ export default function EntryScreen() {
         <h2 className="headline" style={{ fontSize: '24px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Designer Concepts</h2>
         <div className="gallery-preview-grid">
           {[
-            { title: 'NEON_DRIFT 65', by: 'ALEX_STUDIO', tags: ['PBT', 'GASKET'], c: '#d0bcff' },
-            { title: 'RAW_ALUM TKL', by: 'KBD_LAB', tags: ['ALU', 'WKL'], c: '#44e2cd' },
-            { title: 'VINTAGE_90', by: 'NOSTALGIA_HUB', tags: ['ABS', 'TRAY'], c: '#ffb869' }
+            { title: 'NEON_DRIFT 65', by: 'ALEX_STUDIO', tags: ['PBT', 'GASKET'], c: '#d0bcff', formFactor: '65%', silhouetteScale: 0.62 },
+            { title: 'RAW_ALUM TKL', by: 'KBD_LAB', tags: ['ALU', 'WKL'], c: '#44e2cd', formFactor: 'TKL', silhouetteScale: 0.52 },
+            { title: 'VINTAGE_90', by: 'NOSTALGIA_HUB', tags: ['ABS', 'TRAY'], c: '#ffb869', formFactor: '100%', silhouetteScale: 0.38 },
           ].map((card, i) => (
             <div key={i} className="gallery-card" onClick={() => setScreen('gallery')}>
-              <div className="gc-image" style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: `${card.c}22` }}>
-                <div style={{ width: '80px', height: '80px', borderRadius: '8px', backgroundColor: card.c, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 'bold', fontSize: '24px', color: '#1a1a1a', boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.4)' }}>
-                  {card.title.charAt(0)}
+              <div
+                className="gc-image"
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: `${card.c}22`,
+                  overflow: 'hidden',
+                  padding: '0 12px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div
+                  style={{
+                    transform: `scale(${card.silhouetteScale})`,
+                    transformOrigin: 'center center',
+                    maxWidth: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <KeyboardSilhouette formFactor={card.formFactor} large={false} showLabel={false} />
                 </div>
               </div>
               <div style={{ padding: '20px 24px' }}>

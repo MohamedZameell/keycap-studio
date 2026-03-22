@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function KeyboardSilhouette({ formFactor, large = false }) {
+export default function KeyboardSilhouette({ formFactor, large = false, showLabel = true }) {
   const ks = large ? 8 : 4; // keySize
   const gap = 1;
   const padding = large ? 8 : 4;
@@ -149,14 +149,16 @@ export default function KeyboardSilhouette({ formFactor, large = false }) {
         {layout.numpad.length > 0 && <div>{renderRows(layout.numpad)}</div>}
       </div>
 
-      <div style={{
-        fontSize: (large ? 12 : 10) + 'px',
-        color: '#888899',
-        textAlign: 'center',
-        marginTop: '8px'
-      }}>
-        {desc}
-      </div>
+      {showLabel && (
+        <div style={{
+          fontSize: (large ? 12 : 10) + 'px',
+          color: '#888899',
+          textAlign: 'center',
+          marginTop: '8px'
+        }}>
+          {desc}
+        </div>
+      )}
     </div>
   );
 }
