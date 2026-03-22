@@ -250,21 +250,102 @@ export default function EntryScreen() {
           border: 1px solid rgba(208,188,255,0.3); background: rgba(208,188,255,0.1); backdrop-filter: blur(12px);
           margin-bottom: 24px; animation: pulse 2s infinite; color: var(--primary);
         }
-        .hero-headline { font-size: clamp(48px, 8vw, 72px); max-width: 900px; margin-bottom: 32px; text-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-        .hero-accent { color: var(--primary); display: block; filter: drop-shadow(0 0 15px rgba(208,188,255,0.4)); }
-        
-        .hero-actions { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
-        .btn-hero-primary { 
-          background: var(--primary); color: var(--on-primary); padding: 20px 48px; border-radius: 4px;
-          font-family: var(--font-heading); font-size: 20px; font-weight: 700;
-          box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4); transition: all 0.2s;
+        @keyframes keyDrop {
+          0% {
+            transform: translateY(-60px);
+            opacity: 0;
+          }
+          60% {
+            transform: translateY(4px);
+            opacity: 1;
+          }
+          80% {
+            transform: translateY(-2px);
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+          }
         }
-        .btn-hero-primary:hover { box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4), 0 0 20px rgba(208,188,255,0.3); transform: translateY(-2px); }
-        .btn-hero-ghost {
-          background: rgba(208,188,255,0.05); color: var(--on-surface); border: 1px solid rgba(208,188,255,0.3);
-          padding: 20px 48px; border-radius: 4px; font-family: var(--font-heading); font-size: 20px; font-weight: 700; transition: all 0.2s; backdrop-filter: blur(10px);
+
+        .hero-keycap-stack {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          max-width: 1100px;
+          margin: 0 auto;
         }
-        .btn-hero-ghost:hover { background: var(--surface-container-high); border-color: var(--primary); }
+        .hero-keycap-row {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          align-items: center;
+          gap: 0;
+        }
+        .hero-keycap-word {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(208, 188, 255, 0.15);
+          border: 1px solid rgba(208, 188, 255, 0.4);
+          border-radius: 6px;
+          padding: 12px 20px;
+          margin: 6px;
+          font-family: 'Space Grotesk', sans-serif;
+          font-weight: 700;
+          font-size: clamp(1.25rem, 4vw, 2rem);
+          color: #d0bcff;
+          box-shadow: 0 4px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+          animation: keyDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .hero-keycap-actions {
+          margin-top: 16px;
+          gap: 16px;
+        }
+        .hero-keycap-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Space Grotesk', sans-serif;
+          font-weight: 700;
+          border-radius: 6px;
+          padding: 14px 40px;
+          font-size: 1.1rem;
+          margin: 6px;
+          cursor: pointer;
+          box-shadow: 0 4px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+          animation: keyDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+          transition: filter 0.15s ease, transform 0.1s ease;
+        }
+        .hero-keycap-btn:hover {
+          filter: brightness(1.06);
+        }
+        .hero-keycap-btn:active {
+          transform: translateY(2px);
+          box-shadow: 0 2px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+        .hero-keycap-btn-primary {
+          background: #d0bcff;
+          border: 1px solid #d0bcff;
+          color: #131315;
+        }
+        .hero-keycap-btn-ghost {
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(208,188,255,0.3);
+          color: #d0bcff;
+        }
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
 
         .tech-rail { position: absolute; bottom: 48px; left: 48px; display: flex; flex-direction: column; gap: 12px; }
         .tech-rail-item {
@@ -329,14 +410,22 @@ export default function EntryScreen() {
         <KeycapGrid />
         <div className="hero-fade" />
         
-        <div style={{ position: 'relative', zIndex: 10 }}>
-          <h1 className="hero-headline headline">
-            Design your dream keyboard
-            <span className="hero-accent">in real-time 3D</span>
-          </h1>
-          <div className="hero-actions">
-            <button className="btn-hero-primary" onClick={handleStart}>Start Designing</button>
-            <button className="btn-hero-ghost" onClick={() => setScreen('gallery')}>Browse Gallery</button>
+        <div className="hero-keycap-stack" style={{ position: 'relative', zIndex: 10 }}>
+          <h1 className="sr-only">Design your dream keyboard in real-time 3D</h1>
+          <div className="hero-keycap-row">
+            <span className="hero-keycap-word" style={{ animationDelay: '0.3s' }}>Design</span>
+            <span className="hero-keycap-word" style={{ animationDelay: '0.5s' }}>your</span>
+            <span className="hero-keycap-word" style={{ animationDelay: '0.7s' }}>dream</span>
+          </div>
+          <div className="hero-keycap-row">
+            <span className="hero-keycap-word" style={{ animationDelay: '0.9s' }}>keyboard</span>
+            <span className="hero-keycap-word" style={{ animationDelay: '1.1s' }}>in</span>
+            <span className="hero-keycap-word" style={{ animationDelay: '1.3s' }}>real-time</span>
+            <span className="hero-keycap-word" style={{ animationDelay: '1.5s' }}>3D</span>
+          </div>
+          <div className="hero-keycap-row hero-keycap-actions">
+            <button type="button" className="hero-keycap-btn hero-keycap-btn-primary" style={{ animationDelay: '1.8s' }} onClick={handleStart}>Start Designing</button>
+            <button type="button" className="hero-keycap-btn hero-keycap-btn-ghost" style={{ animationDelay: '2.0s' }} onClick={() => setScreen('gallery')}>Browse Gallery</button>
           </div>
         </div>
       </div>
