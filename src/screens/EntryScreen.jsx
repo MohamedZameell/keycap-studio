@@ -12,44 +12,145 @@ function KeycapGrid() {
     let time = 0;
 
     const COLORS = [
-      { bg: '#3a2b58', shadow: '#22193b', text: '#d0bcff' },
-      { bg: '#2b3a58', shadow: '#19223b', text: '#44e2cd' },
-      { bg: '#582b3a', shadow: '#3b1922', text: '#ffb4ab' },
-      { bg: '#2b5840', shadow: '#193b2a', text: '#62fae3' },
-      { bg: '#1c1c24', shadow: '#101015', text: '#e5e1e4' },
-      { bg: '#7c6ff7', shadow: '#5a4ed4', text: '#fff' },  // bright purple
-      { bg: '#4fc3f7', shadow: '#0288d1', text: '#1a1a2e' }, // bright blue
-      { bg: '#ff8a65', shadow: '#e64a19', text: '#fff' },   // orange
+      { bg: '#fdfaf5', shadow: '#d4cfc6', text: '#4a4a4a' },  // creamy white
+      { bg: '#e8e4f0', shadow: '#c4bdd8', text: '#4a4065' },  // soft lavender
+      { bg: '#f5c5c5', shadow: '#d4a0a0', text: '#7d2d2d' },  // soft pink
+      { bg: '#c5d8f5', shadow: '#9ab8e8', text: '#1a3a6a' },  // soft blue
+      { bg: '#c5f0e8', shadow: '#9ad4c8', text: '#1a5a48' },  // soft teal
+      { bg: '#f5e8c5', shadow: '#d4c89a', text: '#6a4a1a' },  // soft cream
+      { bg: '#d4c5f5', shadow: '#b0a0d8', text: '#3a1a7a' },  // soft purple
+      { bg: '#f5d4c5', shadow: '#d4b0a0', text: '#7a3a1a' },  // soft peach
+      { bg: '#c5c5f5', shadow: '#a0a0d8', text: '#1a1a7a' },  // periwinkle
+      { bg: '#e8f5c5', shadow: '#c8d8a0', text: '#3a5a1a' },  // soft green
+      { bg: '#f0f0f0', shadow: '#c8c8c8', text: '#333333' },  // light gray
+      { bg: '#b8d4f0', shadow: '#8ab0d4', text: '#1a3a6a' },  // cornflower
     ];
+
+    const hexToRgb = (hex) => {
+      const r = parseInt(hex.slice(1,3), 16);
+      const g = parseInt(hex.slice(3,5), 16);
+      const b = parseInt(hex.slice(5,7), 16);
+      return { r, g, b };
+    };
+
+    const lerpColor = (c1, c2, t) => {
+      const p1 = hexToRgb(c1);
+      const p2 = hexToRgb(c2);
+      const r = Math.round(p1.r + (p2.r - p1.r) * t);
+      const g = Math.round(p1.g + (p2.g - p1.g) * t);
+      const b = Math.round(p1.b + (p2.b - p1.b) * t);
+      return `rgb(${r},${g},${b})`;
+    };
+
+    function roundRectPath(ctx, x, y, w, h, r) {
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    const drawKeycap = (ctx, x, y, size, col, pressAmount) => {
+      const r = size * 0.22;
+      const shadowDepth = size * 0.12;
+      const actualY = y + pressAmount;
+
+      // Bottom shadow layer (the "side wall" of the keycap)
+      ctx.fillStyle = col.shadow;
+      ctx.beginPath();
+      roundRectPath(ctx, x, actualY + shadowDepth, size, size, r);
+      ctx.fill();
+
+      // Top surface
+      ctx.fillStyle = col.bg;
+      ctx.beginPath();
+      roundRectPath(ctx, x, actualY, size, size, r);
+      ctx.fill();
+
+      // Inner highlight — subtle lighter area on top portion
+      const gradient = ctx.createLinearGradient(x, actualY, x, actualY + size * 0.5);
+      gradient.addColorStop(0, 'rgba(255,255,255,0.35)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      roundRectPath(ctx, x + 2, actualY + 2, size - 4, size * 0.5, r * 0.8);
+      ctx.fill();
+    };
+
+    const COLS_COUNT = Math.ceil(window.innerWidth / 76) + 1;
+    const ROWS_COUNT = Math.ceil(window.innerHeight / 76) + 1;
+    const totalKeys = COLS_COUNT * ROWS_COUNT;
+
+    const keyStates = Array.from({ length: totalKeys }, () => ({
+      colorIdx: Math.floor(Math.random() * COLORS.length),
+      targetIdx: Math.floor(Math.random() * COLORS.length),
+      progress: 1.0,  // 0 = start of transition, 1 = complete
+      timer: Math.random() * 120,  // random frames until next change
+      pressTimer: Math.random() * 200,  // random press animation timer
+      pressed: false,
+      pressAmt: 0
+    }));
+
+    const SIZE = 64;
+    const GAP = 10;
+    const UNIT = SIZE + GAP;
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const cols = 24; const rows = 16; const size = 48; const gap = 6;
-      const offsetX = canvas.width / 2 - (cols * (size + gap)) / 2;
-      const offsetY = canvas.height / 2 - (rows * (size + gap)) / 2;
-      
-      for(let r=0; r<rows; r++) {
-        for(let c=0; c<cols; c++) {
-          const delay = (r * 0.15) + (c * 0.1);
-          const wave = (Math.sin(time + delay) + 1) / 2;
-          const alpha = 0.45 + wave * 0.4;
-          ctx.globalAlpha = alpha;
+
+      keyStates.forEach((key) => {
+        // Count down to next color change
+        key.timer -= 1;
+        if (key.timer <= 0) {
+          key.colorIdx = key.targetIdx;
+          key.targetIdx = Math.floor(Math.random() * COLORS.length);
+          key.progress = 0;
+          key.timer = 60 + Math.random() * 180;  // change again in 1-3 seconds
+        }
+        
+        // Smooth color transition
+        if (key.progress < 1) key.progress = Math.min(1, key.progress + 0.04);
+        
+        // Random press animation
+        key.pressTimer -= 1;
+        if (key.pressTimer <= 0) {
+          key.pressed = true;
+          key.pressTimer = 120 + Math.random() * 300;
+        }
+        if (key.pressed) {
+          key.pressAmt = Math.min(key.pressAmt + 0.8, 5);
+          if (key.pressAmt >= 5) { key.pressed = false; }
+        } else {
+          key.pressAmt = Math.max((key.pressAmt || 0) - 0.6, 0);
+        }
+      });
+
+      let i = 0;
+      for (let row = 0; row < ROWS_COUNT; row++) {
+        for (let col = 0; col < COLS_COUNT; col++) {
+          const key = keyStates[i++];
+          if (!key) continue;
           
-          const color = COLORS[(r * cols + c) % COLORS.length];
-          ctx.fillStyle = color.bg;
+          const x = col * UNIT - 5;
+          const y = row * UNIT - 5;
           
-          if (ctx.roundRect) {
-            ctx.beginPath();
-            ctx.roundRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size, 8);
-            ctx.fill();
-          } else {
-            ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size);
-          }
-          ctx.fillStyle = color.shadow;
-          ctx.fillRect(offsetX + c*(size+gap), offsetY + r*(size+gap), size, size/2);
+          const fromCol = COLORS[key.colorIdx];
+          const toCol = COLORS[key.targetIdx];
+          
+          const bgColor = lerpColor(fromCol.bg, toCol.bg, key.progress);
+          const shadowColor = lerpColor(fromCol.shadow, toCol.shadow, key.progress);
+          
+          ctx.globalAlpha = 0.85;
+          drawKeycap(ctx, x, y, SIZE, { bg: bgColor, shadow: shadowColor }, key.pressAmt || 0);
+          ctx.globalAlpha = 1;
         }
       }
-      time += 0.02;
+
       frameId = requestAnimationFrame(draw);
     };
     draw();
@@ -113,7 +214,7 @@ export default function EntryScreen() {
         }
         .hero-fade {
           position: absolute; inset: 0; z-index: 1; pointer-events: none;
-          background: linear-gradient(to bottom, rgba(14,14,16,0.2) 0%, rgba(14,14,16,0.5) 50%, var(--surface-dim) 100%);
+          background: linear-gradient(to bottom, rgba(13,13,16,0.45) 0%, rgba(13,13,16,0.65) 60%, rgba(13,13,16,0.88) 100%);
         }
 
         /* Hero Content */
