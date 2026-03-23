@@ -468,15 +468,6 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
     canvas.addEventListener('click', onClick);
     canvas.addEventListener('mousemove', onMove);
 
-    const findWordCoveringCell = (row, col) => {
-      for (const wk of keyStates) {
-        if (!wk.isWordCell || !wk.activated) continue;
-        if (!wk.isButton && wk.row === row && wk.col === col) return wk;
-        if (wk.isButton && wk.row === row && wk.col === col) return wk;
-      }
-      return null;
-    };
-
     const draw = (now) => {
       const dtMs = Math.min(Math.max(0, now - lastFrameTime), 48);
       lastFrameTime = now;
@@ -526,15 +517,21 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
           const key = keyStates[i++];
           if (!key) continue;
 
-          const wkCover = findWordCoveringCell(row, col);
-          if (wkCover) continue;
+          // Always draw every key every frame to prevent visual holes.
+          if (key.falling && key.fallStart === null) {
+            const savedY = key.currentY;
+            key.currentY = -SIZE - 10;
+            drawCell(ctx, key, now);
+            key.currentY = savedY;
+            continue;
+          }
 
-          updateFall(key, now);
-          if (key.fallStart === null) {
-            key.currentY = FALL_START_Y;
-          } else if (!key.falling) {
+          if (key.falling) {
+            updateFall(key, now);
+          } else {
             key.currentY = key.gridY;
           }
+
           drawCell(ctx, key, now);
         }
       }
