@@ -527,8 +527,42 @@ export default function StudioScreen() {
                   </div>
                 </div>
 
-                {/* MATERIAL TOGGLE */}
+                {/* PROFILE SELECTOR */}
                 <div style={{ marginTop: 8 }}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', color: '#958ea0', marginBottom: 8 }}>
+                    KEYCAP PROFILE
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {[
+                      { label: 'Cherry', value: 'cherry' },
+                      { label: 'OEM', value: 'oem' },
+                      { label: 'SA', value: 'sa' },
+                      { label: 'DSA', value: 'dsa' },
+                      { label: 'XDA', value: 'xda' },
+                      { label: 'KAT', value: 'kat' },
+                      { label: 'MT3', value: 'mt3' },
+                      { label: 'ASA', value: 'asa' },
+                    ].map(p => (
+                      <button key={p.value}
+                        onClick={() => store.setSelectedProfile(p.value)}
+                        style={{
+                          padding: '8px 12px',
+                          fontFamily: 'Space Grotesk, sans-serif',
+                          fontSize: 11, fontWeight: 600,
+                          borderRadius: 2,
+                          border: '1px solid rgba(149,142,160,0.2)',
+                          background: (store.selectedProfile || 'cherry') === p.value ? 'rgba(208,188,255,0.15)' : '#2a2a2c',
+                          color: (store.selectedProfile || 'cherry') === p.value ? '#d0bcff' : '#cbc3d7',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >{p.label}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* MATERIAL TOGGLE */}
+                <div style={{ marginTop: 12 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {[
                       { label: 'MATTE PBT', value: 'pbt' },
