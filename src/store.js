@@ -30,6 +30,9 @@ export const useStore = create((set) => ({
   // IMAGE STATE
   keyboardImageMode: 'none',
   keyboardImageUrl: null,
+  keyboardImageOffsetX: 0,  // Pan X offset (-1 to 1)
+  keyboardImageOffsetY: 0,  // Pan Y offset (-1 to 1)
+  keyboardImageScale: 1,    // Zoom scale (0.5 to 3)
 
   // EXPORT STATE
   isExporting: false,
@@ -71,6 +74,9 @@ export const useStore = create((set) => ({
 
   setKeyboardImageMode: (mode) => set({ keyboardImageMode: mode }),
   setKeyboardImageUrl: (url) => set({ keyboardImageUrl: url }),
+  setKeyboardImageOffsetX: (x) => set({ keyboardImageOffsetX: x }),
+  setKeyboardImageOffsetY: (y) => set({ keyboardImageOffsetY: y }),
+  setKeyboardImageScale: (s) => set({ keyboardImageScale: s }),
 
   setIsExporting: (isExporting) => set({ isExporting }),
 }))

@@ -921,6 +921,64 @@ export default function StudioScreen() {
                     {uploadedImageUrl && (
                       <img src={uploadedImageUrl} alt="Uploaded" style={{ width: '100%', borderRadius: 6, maxHeight: 100, objectFit: 'cover', marginTop: 8 }} />
                     )}
+
+                    {/* Pan & Zoom Controls */}
+                    {store.keyboardImageMode === 'wrap' && uploadedImageUrl && (
+                      <div style={{ marginTop: 16, padding: 12, background: '#1a1a2e', borderRadius: 8, border: '1px solid #2a2a3a' }}>
+                        <div style={{ fontSize: 11, color: '#666680', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Image Position</div>
+
+                        {/* Zoom */}
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, color: '#888899' }}>Zoom</span>
+                            <span style={{ fontSize: 11, color: '#a09bf5' }}>{(store.keyboardImageScale || 1).toFixed(1)}x</span>
+                          </div>
+                          <input
+                            type="range" min="0.3" max="3" step="0.1"
+                            value={store.keyboardImageScale || 1}
+                            onChange={(e) => store.setKeyboardImageScale(parseFloat(e.target.value))}
+                            style={{ width: '100%', accentColor: '#6c63ff' }}
+                          />
+                        </div>
+
+                        {/* Pan X */}
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, color: '#888899' }}>Pan X</span>
+                            <span style={{ fontSize: 11, color: '#a09bf5' }}>{((store.keyboardImageOffsetX || 0) * 100).toFixed(0)}%</span>
+                          </div>
+                          <input
+                            type="range" min="-1" max="1" step="0.05"
+                            value={store.keyboardImageOffsetX || 0}
+                            onChange={(e) => store.setKeyboardImageOffsetX(parseFloat(e.target.value))}
+                            style={{ width: '100%', accentColor: '#6c63ff' }}
+                          />
+                        </div>
+
+                        {/* Pan Y */}
+                        <div style={{ marginBottom: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, color: '#888899' }}>Pan Y</span>
+                            <span style={{ fontSize: 11, color: '#a09bf5' }}>{((store.keyboardImageOffsetY || 0) * 100).toFixed(0)}%</span>
+                          </div>
+                          <input
+                            type="range" min="-1" max="1" step="0.05"
+                            value={store.keyboardImageOffsetY || 0}
+                            onChange={(e) => store.setKeyboardImageOffsetY(parseFloat(e.target.value))}
+                            style={{ width: '100%', accentColor: '#6c63ff' }}
+                          />
+                        </div>
+
+                        {/* Reset button */}
+                        <button
+                          onClick={() => { store.setKeyboardImageScale(1); store.setKeyboardImageOffsetX(0); store.setKeyboardImageOffsetY(0); }}
+                          style={{ width: '100%', padding: '8px', background: '#252542', border: '1px solid #3a3a5a', borderRadius: 4, color: '#888899', fontSize: 11, cursor: 'pointer' }}
+                        >
+                          Reset Position
+                        </button>
+                      </div>
+                    )}
+
                     <p style={styles.note}>
                       {store.keyboardImageMode === 'wrap' ? 'Image will span across all keycaps as one unified canvas' : 'Same image repeats on every key'}
                     </p>

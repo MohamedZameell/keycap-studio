@@ -172,8 +172,9 @@ export { PROFILE_SPECS, normalizeProfile };
 
 // ============================================================
 // Keycap geometry (body only: sides + bottom)
+// uvOffset/uvScale enable cloth-drape UV mapping for sides
 // ============================================================
-function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
+function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvOffset = null, uvScale = null) {
   const normalizedProfile = normalizeProfile(profile);
   const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
@@ -193,26 +194,29 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     return (positions.length / 3) - 1;
   }
 
-  // --- BOTTOM FACE ---
-  const b0 = pushVert(-W / 2, 0, -D / 2, 0, 0);
-  const b1 = pushVert(W / 2, 0, -D / 2, 1, 0);
-  const b2 = pushVert(W / 2, 0, D / 2, 1, 1);
-  const b3 = pushVert(-W / 2, 0, D / 2, 0, 1);
+  // --- BOTTOM FACE (not visible) ---
+  const b0 = pushVert(-W / 2, 0, -D / 2, 0.5, 0.5);
+  const b1 = pushVert(W / 2, 0, -D / 2, 0.5, 0.5);
+  const b2 = pushVert(W / 2, 0, D / 2, 0.5, 0.5);
+  const b3 = pushVert(-W / 2, 0, D / 2, 0.5, 0.5);
   indices.push(b0, b2, b1, b0, b3, b2);
 
-  // --- SIDE WALLS (4 sides, each a quad from base to top) ---
+  // --- SIDE WALLS with cloth-drape UV mapping ---
   const baseCorners = [
-    [-W / 2, 0, -D / 2],
-    [W / 2, 0, -D / 2],
-    [W / 2, 0, D / 2],
-    [-W / 2, 0, D / 2],
+    [-W / 2, 0, -D / 2],   // 0: front-left
+    [W / 2, 0, -D / 2],    // 1: front-right
+    [W / 2, 0, D / 2],     // 2: back-right
+    [-W / 2, 0, D / 2],    // 3: back-left
   ];
   const topCorners = [
-    [-tw / 2, H, -td / 2],
-    [tw / 2, H, -td / 2],
-    [tw / 2, H, td / 2],
-    [-tw / 2, H, td / 2],
+    [-tw / 2, H, -td / 2], // 0: front-left
+    [tw / 2, H, -td / 2],  // 1: front-right
+    [tw / 2, H, td / 2],   // 2: back-right
+    [-tw / 2, H, td / 2],  // 3: back-left
   ];
+
+  // Drape amount - how much image extends onto sides (fraction of keycap's UV scale)
+  const drape = 0.2;
 
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
@@ -221,13 +225,51 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     const tr = topCorners[j];
     const tl = topCorners[i];
 
-    // UV mapping: each side gets full texture coverage (0-1)
-    // This allows the texture to be visible on all sides
-    const v0 = pushVert(bl[0], bl[1], bl[2], 0, 0);
-    const v1 = pushVert(br[0], br[1], br[2], 1, 0);
-    const v2 = pushVert(tr[0], tr[1], tr[2], 1, 1);
-    const v3 = pushVert(tl[0], tl[1], tl[2], 0, 1);
-    indices.push(v0, v1, v2, v0, v2, v3);
+    if (uvOffset && uvScale) {
+      // Cloth-drape: sides show image extending beyond top face edges
+      let uBL, vBL, uBR, vBR, uTR, vTR, uTL, vTL;
+      const ox = uvOffset[0], oy = uvOffset[1];
+      const sx = uvScale[0], sy = uvScale[1];
+
+      if (i === 0) {
+        // Front wall (-Z): top edge connects to front of top face (v = oy, small v)
+        uTL = ox;           uTR = ox + sx;       // top edge matches top face width
+        vTL = oy;           vTR = oy;            // top edge at front of top face
+        uBL = ox;           uBR = ox + sx;       // bottom same width
+        vBL = oy - sy * drape; vBR = oy - sy * drape; // extends upward in image
+      } else if (i === 1) {
+        // Right wall (+X): top edge connects to right of top face (u = ox+sx)
+        uTL = ox + sx;      uTR = ox + sx + sx * drape; // extends right
+        vTL = oy;           vTR = oy;
+        uBL = ox + sx;      uBR = ox + sx + sx * drape;
+        vBL = oy + sy;      vBR = oy + sy;
+      } else if (i === 2) {
+        // Back wall (+Z): top edge connects to back of top face (v = oy+sy)
+        uTL = ox + sx;      uTR = ox;            // reversed direction
+        vTL = oy + sy;      vTR = oy + sy;       // top edge at back
+        uBL = ox + sx;      uBR = ox;
+        vBL = oy + sy + sy * drape; vBR = oy + sy + sy * drape; // extends down
+      } else {
+        // Left wall (-X): top edge connects to left of top face (u = ox)
+        uTL = ox - sx * drape; uTR = ox;         // extends left
+        vTL = oy + sy;      vTR = oy + sy;
+        uBL = ox - sx * drape; uBR = ox;
+        vBL = oy;           vBR = oy;
+      }
+
+      const v0 = pushVert(bl[0], bl[1], bl[2], uBL, vBL);
+      const v1 = pushVert(br[0], br[1], br[2], uBR, vBR);
+      const v2 = pushVert(tr[0], tr[1], tr[2], uTR, vTR);
+      const v3 = pushVert(tl[0], tl[1], tl[2], uTL, vTL);
+      indices.push(v0, v1, v2, v0, v2, v3);
+    } else {
+      // Fallback: simple 0-1 mapping
+      const v0 = pushVert(bl[0], bl[1], bl[2], 0, 0);
+      const v1 = pushVert(br[0], br[1], br[2], 1, 0);
+      const v2 = pushVert(tr[0], tr[1], tr[2], 1, 1);
+      const v3 = pushVert(tl[0], tl[1], tl[2], 0, 1);
+      indices.push(v0, v1, v2, v0, v2, v3);
+    }
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -534,6 +576,9 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const soundEnabled = useStore(s => s.soundEnabled);
   const imageMode = useStore(s => s.keyboardImageMode);
   const imageUrl = useStore(s => s.keyboardImageUrl);
+  const imageOffsetX = useStore(s => s.keyboardImageOffsetX) || 0;
+  const imageOffsetY = useStore(s => s.keyboardImageOffsetY) || 0;
+  const imageScale = useStore(s => s.keyboardImageScale) || 1;
 
   const perKeyDesigns = useStore(s => s.perKeyDesigns);
   const pkDesign = perKeyDesigns[keyId] || {};
@@ -550,7 +595,14 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   // ============================================================
   // Separate body and top-face geometries (memoized per width/height)
   // ============================================================
-  const bodyGeo = useMemo(() => createBodyGeometry(w, h, profile), [w, h, profile]);
+  // Body geometry: pass adjusted uvOffset/uvScale for cloth-drape effect in wrap mode
+  const bodyGeo = useMemo(() => {
+    if (imageMode === 'wrap' && adjustedUvOffset && adjustedUvScale) {
+      return createBodyGeometry(w, h, profile, adjustedUvOffset, adjustedUvScale);
+    }
+    return createBodyGeometry(w, h, profile);
+  }, [w, h, profile, imageMode, adjustedUvOffset, adjustedUvScale]);
+
   const topGeo = useMemo(() => createTopFaceGeometry(w, h, profile), [w, h, profile]);
 
   // ============================================================
@@ -610,20 +662,31 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
 
   const [wrapTexture, setWrapTexture] = useState(null);
 
+  // Adjusted UV values based on user's pan/zoom settings
+  const adjustedUvOffset = useMemo(() => [
+    uvOffset[0] / imageScale - imageOffsetX * 0.5,
+    uvOffset[1] / imageScale - imageOffsetY * 0.5
+  ], [uvOffset, imageScale, imageOffsetX, imageOffsetY]);
+
+  const adjustedUvScale = useMemo(() => [
+    uvScale[0] / imageScale,
+    uvScale[1] / imageScale
+  ], [uvScale, imageScale]);
+
   useEffect(() => {
     if (!tileTexture || imageMode !== 'wrap') {
       setWrapTexture(null);
       return;
     }
     const cloned = tileTexture.clone();
-    cloned.wrapS = THREE.ClampToEdgeWrapping;
-    cloned.wrapT = THREE.ClampToEdgeWrapping;
-    cloned.offset.set(uvOffset[0], 1 - uvOffset[1] - uvScale[1]);
-    cloned.repeat.set(uvScale[0], uvScale[1]);
+    cloned.wrapS = THREE.RepeatWrapping; // Allow wrapping for panned images
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.offset.set(adjustedUvOffset[0], 1 - adjustedUvOffset[1] - adjustedUvScale[1]);
+    cloned.repeat.set(adjustedUvScale[0], adjustedUvScale[1]);
     cloned.needsUpdate = true;
     setWrapTexture(cloned);
     return () => { cloned.dispose(); };
-  }, [tileTexture, imageMode, uvOffset, uvScale]);
+  }, [tileTexture, imageMode, adjustedUvOffset, adjustedUvScale]);
 
   const perKeyImage = pkDesign?.imageUrl;
   const [perKeyTexture, setPerKeyTexture] = useState(null);
@@ -644,10 +707,10 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   // Priority: perKey > wrap > tile > baked legend texture
   const activeTopTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : (imageMode === 'tile' ? tileTexture : topTexture));
 
-  // For sides: use the same portion of image as the top face
-  // Side UVs are 0-1, so wrapTexture's offset/repeat will show the correct portion
-  const hasImageTexture = perKeyTexture || (imageMode === 'wrap' && wrapTexture) || (imageMode === 'tile' && tileTexture);
-  const activeSideTexture = hasImageTexture ? activeTopTexture : null;
+  // For sides in wrap mode: use base tileTexture since body UVs are now global coordinates
+  // For tile mode: use tileTexture directly
+  const hasImageTexture = perKeyTexture || (imageMode === 'wrap' && tileTexture) || (imageMode === 'tile' && tileTexture);
+  const activeSideTexture = hasImageTexture ? tileTexture : null;
 
   // ============================================================
   // Front face legend texture (for sideprint/front position)
