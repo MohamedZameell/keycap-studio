@@ -4,7 +4,6 @@ import KeyboardSilhouette from '../components/KeyboardSilhouette';
 
 function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
   const canvasRef = useRef(null);
-  const wordPositionsRef = useRef([]);
   const onStartRef = useRef(onStartDesigning);
   const onGalleryRef = useRef(onBrowseGallery);
   onStartRef.current = onStartDesigning;
@@ -129,113 +128,41 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
     let ROWS_COUNT = 0;
     let keyStates = [];
 
-    const WORD_DEFS = [
-      { word: 'Design', isButton: false },
-      { word: 'your', isButton: false },
-      { word: 'dream', isButton: false },
-      { word: 'keyboard', isButton: false },
-      { word: 'in', isButton: false },
-      { word: 'real-time', isButton: false },
-      { word: '3D', isButton: false },
-      { word: 'Start Designing', isButton: true },
-      { word: 'Browse Gallery', isButton: true },
-    ];
+    function assignWordCells(cols, rows) {
+      const centerCol = Math.floor(cols / 2);
+      const centerRow = Math.floor(rows / 2);
+      const wordMap = new Map();
+      const order = [];
 
-    const wordKeys = WORD_DEFS.map((def, idx) => ({
-      ...def,
-      activated: false,
-      activationAt: mountTime + RAIN_PHASE_MS + idx * WORD_STAGGER_MS,
-      activationPress: 0,
-      activationPressPhase: 'idle',
-      pressing: false,
-      pressStart: 0,
-      drawnX: 0,
-      drawnY: 0,
-      drawnW: 0,
-      drawnH: 0,
-    }));
-
-    function calculateWordKeyPositions(canvasWidth, canvasHeight, cellSize, gap) {
-      const totalCellSize = cellSize + gap;
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
-
-      // Row heights
-      const row1Y = centerY - totalCellSize * 2; // Design your dream
-      const row2Y = centerY - totalCellSize * 0.5; // keyboard in real-time 3D
-      const row3Y = centerY + totalCellSize * 1.2; // buttons
-
-      // Word key dimensions
-      const keyH = cellSize;
-      const wordPadding = 20;
-
-      // Measure each word width
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.font = `bold 18px "Space Grotesk", sans-serif`;
-
-      function wordW(word) {
-        return tempCtx.measureText(word).width + wordPadding * 2;
-      }
-
-      // Row 1 — Design your dream (centered as group)
+      // Row 1
+      const row1 = centerRow - 2;
       const row1Words = ['Design', 'your', 'dream'];
-      const row1Gap = 12;
-      const row1TotalW =
-        row1Words.reduce((s, w) => s + wordW(w), 0) + row1Gap * (row1Words.length - 1);
-      let row1X = centerX - row1TotalW / 2;
-
-      const row1Keys = row1Words.map((word) => {
-        const w = wordW(word);
-        const key = { word, drawnX: row1X, drawnY: row1Y - keyH / 2, drawnW: w, drawnH: keyH, isButton: false };
-        row1X += w + row1Gap;
-        return key;
+      const row1StartCol = centerCol - Math.floor(row1Words.length / 2);
+      row1Words.forEach((word, i) => {
+        const col = row1StartCol + i;
+        wordMap.set(`${row1},${col}`, word);
+        order.push(`${row1},${col}`);
       });
 
-      // Row 2 — keyboard in real-time 3D (centered as group)
+      // Row 2
+      const row2 = centerRow;
       const row2Words = ['keyboard', 'in', 'real-time', '3D'];
-      const row2Gap = 12;
-      const row2TotalW =
-        row2Words.reduce((s, w) => s + wordW(w), 0) + row2Gap * (row2Words.length - 1);
-      let row2X = centerX - row2TotalW / 2;
-
-      const row2Keys = row2Words.map((word) => {
-        const w = wordW(word);
-        const key = { word, drawnX: row2X, drawnY: row2Y - keyH / 2, drawnW: w, drawnH: keyH, isButton: false };
-        row2X += w + row2Gap;
-        return key;
+      const row2StartCol = centerCol - Math.floor(row2Words.length / 2);
+      row2Words.forEach((word, i) => {
+        const col = row2StartCol + i;
+        wordMap.set(`${row2},${col}`, word);
+        order.push(`${row2},${col}`);
       });
 
-      // Row 3 — buttons (centered, wider)
-      tempCtx.font = `bold 15px "Space Grotesk", sans-serif`;
-      function btnW(word) {
-        return tempCtx.measureText(word).width + 48;
-      }
+      // Row 3 buttons (anchor cells)
+      const row3 = centerRow + 2;
+      wordMap.set(`${row3},${centerCol - 3}`, 'START_BTN');
+      wordMap.set(`${row3},${centerCol}`, 'GALLERY_BTN');
+      order.push(`${row3},${centerCol - 3}`);
+      order.push(`${row3},${centerCol}`);
 
-      const btn1W = btnW('Start Designing');
-      const btn2W = btnW('Browse Gallery');
-      const btnGap = 16;
-      const btnTotalW = btn1W + btn2W + btnGap;
-      const row3StartX = centerX - btnTotalW / 2;
-
-      return [
-        ...row1Keys,
-        ...row2Keys,
-        { word: 'Start Designing', drawnX: row3StartX, drawnY: row3Y - keyH / 2, drawnW: btn1W, drawnH: keyH, isButton: true },
-        { word: 'Browse Gallery', drawnX: row3StartX + btn1W + btnGap, drawnY: row3Y - keyH / 2, drawnW: btn2W, drawnH: keyH, isButton: true },
-      ];
+      return { wordMap, order };
     }
-
-    const applyWordPositions = (positions) => {
-      positions.forEach((pos) => {
-        const wk = wordKeys.find((k) => k.word === pos.word);
-        if (!wk) return;
-        wk.drawnX = pos.drawnX;
-        wk.drawnY = pos.drawnY;
-        wk.drawnW = pos.drawnW;
-        wk.drawnH = pos.drawnH;
-      });
-    };
 
     const pickPendingColorIdx = (currentIdx) => {
       if (paletteSwatches.length <= 1) return 0;
@@ -254,13 +181,28 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       COLS_COUNT = Math.ceil(W / UNIT) + 3;
       ROWS_COUNT = Math.ceil(H / UNIT) + 3;
       const totalKeys = COLS_COUNT * ROWS_COUNT;
+      const { wordMap, order } = assignWordCells(COLS_COUNT, ROWS_COUNT);
+      const previousByCell = new Map(
+        keyStates.filter((k) => k.isWordCell).map((k) => [`${k.row},${k.col}`, k])
+      );
 
       keyStates = Array.from({ length: totalKeys }, (_, i) => {
         const row = Math.floor(i / COLS_COUNT);
         const col = i % COLS_COUNT;
+        const cellId = `${row},${col}`;
+        const mappedWord = wordMap.get(cellId);
+        const prev = previousByCell.get(cellId);
         const startIdx = (row + col) % paletteSwatches.length;
         const gridX = col * UNIT - UNIT * 0.5;
         const gridY = row * UNIT - UNIT * 0.5;
+        const isButton = mappedWord === 'START_BTN' || mappedWord === 'GALLERY_BTN';
+        const orderIdx = order.indexOf(cellId);
+        const label =
+          mappedWord === 'START_BTN'
+            ? 'Start Designing'
+            : mappedWord === 'GALLERY_BTN'
+              ? 'Browse Gallery'
+              : mappedWord || '';
         return {
           row,
           col,
@@ -277,11 +219,24 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
           fallDelay: Math.random() * 3000,
           fallStart: null,
           currentY: FALL_START_Y,
+          isWordCell: Boolean(mappedWord),
+          isButton,
+          spanUnits: isButton ? 3 : 1,
+          word: label,
+          activationOrder: orderIdx,
+          activated: prev?.activated || false,
+          activationAt: mountTime + RAIN_PHASE_MS + Math.max(orderIdx, 0) * WORD_STAGGER_MS,
+          activationPress: prev?.activationPress || 0,
+          activationPressT: prev?.activationPressT || 0,
+          activationPressPhase: prev?.activationPressPhase || 'idle',
+          pressing: prev?.pressing || false,
+          pressStart: prev?.pressStart || 0,
+          drawnX: prev?.drawnX || 0,
+          drawnY: prev?.drawnY || 0,
+          drawnW: prev?.drawnW || 0,
+          drawnH: prev?.drawnH || 0,
         };
       });
-
-      wordPositionsRef.current = calculateWordKeyPositions(W, H, SIZE, GAP);
-      applyWordPositions(wordPositionsRef.current);
     };
 
     recalculateGrid();
@@ -404,12 +359,12 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
     };
 
     function drawWordKey(ctx, key, pressOffset) {
-      const x = key.drawnX;
-      const y = key.drawnY + pressOffset;
-      const w = key.drawnW;
-      const h = key.drawnH;
-      const r = 8; // border radius
       const sideDepth = 4; // bottom shadow depth
+      const x = key.gridX - (key.spanUnits > 1 ? UNIT : 0);
+      const y = key.gridY + pressOffset;
+      const w = key.spanUnits * SIZE + (key.spanUnits - 1) * GAP;
+      const h = SIZE;
+      const r = 8; // border radius
 
       // Side wall / shadow (darker, offset down)
       ctx.fillStyle =
@@ -438,7 +393,20 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       ctx.shadowBlur = 4;
       ctx.fillText(key.word, x + w / 2, y + (h - sideDepth) / 2);
       ctx.shadowBlur = 0;
+
+      key.drawnX = x;
+      key.drawnY = key.gridY;
+      key.drawnW = w;
+      key.drawnH = h;
     }
+
+    const getWordKeys = () =>
+      keyStates
+        .filter((key) => key.isWordCell)
+        .sort((a, b) => a.activationOrder - b.activationOrder);
+
+    const getButtonKeys = () =>
+      keyStates.filter((key) => key.isWordCell && key.isButton && key.activated);
 
     const onClick = (e) => {
       if (phase === PHASES.RAIN) return;
@@ -446,7 +414,7 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
 
-      wordKeys.filter((k) => k.isButton && k.activated).forEach((btn) => {
+      getButtonKeys().forEach((btn) => {
         const bx = btn.drawnX;
         const by = btn.drawnY;
         const bw = btn.drawnW;
@@ -478,10 +446,8 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-      const overButton = wordKeys.some(
+      const overButton = getButtonKeys().some(
         (btn) =>
-          btn.isButton &&
-          btn.activated &&
           mx >= btn.drawnX &&
           mx <= btn.drawnX + btn.drawnW &&
           my >= btn.drawnY &&
@@ -493,28 +459,11 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
     canvas.addEventListener('click', onClick);
     canvas.addEventListener('mousemove', onMove);
 
-    const findWordCoveringCell = (row, col, now) => {
-      const cellX = col * UNIT - UNIT * 0.5;
-      const cellY = row * UNIT - UNIT * 0.5;
-      const cellX2 = cellX + SIZE;
-      const cellY2 = cellY + SIZE;
-
-      for (const wk of wordKeys) {
-        if (!wk.activated) continue;
-        const pressOffset = (wk.isButton ? getBtnPressOffset(wk, now) : 0) + (wk.activationPress || 0);
-        const rectX = wk.drawnX;
-        const rectY = wk.drawnY + pressOffset;
-        const rectW = wk.drawnW;
-        const rectH = wk.drawnH + 4; // side wall depth for coverage
-
-        if (
-          cellX < rectX + rectW &&
-          cellX2 > rectX &&
-          cellY < rectY + rectH &&
-          cellY2 > rectY
-        ) {
-          return wk;
-        }
+    const findWordCoveringCell = (row, col) => {
+      for (const wk of keyStates) {
+        if (!wk.isWordCell || !wk.activated) continue;
+        if (!wk.isButton && wk.row === row && wk.col === col) return wk;
+        if (wk.isButton && wk.row === row && col >= wk.col - 1 && col <= wk.col + 1) return wk;
       }
       return null;
     };
@@ -529,6 +478,7 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
         phaseStartTime = now;
       }
 
+      const wordKeys = getWordKeys();
       if (now >= mountTime + RAIN_PHASE_MS) {
         wordKeys.forEach((wk) => updateWordActivation(wk, now));
         wordKeys.forEach((wk) => tickWordActivationPress(wk, dtMs));
@@ -546,12 +496,12 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
 
       if (phase === PHASES.IDLE) {
         keyStates.forEach((key) => {
-          if (findWordCoveringCell(key.row, key.col, now)) return;
+          if (key.isWordCell) return;
           updateKeyIdlePress(key, dtMs);
         });
       }
 
-      wordKeys.forEach((wk) => {
+      getButtonKeys().forEach((wk) => {
         if (wk.isButton && wk.pressing && now - wk.pressStart > 450) {
           wk.pressing = false;
         }
@@ -567,7 +517,7 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
           const key = keyStates[i++];
           if (!key) continue;
 
-          const wkCover = findWordCoveringCell(row, col, now);
+          const wkCover = findWordCoveringCell(row, col);
           if (wkCover) continue;
 
           updateFall(key, now);
@@ -582,7 +532,7 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
         }
       }
 
-      wordKeys.forEach((wk) => {
+      getWordKeys().forEach((wk) => {
         if (!wk.activated) return;
         const pressOffset = (wk.isButton ? getBtnPressOffset(wk, now) : 0) + (wk.activationPress || 0);
         drawWordKey(ctx, wk, pressOffset);
