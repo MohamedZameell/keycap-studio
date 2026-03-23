@@ -78,28 +78,30 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBound
     let uBL, vBL, uBR, vBR, uTR, vTR, uTL, vTL;
 
     if (uvBounds) {
-      const { uMin, uMax, vMin, vMax, drape } = uvBounds;
+      const { uMin, uMax, vMin, vMax, drapeV, drapeU } = uvBounds;
       // vMin = back of keycap (top of image region)
       // vMax = front of keycap (bottom of image region)
+      // drapeV = vertical drape amount for front/back walls
+      // drapeU = horizontal drape amount for left/right walls
 
       if (i === 0) {
         // Front wall (-Z) - faces away from user
         // Connects to front edge of top (vMax), drapes further down (higher V)
         uTL = uMin; uTR = uMax; vTL = vMax; vTR = vMax;
-        uBL = uMin; uBR = uMax; vBL = vMax + drape; vBR = vMax + drape;
+        uBL = uMin; uBR = uMax; vBL = vMax + drapeV; vBR = vMax + drapeV;
       } else if (i === 1) {
         // Right wall (+X)
-        uTL = uMax; uTR = uMax + drape; vTL = vMax; vTR = vMax;
-        uBL = uMax; uBR = uMax + drape; vBL = vMin; vBR = vMin;
+        uTL = uMax; uTR = uMax + drapeU; vTL = vMax; vTR = vMax;
+        uBL = uMax; uBR = uMax + drapeU; vBL = vMin; vBR = vMin;
       } else if (i === 2) {
         // Back wall (+Z) - faces toward user (MOST VISIBLE)
         // Connects to back edge of top (vMin), drapes further up (lower V)
         uTL = uMax; uTR = uMin; vTL = vMin; vTR = vMin;
-        uBL = uMax; uBR = uMin; vBL = vMin - drape; vBR = vMin - drape;
+        uBL = uMax; uBR = uMin; vBL = vMin - drapeV; vBR = vMin - drapeV;
       } else {
         // Left wall (-X)
-        uTL = uMin - drape; uTR = uMin; vTL = vMin; vTR = vMin;
-        uBL = uMin - drape; uBR = uMin; vBL = vMax; vBR = vMax;
+        uTL = uMin - drapeU; uTR = uMin; vTL = vMin; vTR = vMin;
+        uBL = uMin - drapeU; uBR = uMin; vBL = vMax; vBR = vMax;
       }
     } else {
       uBL = 0; vBL = 0; uBR = 1; vBR = 0; uTR = 1; vTR = 1; uTL = 0; vTL = 1;
@@ -378,13 +380,17 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     const uMin = adjustedUvOffset[0];
     const uMax = adjustedUvOffset[0] + adjustedUvScale[0];
     // For the keycap: back is at high V (top of image region), front at low V
-    // adjustedUvOffset[1] is the keycap's Y position in keyboard UV space
-    // We flip it: vMin (back) = 1 - offset - scale, vMax (front) = 1 - offset
     const vMin = 1 - adjustedUvOffset[1] - adjustedUvScale[1]; // Back edge (top of region)
     const vMax = 1 - adjustedUvOffset[1]; // Front edge (bottom of region)
-    const drape = 0.06; // 6% of image drapes onto each side
 
-    return { uMin, uMax, vMin, vMax, drape };
+    // Drape should be proportional to keycap's image region, not fixed
+    // This prevents stretching - sides show ~40% of keycap's image height
+    const keycapImageHeight = vMax - vMin;
+    const keycapImageWidth = uMax - uMin;
+    const drapeV = keycapImageHeight * 0.4; // Vertical drape for front/back sides
+    const drapeU = keycapImageWidth * 0.4;  // Horizontal drape for left/right sides
+
+    return { uMin, uMax, vMin, vMax, drapeV, drapeU };
   }, [imageMode, adjustedUvOffset, adjustedUvScale]);
 
   // Geometries - now with global UV coordinates baked in
@@ -491,6 +497,16 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     return new THREE.PlaneGeometry((W + tw) / 2, H * 0.85);
   }, [showFrontLegend, profile, w]);
 
+  // Legend overlay plane geometry (flat plane above keycap for image mode)
+  const legendPlaneGeo = useMemo(() => {
+    if (!showLegendOverlay) return null;
+    const spec = PROFILE_SPECS[normalizeProfile(profile)] || PROFILE_SPECS.cherry;
+    const scale = 1 / 19.05;
+    const tw = spec.topWidth * w * scale;
+    const td = spec.topDepth * h * scale;
+    return new THREE.PlaneGeometry(tw * 0.95, td * 0.95);
+  }, [showLegendOverlay, profile, w, h]);
+
   // Material props
   const isABS = materialPreset === 'abs';
   const sideColor = darkenColor(color, 0.82);
@@ -548,11 +564,16 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
           </mesh>
 
           {/* Legend overlay for image mode */}
-          {showLegendOverlay && legendOverlay && (
-            <mesh geometry={topGeo} position={[0, 0.001, 0]}>
-              <meshBasicMaterial map={legendOverlay} transparent depthWrite={false} side={THREE.DoubleSide} />
-            </mesh>
-          )}
+          {showLegendOverlay && legendOverlay && legendPlaneGeo && (() => {
+            const spec = PROFILE_SPECS[normalizeProfile(profile)] || PROFILE_SPECS.cherry;
+            const scale = 1 / 19.05;
+            const H = spec.maxHeight * scale;
+            return (
+              <mesh geometry={legendPlaneGeo} position={[0, H + 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={10}>
+                <meshBasicMaterial map={legendOverlay} transparent alphaTest={0.1} depthWrite={false} />
+              </mesh>
+            );
+          })()}
 
           {/* Front face legend */}
           {showFrontLegend && frontFaceTexture && frontFaceGeometry && (() => {
