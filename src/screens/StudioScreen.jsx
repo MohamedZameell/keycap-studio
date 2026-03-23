@@ -855,7 +855,7 @@ export default function StudioScreen() {
                 <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
                 <Environment preset="apartment" background={false} blur={1} />
 
-                <Stars radius={100} depth={50} count={2000} factor={3} fade speed={0.5} />
+                {/* Background handled by CSS gradient on canvas container */}
 
                 {viewMode === 'full' && <CameraAnimator cameraStateRef={cameraStateRef} orbitRef={orbitRef} />}
 
@@ -998,5 +998,11 @@ const styles = {
   uploadArea: { border: '1px dashed var(--primary)', padding: '32px 24px', textAlign: 'center', borderRadius: '4px', color: 'var(--primary)', cursor: 'pointer', backgroundColor: 'rgba(208,188,255,0.05)', fontSize: 14, fontFamily: 'var(--font-body)', fontWeight: 500 },
   note: { fontSize: '12px', color: 'var(--on-surface-variant)', fontFamily: 'var(--font-body)', marginTop: '8px', lineHeight: 1.5 },
   flexRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  canvasArea: { flex: 1, position: 'relative' },
+  canvasArea: {
+    flex: 1,
+    position: 'relative',
+    background: 'radial-gradient(ellipse at center, #1e1b2e 0%, #0a0a0f 70%)',
+    backgroundImage: 'radial-gradient(ellipse at center, #1e1b2e 0%, #0a0a0f 70%), radial-gradient(circle, rgba(208,188,255,0.07) 1px, transparent 1px)',
+    backgroundSize: '100% 100%, 24px 24px',
+  },
 };

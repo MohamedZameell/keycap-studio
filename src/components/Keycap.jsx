@@ -237,7 +237,8 @@ function buildKeycapTextureFallback(color, legend, legendColor, legendFont, lege
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = color || '#7c6bb0';
   ctx.fillRect(0, 0, 512, 512);
-  if (legend && legend.trim() !== '') {
+  // Skip legend if position is hidden or none
+  if (legend && legend.trim() !== '' && legendPosition !== 'hidden' && legendPosition !== 'none') {
     ctx.fillStyle = legendColor || '#ffffff';
     const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
     ctx.font = `bold ${fontSize}px sans-serif`;
@@ -291,15 +292,13 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
       'bottom-right': [400, 390],
       'front':        [256, 400],
       'none':         null,
+      'hidden':       null,
     };
     const pos = posMap[legendPosition] || posMap['center'];
     if (pos) {
       const [tx, ty] = pos;
       const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
-      
-      // Log to verify font is actually changing
-      console.log(`[Keycap] Drawing legend "${legend}" with font: ${fontFamily}`);
-      
+
       ctx.fillStyle = legendColor || '#ffffff';
       ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
       ctx.textAlign = 'center';
