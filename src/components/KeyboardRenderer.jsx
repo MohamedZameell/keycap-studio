@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useStore } from '../store';
-import Keycap, { PROFILE_SPECS } from './Keycap';
+import Keycap, { PROFILE_SPECS, normalizeProfile } from './Keycap';
 import KeyboardChassis from './KeyboardChassis';
 import { getLayoutForFormFactor } from '../data/layouts';
 import { Text } from '@react-three/drei';
@@ -14,7 +14,8 @@ export default function KeyboardRenderer({ onKeyClick }) {
   const selectedProfile = useStore(s => s.selectedProfile) || 'cherry';
 
   // Get profile-specific row heights and tilts
-  const profileSpec = PROFILE_SPECS[selectedProfile] || PROFILE_SPECS.cherry;
+  const normalizedProfile = normalizeProfile(selectedProfile);
+  const profileSpec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const rowHeights = profileSpec.rowHeights;
   const rowTilts = profileSpec.rowTilts;
   
