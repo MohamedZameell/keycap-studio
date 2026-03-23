@@ -16,26 +16,10 @@ export default function EntryScreen() {
     let cleanup = () => {};
     const startFrame = requestAnimationFrame(() => {
       const canvas = canvasRef.current;
-      console.log('[Canvas Debug] Canvas element:', canvas);
-      if (!canvas) {
-        console.log('[Canvas Debug] No canvas element found!');
-        return;
-      }
+      if (!canvas) return;
 
       const ctx = canvas.getContext('2d');
-      console.log('[Canvas Debug] Context:', ctx);
-      if (!ctx) {
-        console.log('[Canvas Debug] No context!');
-        return;
-      }
-
-      // Immediate test draw
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      console.log('[Canvas Debug] Dimensions set:', canvas.width, 'x', canvas.height);
-      ctx.fillStyle = '#ff0000';
-      ctx.fillRect(0, 0, 200, 200);
-      console.log('[Canvas Debug] Drew red test rectangle');
+      if (!ctx) return;
 
     let frameId;
     let lastFrameTime = performance.now();
@@ -86,10 +70,6 @@ export default function EntryScreen() {
     }
 
     const drawKeycap = (c, x, y, size, col, pressAmount) => {
-      if (!col || !col.bg || !col.shadow) {
-        console.error('[drawKeycap] Invalid color:', col);
-        return;
-      }
       const r = size * 0.22;
       const shadowDepth = size * 0.12;
       const actualY = y + pressAmount;
@@ -237,15 +217,6 @@ export default function EntryScreen() {
 
     function animate(now) {
       try {
-        // Debug: log once
-        if (!window._animateLogged) {
-          window._animateLogged = true;
-          console.log('[Animate Debug] W:', W, 'H:', H);
-          console.log('[Animate Debug] keyStates count:', keyStates.length);
-          console.log('[Animate Debug] First key:', keyStates[0]);
-          console.log('[Animate Debug] canvas.width:', canvas.width, 'canvas.height:', canvas.height);
-        }
-
         const dtMs = Math.min(Math.max(0, now - lastFrameTime), 48);
         lastFrameTime = now;
 
@@ -254,33 +225,15 @@ export default function EntryScreen() {
 
         ctx.clearRect(0, 0, W, H);
 
-        // Debug: draw a green rectangle to verify drawing works in animate loop
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(50, 50, 100, 100);
-
-        // Debug: log first key draw params once
-        if (!window._drawLogged && keyStates.length > 0) {
-          window._drawLogged = true;
-          const k = keyStates[0];
-          const col = paletteSwatches[k.colorIdx];
-          console.log('[Draw Debug] gridX:', k.gridX, 'currentY:', k.currentY, 'SIZE:', SIZE);
-          console.log('[Draw Debug] colorIdx:', k.colorIdx, 'paletteSwatches.length:', paletteSwatches.length);
-          console.log('[Draw Debug] color object:', col ? JSON.stringify(col) : 'UNDEFINED');
-          console.log('[Draw Debug] falling:', k.falling, 'fallStart:', k.fallStart);
-        }
-
         keyStates.forEach((key) => {
-          if (key.falling && key.fallStart === null) {
-            const savedY = key.currentY;
-            key.currentY = -SIZE - 10;
-            drawKeycap(ctx, key.gridX, key.currentY, SIZE, paletteSwatches[key.colorIdx], key.pressAmt || 0);
-            key.currentY = savedY;
-            return;
+          // Always try to update fall state first
+          if (key.falling) {
+            updateFall(key, now);
+          } else {
+            key.currentY = key.gridY;
           }
 
-          if (key.falling) updateFall(key, now);
-          else key.currentY = key.gridY;
-
+          // Draw the keycap at its current position
           drawKeycap(ctx, key.gridX, key.currentY, SIZE, paletteSwatches[key.colorIdx], key.pressAmt || 0);
         });
       } catch (e) {
@@ -416,7 +369,6 @@ export default function EntryScreen() {
             left: 0,
             width: '100%',
             zIndex: 1,
-            background: 'blue', /* DEBUG: should see blue if canvas element exists */
             height: '100%',
             display: 'block',
           }}
