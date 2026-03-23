@@ -401,8 +401,8 @@ function buildKeycapTextureFallback(color, legend, legendColor, legendFont, lege
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = color || '#7c6bb0';
   ctx.fillRect(0, 0, 512, 512);
-  // Skip legend if position is hidden or none
-  if (legend && legend.trim() !== '' && legendPosition !== 'hidden' && legendPosition !== 'none') {
+  // Skip legend if position is hidden, none, or front (front is rendered on body)
+  if (legend && legend.trim() !== '' && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
     ctx.fillStyle = legendColor || '#ffffff';
     const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
     ctx.font = `bold ${fontSize}px sans-serif`;
@@ -446,7 +446,8 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 512, 512);
 
-  if (legend && legend.trim() !== '') {
+  // Skip legend rendering for hidden/none positions
+  if (legend && legend.trim() !== '' && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
     const posMap = {
       'center':       [256, 256],
       'top-center':   [256, 160],
@@ -454,24 +455,59 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
       'top-right':    [400, 130],
       'bottom-left':  [110, 390],
       'bottom-right': [400, 390],
-      'front':        [256, 400],
-      'none':         null,
-      'hidden':       null,
     };
     const pos = posMap[legendPosition] || posMap['center'];
-    if (pos) {
-      const [tx, ty] = pos;
-      const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
+    const [tx, ty] = pos;
+    const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
 
-      ctx.fillStyle = legendColor || '#ffffff';
-      ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetY = 3;
-      ctx.fillText(legend, tx, ty);
-    }
+    ctx.fillStyle = legendColor || '#ffffff';
+    ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    ctx.fillText(legend, tx, ty);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ============================================================
+// Front face legend texture (for sideprint legends)
+// ============================================================
+async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont, baseColor }) {
+  const fontFamily = legendFont || 'Inter';
+
+  try {
+    await Promise.race([
+      document.fonts.load(`bold 120px "${fontFamily}"`),
+      new Promise(resolve => setTimeout(resolve, 500))
+    ]);
+  } catch (e) {}
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+
+  // Transparent background - we'll use the keycap color underneath
+  ctx.clearRect(0, 0, 256, 128);
+
+  if (legend && legend.trim() !== '') {
+    const fontSize = legend.length > 3 ? 40 : legend.length > 1 ? 56 : 72;
+
+    ctx.fillStyle = legendColor || '#ffffff';
+    ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(legend, 128, 64);
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -611,6 +647,49 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const activeSideTexture = hasImageTexture ? activeTopTexture : null;
 
   // ============================================================
+  // Front face legend texture (for sideprint/front position)
+  // ============================================================
+  const [frontFaceTexture, setFrontFaceTexture] = useState(null);
+  const showFrontLegend = legendPosition === 'front' && displayText && displayText.trim() !== '';
+
+  useEffect(() => {
+    if (!showFrontLegend) {
+      setFrontFaceTexture(null);
+      return;
+    }
+    let cancelled = false;
+    buildFrontFaceLegendTexture({
+      legend: displayText,
+      legendColor,
+      legendFont: font,
+      baseColor: color,
+    }).then((tex) => {
+      if (!cancelled) {
+        setFrontFaceTexture(prev => {
+          prev?.dispose();
+          return tex;
+        });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [showFrontLegend, displayText, legendColor, font, color]);
+
+  // Front face geometry dimensions (need profile spec for positioning)
+  const frontFaceGeometry = useMemo(() => {
+    if (!showFrontLegend) return null;
+    const normalizedProfile = normalizeProfile(profile);
+    const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
+    const scale = 1 / 19.05;
+    const W = spec.baseWidth * w * scale;
+    const tw = spec.topWidth * w * scale;
+    const H = spec.maxHeight * scale;
+    // Front face width is average of base and top width
+    const faceWidth = (W + tw) / 2;
+    const faceHeight = H * 0.4; // Legend takes ~40% of front face height
+    return new THREE.PlaneGeometry(faceWidth * 0.85, faceHeight);
+  }, [showFrontLegend, profile, w]);
+
+  // ============================================================
   // TASK 6 — Material presets
   // ============================================================
   const isABS = materialPreset === 'abs';
@@ -712,6 +791,34 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
               {...topMatProps}
             />
           </mesh>
+
+          {/* Front face legend (sideprint) */}
+          {showFrontLegend && frontFaceTexture && frontFaceGeometry && (() => {
+            const normalizedProfile = normalizeProfile(profile);
+            const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
+            const scale = 1 / 19.05;
+            const D = spec.baseDepth * h * scale;
+            const td = spec.topDepth * h * scale;
+            const H = spec.maxHeight * scale;
+            // Position at front face, vertically centered in lower portion
+            const frontZ = -(D + td) / 4; // Average of base and top depth, divided by 2
+            const frontY = H * 0.35; // Position legend in lower-middle of front face
+            return (
+              <mesh
+                geometry={frontFaceGeometry}
+                position={[0, frontY, frontZ - 0.002]} // Slight offset to prevent z-fighting
+                rotation={[0, Math.PI, 0]} // Rotate 180° to face viewer (looking from front)
+              >
+                <meshBasicMaterial
+                  map={frontFaceTexture}
+                  transparent
+                  opacity={1}
+                  side={THREE.DoubleSide}
+                  depthWrite={false}
+                />
+              </mesh>
+            );
+          })()}
 
           {/* Cherry MX stem underneath */}
           <group position={[0, -0.15, 0]}>
