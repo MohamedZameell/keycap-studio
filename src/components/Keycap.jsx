@@ -244,7 +244,7 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBo
 // ============================================================
 // Build solid color keycap texture with legend
 // ============================================================
-async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition }) {
+async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition, keyWidth = 1, keyHeight = 1 }) {
   const fontFamily = legendFont || 'Inter';
   try {
     await Promise.race([
@@ -253,25 +253,43 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
     ]);
   } catch (e) {}
 
+  // Canvas dimensions proportional to key size
+  const baseSize = 512;
+  const canvasWidth = Math.round(baseSize * keyWidth);
+  const canvasHeight = Math.round(baseSize * keyHeight);
+
   const canvas = document.createElement('canvas');
-  canvas.width = 512; canvas.height = 512;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = color || '#7c6bb0';
-  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  const grad = ctx.createRadialGradient(256, 180, 20, 256, 200, 220);
+  const cx = canvasWidth / 2;
+  const cy = canvasHeight / 2;
+  const grad = ctx.createRadialGradient(cx, cy * 0.7, 20, cx, cy * 0.78, canvasHeight * 0.43);
   grad.addColorStop(0, 'rgba(255,255,255,0.10)');
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
-    const posMap = { 'center': [256, 256], 'top-center': [256, 160], 'top-left': [110, 130], 'top-right': [400, 130], 'bottom-left': [110, 390], 'bottom-right': [400, 390] };
+    const posMap = {
+      'center': [cx, cy],
+      'top-center': [cx, canvasHeight * 0.31],
+      'top-left': [canvasWidth * 0.22, canvasHeight * 0.25],
+      'top-right': [canvasWidth * 0.78, canvasHeight * 0.25],
+      'bottom-left': [canvasWidth * 0.22, canvasHeight * 0.76],
+      'bottom-right': [canvasWidth * 0.78, canvasHeight * 0.76]
+    };
     const [tx, ty] = posMap[legendPosition] || posMap['center'];
-    const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
+    const baseFont = canvasHeight * 0.31;
+    const fontSize = legend.length > 5 ? baseFont * 0.5 :
+                     legend.length > 3 ? baseFont * 0.65 :
+                     legend.length > 1 ? baseFont * 0.85 : baseFont;
     ctx.fillStyle = legendColor || '#ffffff';
-    ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
+    ctx.font = `bold ${Math.round(fontSize)}px "${fontFamily}", sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
     ctx.fillText(legend, tx, ty);
@@ -282,18 +300,29 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
   return tex;
 }
 
-function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition) {
+function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1) {
+  const baseSize = 512;
+  const canvasWidth = Math.round(baseSize * keyWidth);
+  const canvasHeight = Math.round(baseSize * keyHeight);
+
   const canvas = document.createElement('canvas');
-  canvas.width = 512; canvas.height = 512;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = color || '#7c6bb0';
-  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
   if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
+    const cx = canvasWidth / 2;
+    const cy = canvasHeight / 2;
+    const baseFont = canvasHeight * 0.31;
+    const fontSize = legend.length > 5 ? baseFont * 0.5 :
+                     legend.length > 3 ? baseFont * 0.65 :
+                     legend.length > 1 ? baseFont * 0.85 : baseFont;
     ctx.fillStyle = legendColor || '#ffffff';
-    const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.font = `bold ${Math.round(fontSize)}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(legend, 256, 256);
+    ctx.fillText(legend, cx, cy);
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -419,16 +448,16 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
 
   // Solid color texture (used when no image)
   const [solidTexture, setSolidTexture] = useState(() =>
-    buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition)
+    buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h)
   );
 
   useEffect(() => {
     if (imageMode === 'wrap') return; // Don't rebuild when using image
     let cancelled = false;
-    buildKeycapTexture({ color, legend: displayText, legendColor, legendFont: font, legendPosition })
+    buildKeycapTexture({ color, legend: displayText, legendColor, legendFont: font, legendPosition, keyWidth: w, keyHeight: h })
       .then(tex => { if (!cancelled) setSolidTexture(prev => { prev?.dispose(); return tex; }); });
     return () => { cancelled = true; };
-  }, [color, displayText, legendColor, font, legendPosition, imageMode]);
+  }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h]);
 
   // Per-key image
   const perKeyImage = pkDesign?.imageUrl;
@@ -458,16 +487,40 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     const createOverlay = async () => {
       const fontFamily = font || 'Inter';
       try { await Promise.race([document.fonts.load(`bold 160px "${fontFamily}"`), new Promise(r => setTimeout(r, 500))]); } catch (e) {}
+
+      // Canvas dimensions proportional to key size to prevent stretching
+      const baseSize = 512;
+      const canvasWidth = Math.round(baseSize * w);
+      const canvasHeight = Math.round(baseSize * h);
+
       const canvas = document.createElement('canvas');
-      canvas.width = 512; canvas.height = 512;
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
       const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, 512, 512);
-      const posMap = { 'center': [256, 256], 'top-center': [256, 160], 'top-left': [110, 130], 'top-right': [400, 130], 'bottom-left': [110, 390], 'bottom-right': [400, 390] };
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      // Scale positions based on canvas dimensions
+      const cx = canvasWidth / 2;
+      const cy = canvasHeight / 2;
+      const posMap = {
+        'center': [cx, cy],
+        'top-center': [cx, canvasHeight * 0.31],
+        'top-left': [canvasWidth * 0.22, canvasHeight * 0.25],
+        'top-right': [canvasWidth * 0.78, canvasHeight * 0.25],
+        'bottom-left': [canvasWidth * 0.22, canvasHeight * 0.76],
+        'bottom-right': [canvasWidth * 0.78, canvasHeight * 0.76]
+      };
       const [tx, ty] = posMap[legendPosition] || posMap['center'];
-      const fontSize = displayText.length > 3 ? 100 : displayText.length > 1 ? 130 : 160;
+
+      // Font size based on text length, scaled for canvas height
+      const baseFont = canvasHeight * 0.31;
+      const fontSize = displayText.length > 5 ? baseFont * 0.5 :
+                       displayText.length > 3 ? baseFont * 0.65 :
+                       displayText.length > 1 ? baseFont * 0.85 : baseFont;
+
       ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
       ctx.fillStyle = legendColor || '#ffffff';
-      ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
+      ctx.font = `bold ${Math.round(fontSize)}px "${fontFamily}", sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(displayText, tx, ty);
       const tex = new THREE.CanvasTexture(canvas);
@@ -476,7 +529,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     };
     createOverlay().then(tex => { if (!cancelled) setLegendOverlay(prev => { prev?.dispose(); return tex; }); });
     return () => { cancelled = true; };
-  }, [showLegendOverlay, displayText, legendColor, font, legendPosition]);
+  }, [showLegendOverlay, displayText, legendColor, font, legendPosition, w, h]);
 
   // Front face legend
   const [frontFaceTexture, setFrontFaceTexture] = useState(null);
