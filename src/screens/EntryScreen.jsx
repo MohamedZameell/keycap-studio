@@ -16,10 +16,26 @@ export default function EntryScreen() {
     let cleanup = () => {};
     const startFrame = requestAnimationFrame(() => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      console.log('[Canvas Debug] Canvas element:', canvas);
+      if (!canvas) {
+        console.log('[Canvas Debug] No canvas element found!');
+        return;
+      }
 
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      console.log('[Canvas Debug] Context:', ctx);
+      if (!ctx) {
+        console.log('[Canvas Debug] No context!');
+        return;
+      }
+
+      // Immediate test draw
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      console.log('[Canvas Debug] Dimensions set:', canvas.width, 'x', canvas.height);
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(0, 0, 200, 200);
+      console.log('[Canvas Debug] Drew red test rectangle');
 
     let frameId;
     let lastFrameTime = performance.now();
