@@ -12,6 +12,11 @@ export default function GalleryScreen() {
   const [search, setSearch] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [designName, setDesignName] = useState('');
+  const [likedDesigns, setLikedDesigns] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('likedDesigns') || '[]');
+    } catch { return []; }
+  });
 
   useEffect(() => {
     async function loadDesigns() {
@@ -78,6 +83,32 @@ export default function GalleryScreen() {
     if (d.font) store.setGlobalFont(d.font);
     if (d.material) store.setMaterialPreset(d.material);
     store.setScreen('studio');
+  };
+
+  const handleLike = async (e, design) => {
+    e.stopPropagation();
+    const designId = design.id;
+    const alreadyLiked = likedDesigns.includes(designId);
+
+    if (alreadyLiked) return; // Already liked
+
+    // Update local liked state
+    const newLiked = [...likedDesigns, designId];
+    setLikedDesigns(newLiked);
+    localStorage.setItem('likedDesigns', JSON.stringify(newLiked));
+
+    // Update design likes count
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('designs').update({ likes: design.likes + 1 }).eq('id', designId);
+        setDesigns(designs.map(d => d.id === designId ? { ...d, likes: d.likes + 1 } : d));
+      } catch (err) {
+        console.error('Failed to update like:', err);
+      }
+    } else {
+      // Demo mode: update locally
+      setDesigns(designs.map(d => d.id === designId ? { ...d, likes: d.likes + 1 } : d));
+    }
   };
 
   let filtered = [...designs];
@@ -158,9 +189,29 @@ export default function GalleryScreen() {
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--on-surface-variant)', fontFamily: 'var(--font-heading)', fontWeight: 600 }}>
                     <span style={{ backgroundColor: 'var(--surface-container-highest)', padding: '6px 12px', borderRadius: '4px' }}>{d.theme}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{color: 'var(--primary)'}}>★</span> {d.likes}
-                    </span>
+                    <button
+                      onClick={(e) => handleLike(e, d)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        background: likedDesigns.includes(d.id) ? 'var(--primary)' : 'var(--surface-container-highest)',
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        cursor: likedDesigns.includes(d.id) ? 'default' : 'pointer',
+                        color: likedDesigns.includes(d.id) ? 'var(--on-primary)' : 'var(--on-surface-variant)',
+                        transition: 'all 0.2s',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-heading)',
+                        fontWeight: 600
+                      }}
+                      onMouseEnter={e => { if (!likedDesigns.includes(d.id)) { e.target.style.background = 'var(--primary)'; e.target.style.color = 'var(--on-primary)'; }}}
+                      onMouseLeave={e => { if (!likedDesigns.includes(d.id)) { e.target.style.background = 'var(--surface-container-highest)'; e.target.style.color = 'var(--on-surface-variant)'; }}}
+                    >
+                      <span style={{color: likedDesigns.includes(d.id) ? 'var(--on-primary)' : 'var(--primary)'}}>
+                        {likedDesigns.includes(d.id) ? '★' : '☆'}
+                      </span>
+                      {d.likes}
+                    </button>
                   </div>
                 </div>
               </div>

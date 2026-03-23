@@ -562,6 +562,10 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   // Priority: perKey > wrap > tile > baked legend texture
   const activeTopTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : (imageMode === 'tile' ? tileTexture : topTexture));
 
+  // Determine if we should apply image texture to sides
+  const hasImageTexture = perKeyTexture || (imageMode === 'wrap' && wrapTexture) || (imageMode === 'tile' && tileTexture);
+  const activeSideTexture = hasImageTexture ? activeTopTexture : null;
+
   // ============================================================
   // TASK 6 — Material presets
   // ============================================================
@@ -647,10 +651,11 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             </mesh>
           )}
 
-          {/* Body mesh: sides + bottom — darkened color, no texture */}
+          {/* Body mesh: sides + bottom — image texture when active, otherwise darkened color */}
           <mesh geometry={bodyGeo} castShadow receiveShadow>
             <meshPhysicalMaterial
-              color={sideColor}
+              map={activeSideTexture}
+              color={activeSideTexture ? "#ffffff" : sideColor}
               {...sideMatProps}
             />
           </mesh>
