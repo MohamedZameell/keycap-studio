@@ -252,16 +252,49 @@ export default function StudioScreen() {
   };
 
   // --- EXPORT HANDLERS ---
-  const handleExportPNG = () => {
+  // Standard export angles for manufacturing
+  const EXPORT_ANGLES = {
+    topDown: { pos: [0, 15, 0.1], target: [0, 0, 0], name: 'Top-Down' },
+    isometric: { pos: [8, 10, 8], target: [0, 0, 0], name: 'Isometric' },
+    front: { pos: [0, 4, 15], target: [0, 0, 0], name: 'Front' },
+    hero: { pos: [6, 6, 10], target: [0, 0, 0], name: 'Hero Shot' },
+  };
+
+  const handleExportPNG = (angleKey = null) => {
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = `keycap-studio-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png', 1.0);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('PNG exported!');
+
+    if (angleKey && EXPORT_ANGLES[angleKey]) {
+      // Move camera to standard angle, wait for render, then capture
+      const angle = EXPORT_ANGLES[angleKey];
+      cameraStateRef.current.pos = angle.pos;
+      cameraStateRef.current.target = angle.target;
+      cameraStateRef.current.isAnimating = true;
+
+      // Wait for camera to settle and render
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const link = document.createElement('a');
+            link.download = `keycap-studio-${angleKey}-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png', 1.0);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast(`PNG exported (${angle.name})!`);
+          });
+        });
+      }, 300); // Allow camera animation to complete
+    } else {
+      // Export current view
+      const link = document.createElement('a');
+      link.download = `keycap-studio-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('PNG exported!');
+    }
   };
 
   const handleExportSVG = () => {
@@ -994,8 +1027,52 @@ export default function StudioScreen() {
 
                 {/* Quick Exports Section */}
                 <div style={{ fontSize: 11, color: '#666680', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Quick Exports</div>
+
+                {/* PNG Export with angle options */}
+                <div style={{ marginBottom: 10 }}>
+                  <button
+                    onClick={() => handleExportPNG()}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                      background: '#252542', border: '1px solid #6c63ff', borderRadius: '8px 8px 0 0',
+                      cursor: 'pointer', transition: '0.2s', width: '100%', textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; e.currentTarget.style.background = '#6c63ff15'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#6c63ff'; e.currentTarget.style.background = '#252542'; }}
+                  >
+                    <span style={{ fontSize: 24 }}>🖼</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#a09bf5' }}>PNG Render (Current View)</div>
+                      <div style={{ fontSize: 11, color: '#666680' }}>Export exactly what you see</div>
+                    </div>
+                  </button>
+                  <div style={{ display: 'flex', gap: 1 }}>
+                    {[
+                      { key: 'topDown', label: 'Top' },
+                      { key: 'isometric', label: 'Iso' },
+                      { key: 'front', label: 'Front' },
+                      { key: 'hero', label: 'Hero' },
+                    ].map((angle, i, arr) => (
+                      <button
+                        key={angle.key}
+                        onClick={() => handleExportPNG(angle.key)}
+                        style={{
+                          flex: 1, padding: '8px 4px', background: '#1e1e3a', border: '1px solid #6c63ff',
+                          borderTop: 'none',
+                          borderRadius: i === 0 ? '0 0 0 8px' : i === arr.length - 1 ? '0 0 8px 0' : 0,
+                          borderLeft: i > 0 ? 'none' : undefined,
+                          cursor: 'pointer', fontSize: 11, color: '#a09bf5', transition: '0.2s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#6c63ff30'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#1e1e3a'; }}
+                      >
+                        {angle.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {[
-                  { icon: '🖼', label: 'PNG Render', desc: 'High quality 3D screenshot', size: '~2-4MB', onClick: handleExportPNG, prominent: true },
                   { icon: '📄', label: 'Print-ready PDF', desc: 'High quality PDF render', size: '~2-4MB', onClick: handleExportPDF },
                   { icon: '🔗', label: 'Share URL', desc: 'Copy link to this design', size: '', onClick: handleShareURL },
                 ].map(btn => (
@@ -1004,16 +1081,16 @@ export default function StudioScreen() {
                     onClick={btn.disabled ? undefined : btn.onClick}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-                      background: btn.prominent ? '#252542' : '#1a1a2e', border: btn.prominent ? '1px solid #6c63ff' : '1px solid #2a2a3a', borderRadius: 8,
+                      background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8,
                       cursor: btn.disabled ? 'not-allowed' : 'pointer', transition: '0.2s',
                       opacity: btn.disabled ? 0.4 : 1, marginBottom: 10, width: '100%', textAlign: 'left',
                     }}
                     onMouseEnter={(e) => { if (!btn.disabled) { e.currentTarget.style.borderColor = '#8b7fff'; e.currentTarget.style.background = '#6c63ff15'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = btn.prominent ? '#6c63ff' : '#2a2a3a'; e.currentTarget.style.background = btn.prominent ? '#252542' : '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
                   >
                     <span style={{ fontSize: 24 }}>{btn.icon}</span>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: btn.prominent ? '#a09bf5' : '#fff' }}>{btn.label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{btn.label}</div>
                       <div style={{ fontSize: 11, color: '#666680' }}>{btn.desc}</div>
                       {btn.size && <div style={{ fontSize: 10, color: '#444460' }}>{btn.size}</div>}
                     </div>
