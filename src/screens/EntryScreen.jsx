@@ -8,7 +8,7 @@ export default function EntryScreen() {
   const canvasRef = useRef(null);
 
   const handleStart = () => {
-    setSelectionPath('beginner');
+    setSelectionPath(null); // Let user choose path in selector
     setScreen('selector');
   };
 

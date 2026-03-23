@@ -153,15 +153,19 @@ export default function SelectorScreen() {
       {/* Header */}
       <div style={styles.header}>
         <button style={styles.backBtn} onClick={() => {
-          if (step === 3 && path === 'beginner') { setStep(localBrand ? 2 : 1); setSelectedModelObj(null); }
+          if (!path) { store.setScreen('entry'); }
+          else if (step === 3 && path === 'beginner') { setStep(localBrand ? 2 : 1); setSelectedModelObj(null); }
           else if (step === 2 && path === 'beginner') { setStep(1); setLocalBrand(null); }
           else if (step === 4 && path === 'enthusiast') setStep(3);
+          else if (step === 1) { store.setSelectionPath(null); setStep(1); }
           else if (step > 1) setStep(step - 1);
           else { store.setSelectionPath(null); store.setScreen('entry'); }
         }}>← Back</button>
 
         <div style={styles.progressContainer}>
-          {path === 'beginner' ? (
+          {!path ? (
+            <span className="step-indicator active">Choose Your Path</span>
+          ) : path === 'beginner' ? (
             <>
               <span className={`step-indicator ${step === 1 ? 'active' : ''}`}>Step 1: Brand</span>
               <span style={{color: '#444'}}>→</span>
@@ -184,6 +188,60 @@ export default function SelectorScreen() {
       </div>
 
       <div style={styles.content}>
+        {/* PATH SELECTION */}
+        {!path && (
+          <div style={styles.fadeContainer}>
+            <div style={{ textAlign: 'center', marginBottom: 40 }}>
+              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#fff', marginBottom: 12 }}>Choose Your Path</h1>
+              <p style={{ fontSize: 16, color: '#888899' }}>How would you like to set up your keyboard?</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 800, margin: '0 auto' }}>
+              <button
+                onClick={() => store.setSelectionPath('beginner')}
+                style={{
+                  padding: '40px 32px',
+                  background: 'var(--surface-container)',
+                  border: '1px solid var(--outline-variant)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#6c63ff'; e.currentTarget.style.background = 'rgba(108,99,255,0.08)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--outline-variant)'; e.currentTarget.style.background = 'var(--surface-container)'; }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 12 }}>⌨️</div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8 }}>I have a keyboard</h3>
+                <p style={{ fontSize: 14, color: '#888899', lineHeight: 1.5 }}>
+                  Browse our database of 800+ keyboard models. Select your exact brand and model for accurate specs.
+                </p>
+                <div style={{ marginTop: 16, fontSize: 12, color: '#6c63ff', fontWeight: 600 }}>RECOMMENDED FOR BEGINNERS →</div>
+              </button>
+              <button
+                onClick={() => store.setSelectionPath('enthusiast')}
+                style={{
+                  padding: '40px 32px',
+                  background: 'var(--surface-container)',
+                  border: '1px solid var(--outline-variant)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#44e2cd'; e.currentTarget.style.background = 'rgba(68,226,205,0.08)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--outline-variant)'; e.currentTarget.style.background = 'var(--surface-container)'; }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 12 }}>🔧</div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8 }}>I know my setup</h3>
+                <p style={{ fontSize: 14, color: '#888899', lineHeight: 1.5 }}>
+                  Manually select keycap profile, form factor, and layout. For custom builds and enthusiasts.
+                </p>
+                <div style={{ marginTop: 16, fontSize: 12, color: '#44e2cd', fontWeight: 600 }}>FOR ENTHUSIASTS →</div>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* BEGINNER PATH */}
         {path === 'beginner' && (
           <>
