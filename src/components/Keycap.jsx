@@ -123,16 +123,59 @@ const PROFILE_SPECS = {
     rowHeights: [1.000, 1.000, 0.926, 0.852, 0.926, 0.926],
     rowTilts: [0.140, 0.140, 0.095, 0, -0.110, -0.110],
   },
+  osa: {
+    maxHeight: 12.0,
+    dishType: 'spherical',
+    dishDepth: 1.2,
+    topWidth: 13.5,
+    topDepth: 13.0,
+    baseWidth: 18.2,
+    baseDepth: 18.2,
+    chamfer: 0.6,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.920, 0.840, 0.920, 0.920],
+    rowTilts: [0.130, 0.130, 0.090, 0, -0.110, -0.110],
+  },
+  ksa: {
+    maxHeight: 15.0,
+    dishType: 'spherical',
+    dishDepth: 2.2,
+    topWidth: 12.5,
+    topDepth: 12.5,
+    baseWidth: 18.4,
+    baseDepth: 18.4,
+    chamfer: 0.5,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.960, 0.920, 0.940, 0.940],
+    rowTilts: [0.150, 0.150, 0.100, 0, -0.110, -0.110],
+  },
+  'low profile': {
+    maxHeight: 6.0,
+    dishType: 'cylindrical',
+    dishDepth: 0.3,
+    topWidth: 14.5,
+    topDepth: 14.0,
+    baseWidth: 17.0,
+    baseDepth: 17.0,
+    chamfer: 0.4,
+    uniform: true,
+    rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
+    rowTilts: [0, 0, 0, 0, 0, 0],
+  },
 };
 
+// Helper to normalize profile names for lookup
+const normalizeProfile = (p) => (p || 'cherry').toLowerCase();
+
 // Export for use in other components
-export { PROFILE_SPECS };
+export { PROFILE_SPECS, normalizeProfile };
 
 // ============================================================
 // Keycap geometry (body only: sides + bottom)
 // ============================================================
 function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
-  const spec = PROFILE_SPECS[profile] || PROFILE_SPECS.cherry;
+  const normalizedProfile = normalizeProfile(profile);
+  const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
   const W = spec.baseWidth * widthU * scale;
   const D = spec.baseDepth * heightU * scale;
@@ -198,7 +241,8 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
 // Keycap top face geometry (dish + chamfers)
 // ============================================================
 function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
-  const spec = PROFILE_SPECS[profile] || PROFILE_SPECS.cherry;
+  const normalizedProfile = normalizeProfile(profile);
+  const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
   const tw = spec.topWidth * widthU * scale;
   const td = spec.topDepth * heightU * scale;
