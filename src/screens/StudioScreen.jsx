@@ -840,9 +840,9 @@ export default function StudioScreen() {
             borderTop: '1px solid rgba(149,142,160,0.1)',
           }}>
             {[
-              { label: 'PROFILE', value: 'CHERRY' },
-              { label: 'THICKNESS', value: '1.5 MM' },
-              { label: 'WEIGHT', value: '1.2 G / KEY' },
+              { label: 'PROFILE', value: (store.selectedProfile || 'cherry').toUpperCase() },
+              { label: 'MATERIAL', value: (store.materialPreset || 'abs').toUpperCase() },
+              { label: 'FORM FACTOR', value: store.selectedFormFactor || '60%' },
             ].map(s => (
               <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#958ea0', letterSpacing: '0.08em' }}>
