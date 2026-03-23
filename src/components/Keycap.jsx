@@ -169,9 +169,10 @@ export { PROFILE_SPECS, normalizeProfile };
 
 // ============================================================
 // Keycap body geometry (sides + bottom)
-// For wrap mode: sides use LOCAL UVs that extend beyond 0-1 for cloth drape
+// For wrap mode: sides use GLOBAL image UVs with drape extension
+// uvData = { uMin, uMax, vMin, vMax, drape } - keycap's region in IMAGE space
 // ============================================================
-function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', useClothDrape = false) {
+function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvData = null) {
   const normalizedProfile = normalizeProfile(profile);
   const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
@@ -212,10 +213,6 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', useClot
     [-tw / 2, H, td / 2],  // 3: back-left
   ];
 
-  // Cloth drape extension: how much UV extends beyond the keycap's top face
-  // 0.5 means side shows 50% additional image area beyond the keycap edge
-  const drapeExtend = useClothDrape ? 0.5 : 0;
-
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
     const bl = baseCorners[i];
@@ -225,44 +222,46 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', useClot
 
     let uBL, vBL, uBR, vBR, uTR, vTR, uTL, vTL;
 
-    if (useClothDrape) {
-      // Cloth-drape UV mapping using LOCAL coordinates (0-1 for top face)
-      // Sides extend BEYOND 0-1 to show adjacent image areas
-      // The wrapTexture with RepeatWrapping will sample correctly
+    if (uvData) {
+      // GLOBAL image UV mapping for cloth-drape effect
+      // uvData contains the keycap's position in IMAGE space (0-1)
+      const { uMin, uMax, vMin, vMax, drape } = uvData;
 
       if (i === 0) {
         // Front wall (-Z, faces AWAY from user)
-        // Top edge connects to front of keycap (V=1 after flip in top geometry)
-        // Bottom extends beyond V=1 (further "down" in image)
-        uTL = 0;            uTR = 1;
-        vTL = 1;            vTR = 1;  // Matches top face front edge (1-0=1 in top UV)
-        uBL = 0;            uBR = 1;
-        vBL = 1 + drapeExtend;  vBR = 1 + drapeExtend;  // Extends beyond
+        // Top edge at vMax (front of keycap = bottom in image)
+        // Bottom extends further DOWN in image (higher V)
+        uTL = uMin;         uTR = uMax;
+        vTL = vMax;         vTR = vMax;
+        uBL = uMin;         uBR = uMax;
+        vBL = vMax + drape; vBR = vMax + drape;
       } else if (i === 1) {
         // Right wall (+X)
-        // Top edge connects to right of keycap (U=1)
-        uTL = 1;                    uTR = 1 + drapeExtend;
-        vTL = 1;                    vTR = 1;
-        uBL = 1;                    uBR = 1 + drapeExtend;
-        vBL = 0;                    vBR = 0;
+        // Top edge at uMax (right of keycap)
+        // Bottom extends further RIGHT in image (higher U)
+        uTL = uMax;         uTR = uMax + drape;
+        vTL = vMax;         vTR = vMax;
+        uBL = uMax;         uBR = uMax + drape;
+        vBL = vMin;         vBR = vMin;
       } else if (i === 2) {
         // Back wall (+Z, faces TOWARD user)
-        // Top edge connects to back of keycap (V=0 after flip in top geometry)
-        // Bottom extends beyond V=0 (further "up" in image)
-        uTL = 1;            uTR = 0;  // Reversed for correct winding
-        vTL = 0;            vTR = 0;  // Matches top face back edge (1-1=0 in top UV)
-        uBL = 1;            uBR = 0;
-        vBL = -drapeExtend; vBR = -drapeExtend;  // Extends beyond (negative)
+        // Top edge at vMin (back of keycap = top in image)
+        // Bottom extends further UP in image (lower V)
+        uTL = uMax;         uTR = uMin;  // Reversed for winding
+        vTL = vMin;         vTR = vMin;
+        uBL = uMax;         uBR = uMin;
+        vBL = vMin - drape; vBR = vMin - drape;
       } else {
         // Left wall (-X)
-        // Top edge connects to left of keycap (U=0)
-        uTL = -drapeExtend;         uTR = 0;
-        vTL = 0;                    vTR = 0;
-        uBL = -drapeExtend;         uBR = 0;
-        vBL = 1;                    vBR = 1;
+        // Top edge at uMin (left of keycap)
+        // Bottom extends further LEFT in image (lower U)
+        uTL = uMin - drape; uTR = uMin;
+        vTL = vMin;         vTR = vMin;
+        uBL = uMin - drape; uBR = uMin;
+        vBL = vMax;         vBR = vMax;
       }
     } else {
-      // No cloth drape - simple solid color (no meaningful UVs)
+      // No image - simple solid color (no meaningful UVs)
       uBL = 0; vBL = 0;
       uBR = 1; vBR = 0;
       uTR = 1; vTR = 1;
@@ -615,24 +614,43 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     uvScale[1] / imageScale
   ], [uvScale, imageScale]);
 
-  // Use cloth drape for body geometry when image wrap mode is active
-  const useClothDrape = imageMode === 'wrap';
+  // Calculate GLOBAL image UV data for body sides
+  // This is in IMAGE space (0-1), not local keycap space
+  const bodyUvData = useMemo(() => {
+    if (imageMode !== 'wrap') return null;
 
-  // Body geometry - enables cloth drape UV mapping when image is applied
+    // Keycap's region in image space
+    const uMin = adjustedUvOffset[0];
+    const uMax = adjustedUvOffset[0] + adjustedUvScale[0];
+    const vMin = adjustedUvOffset[1];  // Back of keycap (top in image after flip)
+    const vMax = adjustedUvOffset[1] + adjustedUvScale[1];  // Front of keycap
+
+    // Fixed drape amount in IMAGE space (not relative to keycap size)
+    // 0.08 = 8% of image extends onto each side
+    const drape = 0.08;
+
+    return { uMin, uMax, vMin, vMax, drape };
+  }, [imageMode, adjustedUvOffset, adjustedUvScale]);
+
+  // Body geometry with GLOBAL image UVs for sides
   const bodyGeo = useMemo(() => {
-    return createBodyGeometry(w, h, profile, useClothDrape);
-  }, [w, h, profile, useClothDrape]);
+    return createBodyGeometry(w, h, profile, bodyUvData);
+  }, [w, h, profile, bodyUvData]);
 
   const topGeo = useMemo(() => createTopFaceGeometry(w, h, profile), [w, h, profile]);
 
   // ============================================================
-  // Image texture - shared between top and sides for wrap mode
+  // Image textures for wrap mode
+  // wrapTexture: for TOP face (has offset/repeat, uses local 0-1 UVs)
+  // sideTexture: for SIDES (NO offset/repeat, uses global UVs from geometry)
   // ============================================================
   const [wrapTexture, setWrapTexture] = useState(null);
+  const [sideTexture, setSideTexture] = useState(null);
 
   useEffect(() => {
     if (!imageUrl || imageMode !== 'wrap') {
       setWrapTexture(null);
+      setSideTexture(null);
       return;
     }
     let cancelled = false;
@@ -641,20 +659,33 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       imageUrl,
       (tex) => {
         if (cancelled) return;
-        // Clone for this keycap's specific region
-        const cloned = tex.clone();
-        cloned.wrapS = THREE.RepeatWrapping;
-        cloned.wrapT = THREE.RepeatWrapping;
-        // Set offset and repeat based on this keycap's position in the keyboard
-        // offset.y is flipped because of UV convention
-        cloned.offset.set(adjustedUvOffset[0], 1 - adjustedUvOffset[1] - adjustedUvScale[1]);
-        cloned.repeat.set(adjustedUvScale[0], adjustedUvScale[1]);
-        cloned.colorSpace = THREE.SRGBColorSpace;
-        cloned.needsUpdate = true;
-        setWrapTexture(cloned);
+
+        // TOP texture: clone with offset/repeat for this keycap's region
+        const topClone = tex.clone();
+        topClone.wrapS = THREE.RepeatWrapping;
+        topClone.wrapT = THREE.RepeatWrapping;
+        topClone.offset.set(adjustedUvOffset[0], 1 - adjustedUvOffset[1] - adjustedUvScale[1]);
+        topClone.repeat.set(adjustedUvScale[0], adjustedUvScale[1]);
+        topClone.colorSpace = THREE.SRGBColorSpace;
+        topClone.needsUpdate = true;
+        setWrapTexture(topClone);
+
+        // SIDE texture: clone with NO offset/repeat (sides use global UVs)
+        const sideClone = tex.clone();
+        sideClone.wrapS = THREE.RepeatWrapping;
+        sideClone.wrapT = THREE.RepeatWrapping;
+        // NO offset or repeat - sides use global image coordinates directly
+        sideClone.colorSpace = THREE.SRGBColorSpace;
+        sideClone.needsUpdate = true;
+        setSideTexture(sideClone);
       },
       undefined,
-      () => { if (!cancelled) setWrapTexture(null); }
+      () => {
+        if (!cancelled) {
+          setWrapTexture(null);
+          setSideTexture(null);
+        }
+      }
     );
     return () => { cancelled = true; };
   }, [imageUrl, imageMode, adjustedUvOffset, adjustedUvScale]);
@@ -705,9 +736,11 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     return () => { cancelled = true; };
   }, [perKeyImage]);
 
-  // Final textures - wrap mode uses wrapTexture for both top and sides
+  // Final textures
+  // TOP: uses wrapTexture (with offset/repeat) or topTexture (solid color)
+  // SIDES: uses sideTexture (RAW, no offset/repeat - geometry has global UVs)
   const activeTopTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : topTexture);
-  const activeSideTexture = (imageMode === 'wrap') ? wrapTexture : null;
+  const activeSideTexture = (imageMode === 'wrap') ? sideTexture : null;
 
   // ============================================================
   // Front face legend (sideprint)
