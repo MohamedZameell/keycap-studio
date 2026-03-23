@@ -387,6 +387,8 @@ export default function EntryScreen() {
             top: 0,
             left: 0,
             width: '100%',
+            zIndex: 1,
+            background: 'blue', /* DEBUG: should see blue if canvas element exists */
             height: '100%',
             display: 'block',
           }}
