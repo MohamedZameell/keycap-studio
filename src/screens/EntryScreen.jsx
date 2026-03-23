@@ -25,16 +25,17 @@ export default function EntryScreen() {
     let lastFrameTime = performance.now();
     const mountTime = performance.now();
 
-    const PRESS_DOWN_MS = 200;
-    const HOLD_MS = 90;
-    const RELEASE_MS = 150;
+    const PRESS_DOWN_MS = 350;      // Slower press down
+    const HOLD_MS = 150;            // Longer hold at bottom
+    const RELEASE_MS = 300;         // Slower release
     const MAX_PRESS_PX = 4;
-    const MIN_IDLE_MS = 2000;
-    const MAX_IDLE_MS = 5000;
-    const FALL_DURATION = 600;
-    const BOUNCE_AMOUNT = 8;
-    const RAIN_PHASE_MS = 5000;
+    const MIN_IDLE_MS = 3000;       // Longer wait between presses
+    const MAX_IDLE_MS = 8000;       // Much longer max wait
+    const FALL_DURATION = 1000;     // Slower fall animation
+    const BOUNCE_AMOUNT = 6;
+    const RAIN_PHASE_MS = 7000;     // Longer rain phase
     const FALL_START_Y = -100;
+    const MAX_SIMULTANEOUS_PRESSES = 10;  // Limit concurrent presses
 
     const PHASES = { RAIN: 'rain', IDLE: 'idle' };
     let phase = PHASES.RAIN;
@@ -137,7 +138,7 @@ export default function EntryScreen() {
           nextPressDelay: MIN_IDLE_MS + Math.random() * (MAX_IDLE_MS - MIN_IDLE_MS),
           pressAmt: 0,
           falling: true,
-          fallDelay: Math.random() * 3000,
+          fallDelay: Math.random() * 5000,  // Spread falls over 5 seconds
           fallStart: null,
           currentY: FALL_START_Y,
         };
@@ -221,7 +222,21 @@ export default function EntryScreen() {
         lastFrameTime = now;
 
         if (phase === PHASES.RAIN && now - mountTime > RAIN_PHASE_MS) phase = PHASES.IDLE;
-        if (phase === PHASES.IDLE) keyStates.forEach((k) => updateKeyIdlePress(k, dtMs));
+
+        if (phase === PHASES.IDLE) {
+          // Count currently pressing keys
+          const pressingCount = keyStates.filter(k => k.keyPhase !== 'idle').length;
+
+          keyStates.forEach((k) => {
+            // Only allow new presses if under the limit
+            if (k.keyPhase === 'idle' && pressingCount >= MAX_SIMULTANEOUS_PRESSES) {
+              // Don't start new press, just increment idle time slightly
+              k.idleElapsed += dtMs * 0.5;
+              return;
+            }
+            updateKeyIdlePress(k, dtMs);
+          });
+        }
 
         ctx.clearRect(0, 0, W, H);
 
