@@ -5,7 +5,7 @@ import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 
 // ============================================================
-// TASK 6 — Darken a hex color by a luminance factor
+// Darken a hex color by a luminance factor
 // ============================================================
 function darkenColor(hex, factor) {
   const c = hex || '#888888';
@@ -164,17 +164,14 @@ const PROFILE_SPECS = {
   },
 };
 
-// Helper to normalize profile names for lookup
 const normalizeProfile = (p) => (p || 'cherry').toLowerCase();
-
-// Export for use in other components
 export { PROFILE_SPECS, normalizeProfile };
 
 // ============================================================
-// Keycap geometry (body only: sides + bottom)
-// uvOffset/uvScale enable cloth-drape UV mapping for sides
+// Keycap body geometry (sides + bottom)
+// For wrap mode: sides use IMAGE coordinates directly (matching top face orientation)
 // ============================================================
-function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvOffset = null, uvScale = null) {
+function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', imageUvData = null) {
   const normalizedProfile = normalizeProfile(profile);
   const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
@@ -201,11 +198,12 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvOffse
   const b3 = pushVert(-W / 2, 0, D / 2, 0.5, 0.5);
   indices.push(b0, b2, b1, b0, b3, b2);
 
-  // --- SIDE WALLS with cloth-drape UV mapping ---
+  // --- SIDE WALLS ---
+  // Corners at base and top
   const baseCorners = [
-    [-W / 2, 0, -D / 2],   // 0: front-left
+    [-W / 2, 0, -D / 2],   // 0: front-left (-Z)
     [W / 2, 0, -D / 2],    // 1: front-right
-    [W / 2, 0, D / 2],     // 2: back-right
+    [W / 2, 0, D / 2],     // 2: back-right (+Z, facing user)
     [-W / 2, 0, D / 2],    // 3: back-left
   ];
   const topCorners = [
@@ -215,7 +213,7 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvOffse
     [-tw / 2, H, td / 2],  // 3: back-left
   ];
 
-  // Drape amount - how much image extends onto sides (fraction of keycap's UV scale)
+  // Drape amount - how much image extends onto sides (20% of keycap's UV area)
   const drape = 0.2;
 
   for (let i = 0; i < 4; i++) {
@@ -225,36 +223,47 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvOffse
     const tr = topCorners[j];
     const tl = topCorners[i];
 
-    if (uvOffset && uvScale) {
-      // Cloth-drape: sides show image extending beyond top face edges
+    if (imageUvData) {
+      // Cloth-drape UV mapping - sides show image extending beyond top face
+      // imageUvData contains: { ox, oy, sx, sy } - the keycap's position in IMAGE coordinates
+      // ox, oy = top-left of keycap in image (0-1 range)
+      // sx, sy = size of keycap in image
+      const { ox, oy, sx, sy } = imageUvData;
+
       let uBL, vBL, uBR, vBR, uTR, vTR, uTL, vTL;
-      const ox = uvOffset[0], oy = uvOffset[1];
-      const sx = uvScale[0], sy = uvScale[1];
 
       if (i === 0) {
-        // Front wall (-Z): top edge connects to front of top face (v = oy, small v)
-        uTL = ox;           uTR = ox + sx;       // top edge matches top face width
-        vTL = oy;           vTR = oy;            // top edge at front of top face
-        uBL = ox;           uBR = ox + sx;       // bottom same width
-        vBL = oy - sy * drape; vBR = oy - sy * drape; // extends upward in image
-      } else if (i === 1) {
-        // Right wall (+X): top edge connects to right of top face (u = ox+sx)
-        uTL = ox + sx;      uTR = ox + sx + sx * drape; // extends right
-        vTL = oy;           vTR = oy;
-        uBL = ox + sx;      uBR = ox + sx + sx * drape;
-        vBL = oy + sy;      vBR = oy + sy;
-      } else if (i === 2) {
-        // Back wall (+Z): top edge connects to back of top face (v = oy+sy)
-        uTL = ox + sx;      uTR = ox;            // reversed direction
-        vTL = oy + sy;      vTR = oy + sy;       // top edge at back
-        uBL = ox + sx;      uBR = ox;
-        vBL = oy + sy + sy * drape; vBR = oy + sy + sy * drape; // extends down
-      } else {
-        // Left wall (-X): top edge connects to left of top face (u = ox)
-        uTL = ox - sx * drape; uTR = ox;         // extends left
+        // Front wall (-Z, faces AWAY from user)
+        // Top edge connects to front of keycap top (high V in image = bottom of image)
+        // In image coords: front edge of keycap is at V = oy + sy
+        uTL = ox;           uTR = ox + sx;
         vTL = oy + sy;      vTR = oy + sy;
-        uBL = ox - sx * drape; uBR = ox;
-        vBL = oy;           vBR = oy;
+        // Bottom extends further down in image (higher V)
+        uBL = ox;           uBR = ox + sx;
+        vBL = oy + sy + sy * drape;  vBR = oy + sy + sy * drape;
+      } else if (i === 1) {
+        // Right wall (+X)
+        // Top edge connects to right edge of keycap top (U = ox + sx)
+        uTL = ox + sx;                uTR = ox + sx + sx * drape;
+        vTL = oy + sy;                vTR = oy + sy;
+        uBL = ox + sx;                uBR = ox + sx + sx * drape;
+        vBL = oy;                     vBR = oy;
+      } else if (i === 2) {
+        // Back wall (+Z, faces TOWARD user)
+        // Top edge connects to back of keycap top (low V in image = top of image)
+        // In image coords: back edge of keycap is at V = oy
+        uTL = ox + sx;      uTR = ox;  // Reversed for correct orientation
+        vTL = oy;           vTR = oy;
+        // Bottom extends further up in image (lower V)
+        uBL = ox + sx;      uBR = ox;
+        vBL = oy - sy * drape;  vBR = oy - sy * drape;
+      } else {
+        // Left wall (-X)
+        // Top edge connects to left edge of keycap top (U = ox)
+        uTL = ox - sx * drape;        uTR = ox;
+        vTL = oy;                     vTR = oy;
+        uBL = ox - sx * drape;        uBR = ox;
+        vBL = oy + sy;                vBR = oy + sy;
       }
 
       const v0 = pushVert(bl[0], bl[1], bl[2], uBL, vBL);
@@ -263,7 +272,7 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvOffse
       const v3 = pushVert(tl[0], tl[1], tl[2], uTL, vTL);
       indices.push(v0, v1, v2, v0, v2, v3);
     } else {
-      // Fallback: simple 0-1 mapping
+      // No image - simple 0-1 mapping
       const v0 = pushVert(bl[0], bl[1], bl[2], 0, 0);
       const v1 = pushVert(br[0], br[1], br[2], 1, 0);
       const v2 = pushVert(tr[0], tr[1], tr[2], 1, 1);
@@ -292,7 +301,7 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
   const H = spec.maxHeight * scale;
   const dishDepth = spec.dishDepth * scale;
   const chamfer = spec.chamfer * scale;
-  const dishType = spec.dishType; // 'cylindrical' or 'spherical'
+  const dishType = spec.dishType;
   const dishCols = 10;
   const dishRows = 6;
 
@@ -302,7 +311,7 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
 
   function pushVert(x, y, z, u, v) {
     positions.push(x, y, z);
-    uvs.push(u, 1 - v);
+    uvs.push(u, 1 - v); // Flip V so image top matches keycap back (+Z)
     return (positions.length / 3) - 1;
   }
 
@@ -317,8 +326,6 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
       const x = -tw / 2 + chamfer + (tw - 2 * chamfer) * u;
       const z = -td / 2 + chamfer + (td - 2 * chamfer) * v;
 
-      // Cylindrical dish curves along X axis only
-      // Spherical dish curves along both X and Z axes
       const dishOffset = dishType === 'spherical'
         ? -dishDepth * Math.sin(Math.PI * u) * Math.sin(Math.PI * v)
         : -dishDepth * Math.sin(Math.PI * u);
@@ -340,7 +347,6 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
   }
 
   // --- CHAMFER STRIPS ---
-  // Front edge: z = -td/2
   for (let col = 0; col < dishCols; col++) {
     const u0 = col / dishCols;
     const u1 = (col + 1) / dishCols;
@@ -352,7 +358,6 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     indices.push(wallA, dishB, wallB);
   }
 
-  // Back edge: z = td/2
   for (let col = 0; col < dishCols; col++) {
     const u0 = col / dishCols;
     const u1 = (col + 1) / dishCols;
@@ -364,7 +369,6 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     indices.push(wallA, wallB, dishB);
   }
 
-  // Left edge: x = -tw/2
   for (let row = 0; row < dishRows; row++) {
     const v0 = row / dishRows;
     const v1 = (row + 1) / dishRows;
@@ -376,7 +380,6 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     indices.push(wallA, wallB, dishB);
   }
 
-  // Right edge: x = tw/2
   for (let row = 0; row < dishRows; row++) {
     const v0 = row / dishRows;
     const v1 = (row + 1) / dishRows;
@@ -388,35 +391,31 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     indices.push(wallA, dishB, wallB);
   }
 
-  // Corner patches (4 triangles connecting chamfer strip endpoints to wall top corners)
-  // Front-left corner
+  // Corner patches
   {
     const corner = pushVert(-tw / 2, H, -td / 2, 0, 0);
-    const dishCorner = topStartIdx; // row=0, col=0
+    const dishCorner = topStartIdx;
     const frontEdge = pushVert(-tw / 2 + chamfer, H, -td / 2, 0, 0);
     const leftEdge = pushVert(-tw / 2, H, -td / 2 + chamfer, 0, 0);
     indices.push(corner, frontEdge, dishCorner);
     indices.push(corner, dishCorner, leftEdge);
   }
-  // Front-right corner
   {
     const corner = pushVert(tw / 2, H, -td / 2, 1, 0);
-    const dishCorner = topStartIdx + dishCols; // row=0, col=dishCols
+    const dishCorner = topStartIdx + dishCols;
     const frontEdge = pushVert(tw / 2 - chamfer, H, -td / 2, 1, 0);
     const rightEdge = pushVert(tw / 2, H, -td / 2 + chamfer, 1, 0);
     indices.push(corner, dishCorner, frontEdge);
     indices.push(corner, rightEdge, dishCorner);
   }
-  // Back-left corner
   {
     const corner = pushVert(-tw / 2, H, td / 2, 0, 1);
-    const dishCorner = topStartIdx + dishRows * (dishCols + 1); // row=dishRows, col=0
+    const dishCorner = topStartIdx + dishRows * (dishCols + 1);
     const backEdge = pushVert(-tw / 2 + chamfer, H, td / 2, 0, 1);
     const leftEdge = pushVert(-tw / 2, H, td / 2 - chamfer, 0, 1);
     indices.push(corner, dishCorner, backEdge);
     indices.push(corner, leftEdge, dishCorner);
   }
-  // Back-right corner
   {
     const corner = pushVert(tw / 2, H, td / 2, 1, 1);
     const dishCorner = topStartIdx + dishRows * (dishCols + 1) + dishCols;
@@ -435,61 +434,54 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
 }
 
 // ============================================================
-// TASK 4 — Bake legend into top-face canvas texture
+// Build keycap texture WITH legend composited on top of image
 // ============================================================
-function buildKeycapTextureFallback(color, legend, legendColor, legendFont, legendPosition) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = color || '#7c6bb0';
-  ctx.fillRect(0, 0, 512, 512);
-  // Skip legend if position is hidden, none, or front (front is rendered on body)
-  if (legend && legend.trim() !== '' && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
-    ctx.fillStyle = legendColor || '#ffffff';
-    const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
-    ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(legend, 256, 256);
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition }) {
+async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition, imageElement, uvOffset, uvScale }) {
   const fontFamily = legendFont || 'Inter';
-  
-  // Try multiple weight/size combinations to ensure font is found
+
   try {
     await Promise.race([
       Promise.all([
         document.fonts.load(`bold 160px "${fontFamily}"`),
         document.fonts.load(`700 160px "${fontFamily}"`),
       ]),
-      new Promise(resolve => setTimeout(resolve, 800)) // 800ms max wait
+      new Promise(resolve => setTimeout(resolve, 800))
     ]);
-  } catch (e) {
-    // continue with fallback
-  }
+  } catch (e) {}
 
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = color || '#7c6bb0';
-  ctx.fillRect(0, 0, 512, 512);
+  // Step 1: Draw background (color or image)
+  if (imageElement && uvOffset && uvScale) {
+    // Draw the portion of the image that maps to this keycap
+    const imgW = imageElement.width;
+    const imgH = imageElement.height;
 
-  const grad = ctx.createRadialGradient(256, 180, 20, 256, 200, 220);
-  grad.addColorStop(0, 'rgba(255,255,255,0.10)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 512, 512);
+    // uvOffset/uvScale define which portion of the image this keycap shows
+    // ox, oy = top-left corner in image (0-1), sx, sy = size (0-1)
+    const srcX = uvOffset[0] * imgW;
+    const srcY = uvOffset[1] * imgH;
+    const srcW = uvScale[0] * imgW;
+    const srcH = uvScale[1] * imgH;
 
-  // Skip legend rendering for hidden/none positions
+    ctx.drawImage(imageElement, srcX, srcY, srcW, srcH, 0, 0, 512, 512);
+  } else {
+    // Solid color background
+    ctx.fillStyle = color || '#7c6bb0';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Subtle highlight gradient
+    const grad = ctx.createRadialGradient(256, 180, 20, 256, 200, 220);
+    grad.addColorStop(0, 'rgba(255,255,255,0.10)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 512);
+  }
+
+  // Step 2: Draw legend ON TOP of background (always visible)
   if (legend && legend.trim() !== '' && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
     const posMap = {
       'center':       [256, 256],
@@ -503,12 +495,22 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
     const [tx, ty] = pos;
     const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
 
-    ctx.fillStyle = legendColor || '#ffffff';
+    // Draw text shadow/outline for better visibility on images
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    ctx.fillText(legend, tx + 2, ty + 2);
+
+    // Draw main text
+    ctx.fillStyle = legendColor || '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 3;
     ctx.fillText(legend, tx, ty);
   }
@@ -519,39 +521,64 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
   return tex;
 }
 
+// Fallback version (sync, no image)
+function buildKeycapTextureFallback(color, legend, legendColor, legendFont, legendPosition) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = color || '#7c6bb0';
+  ctx.fillRect(0, 0, 512, 512);
+
+  if (legend && legend.trim() !== '' && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
+    ctx.fillStyle = legendColor || '#ffffff';
+    const fontSize = legend.length > 3 ? 100 : legend.length > 1 ? 130 : 160;
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(legend, 256, 256);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 // ============================================================
-// Front face legend texture (for sideprint legends)
+// Front face legend texture (sideprint) - LARGER for visibility
 // ============================================================
-async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont, baseColor }) {
+async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont }) {
   const fontFamily = legendFont || 'Inter';
 
   try {
     await Promise.race([
-      document.fonts.load(`bold 80px "${fontFamily}"`),
+      document.fonts.load(`bold 140px "${fontFamily}"`),
       new Promise(resolve => setTimeout(resolve, 500))
     ]);
   } catch (e) {}
 
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
+  canvas.width = 1024;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  // Transparent background - we'll use the keycap color underneath
-  ctx.clearRect(0, 0, 512, 256);
+  ctx.clearRect(0, 0, 1024, 512);
 
   if (legend && legend.trim() !== '') {
-    // Smaller font sizes to fit within the front face
-    const fontSize = legend.length > 3 ? 48 : legend.length > 1 ? 64 : 80;
+    // Larger font sizes for front face visibility
+    const fontSize = legend.length > 3 ? 80 : legend.length > 1 ? 110 : 140;
+
+    // Shadow for depth
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
 
     ctx.fillStyle = legendColor || '#ffffff';
     ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
-    ctx.fillText(legend, 256, 128);
+    ctx.fillText(legend, 512, 256);
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -592,7 +619,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const displayText = legendText && legendText.trim() !== '' ? legendText : label;
   const isSingleView = (x === undefined && y === undefined);
 
-  // Adjusted UV values based on user's pan/zoom settings (must be before bodyGeo)
+  // Adjusted UV values based on user's pan/zoom settings
   const adjustedUvOffset = useMemo(() => [
     uvOffset[0] / imageScale - imageOffsetX * 0.5,
     uvOffset[1] / imageScale - imageOffsetY * 0.5
@@ -603,21 +630,46 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     uvScale[1] / imageScale
   ], [uvScale, imageScale]);
 
-  // ============================================================
-  // Separate body and top-face geometries (memoized per width/height)
-  // ============================================================
-  // Body geometry: pass adjusted uvOffset/uvScale for cloth-drape effect in wrap mode
+  // Image UV data for body geometry (in IMAGE coordinates, accounting for V-flip)
+  const imageUvData = useMemo(() => {
+    if (imageMode !== 'wrap') return null;
+    // Convert to image coordinates where V=0 is top of image
+    // The top face uses (u, 1-v), so we need to match that
+    return {
+      ox: adjustedUvOffset[0],
+      oy: 1 - adjustedUvOffset[1] - adjustedUvScale[1], // Flip Y to match image coords
+      sx: adjustedUvScale[0],
+      sy: adjustedUvScale[1]
+    };
+  }, [imageMode, adjustedUvOffset, adjustedUvScale]);
+
+  // Body geometry with cloth-drape UV mapping when image is applied
   const bodyGeo = useMemo(() => {
-    if (imageMode === 'wrap' && adjustedUvOffset && adjustedUvScale) {
-      return createBodyGeometry(w, h, profile, adjustedUvOffset, adjustedUvScale);
-    }
-    return createBodyGeometry(w, h, profile);
-  }, [w, h, profile, imageMode, adjustedUvOffset, adjustedUvScale]);
+    return createBodyGeometry(w, h, profile, imageUvData);
+  }, [w, h, profile, imageUvData]);
 
   const topGeo = useMemo(() => createTopFaceGeometry(w, h, profile), [w, h, profile]);
 
   // ============================================================
-  // TASK 4 — Baked legend texture (regenerated when design changes)
+  // Load image as HTMLImageElement for compositing
+  // ============================================================
+  const [imageElement, setImageElement] = useState(null);
+
+  useEffect(() => {
+    if (!imageUrl || imageMode === 'none' || imageMode === 'perkey') {
+      setImageElement(null);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => setImageElement(img);
+    img.onerror = () => setImageElement(null);
+    img.src = imageUrl;
+    return () => { img.onload = null; img.onerror = null; };
+  }, [imageUrl, imageMode]);
+
+  // ============================================================
+  // Top face texture - composites legend ON TOP of image
   // ============================================================
   const [topTexture, setTopTexture] = useState(() =>
     buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition)
@@ -625,12 +677,19 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
 
   useEffect(() => {
     let cancelled = false;
+
+    const uvOff = (imageMode === 'wrap' || imageMode === 'tile') ? adjustedUvOffset : null;
+    const uvSc = (imageMode === 'wrap' || imageMode === 'tile') ? adjustedUvScale : null;
+
     buildKeycapTexture({
       color,
       legend: displayText,
       legendColor,
       legendFont: font,
       legendPosition,
+      imageElement: (imageMode === 'wrap' || imageMode === 'tile') ? imageElement : null,
+      uvOffset: uvOff,
+      uvScale: uvSc,
     }).then((tex) => {
       if (!cancelled) {
         setTopTexture(prev => {
@@ -640,16 +699,16 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       }
     });
     return () => { cancelled = true; };
-  }, [color, displayText, legendColor, font, legendPosition]);
+  }, [color, displayText, legendColor, font, legendPosition, imageMode, imageElement, adjustedUvOffset, adjustedUvScale]);
 
   // ============================================================
-  // Image texture handling
+  // Side texture (for wrap mode, use image directly)
   // ============================================================
-  const [tileTexture, setTileTexture] = useState(null);
+  const [sideTexture, setSideTexture] = useState(null);
 
   useEffect(() => {
-    if (!imageUrl || imageMode === 'none' || imageMode === 'perkey') {
-      setTileTexture(null);
+    if (!imageUrl || imageMode !== 'wrap') {
+      setSideTexture(null);
       return;
     }
     let cancelled = false;
@@ -660,34 +719,17 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
         if (cancelled) return;
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(1, 1);
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.needsUpdate = true;
-        setTileTexture(tex);
+        setSideTexture(tex);
       },
       undefined,
-      () => { if (!cancelled) setTileTexture(null); }
+      () => { if (!cancelled) setSideTexture(null); }
     );
     return () => { cancelled = true; };
   }, [imageUrl, imageMode]);
 
-  const [wrapTexture, setWrapTexture] = useState(null);
-
-  useEffect(() => {
-    if (!tileTexture || imageMode !== 'wrap') {
-      setWrapTexture(null);
-      return;
-    }
-    const cloned = tileTexture.clone();
-    cloned.wrapS = THREE.RepeatWrapping; // Allow wrapping for panned images
-    cloned.wrapT = THREE.RepeatWrapping;
-    cloned.offset.set(adjustedUvOffset[0], 1 - adjustedUvOffset[1] - adjustedUvScale[1]);
-    cloned.repeat.set(adjustedUvScale[0], adjustedUvScale[1]);
-    cloned.needsUpdate = true;
-    setWrapTexture(cloned);
-    return () => { cloned.dispose(); };
-  }, [tileTexture, imageMode, adjustedUvOffset, adjustedUvScale]);
-
+  // Per-key image
   const perKeyImage = pkDesign?.imageUrl;
   const [perKeyTexture, setPerKeyTexture] = useState(null);
 
@@ -704,16 +746,12 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     return () => { cancelled = true; };
   }, [perKeyImage]);
 
-  // Priority: perKey > wrap > tile > baked legend texture
-  const activeTopTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : (imageMode === 'tile' ? tileTexture : topTexture));
-
-  // For sides in wrap mode: use base tileTexture since body UVs are now global coordinates
-  // For tile mode: use tileTexture directly
-  const hasImageTexture = perKeyTexture || (imageMode === 'wrap' && tileTexture) || (imageMode === 'tile' && tileTexture);
-  const activeSideTexture = hasImageTexture ? tileTexture : null;
+  // Final textures
+  const activeTopTexture = perKeyTexture || topTexture;
+  const activeSideTexture = (imageMode === 'wrap' && sideTexture) ? sideTexture : null;
 
   // ============================================================
-  // Front face legend texture (for sideprint/front position)
+  // Front face legend (sideprint)
   // ============================================================
   const [frontFaceTexture, setFrontFaceTexture] = useState(null);
   const showFrontLegend = legendPosition === 'front' && displayText && displayText.trim() !== '';
@@ -728,7 +766,6 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       legend: displayText,
       legendColor,
       legendFont: font,
-      baseColor: color,
     }).then((tex) => {
       if (!cancelled) {
         setFrontFaceTexture(prev => {
@@ -738,9 +775,9 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       }
     });
     return () => { cancelled = true; };
-  }, [showFrontLegend, displayText, legendColor, font, color]);
+  }, [showFrontLegend, displayText, legendColor, font]);
 
-  // Front face geometry dimensions (need profile spec for positioning)
+  // Front face geometry - LARGER to make text visible
   const frontFaceGeometry = useMemo(() => {
     if (!showFrontLegend) return null;
     const normalizedProfile = normalizeProfile(profile);
@@ -749,14 +786,14 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     const W = spec.baseWidth * w * scale;
     const tw = spec.topWidth * w * scale;
     const H = spec.maxHeight * scale;
-    // Front face width is average of base and top width, make it wider to fit text
+    // Make the legend plane wider and taller for visibility
     const faceWidth = (W + tw) / 2;
-    const faceHeight = H * 0.5; // Legend takes ~50% of front face height
-    return new THREE.PlaneGeometry(faceWidth * 0.9, faceHeight);
+    const faceHeight = H * 0.65; // 65% of height for better visibility
+    return new THREE.PlaneGeometry(faceWidth * 0.95, faceHeight);
   }, [showFrontLegend, profile, w]);
 
   // ============================================================
-  // TASK 6 — Material presets
+  // Material presets
   // ============================================================
   const isABS = materialPreset === 'abs';
   const sideColor = darkenColor(color, 0.82);
@@ -840,7 +877,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             </mesh>
           )}
 
-          {/* Body mesh: sides + bottom — image texture when active, otherwise darkened color */}
+          {/* Body mesh: sides + bottom */}
           <mesh geometry={bodyGeo} castShadow receiveShadow>
             <meshPhysicalMaterial
               map={activeSideTexture}
@@ -849,7 +886,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             />
           </mesh>
 
-          {/* Top face mesh: dish + chamfers — legend texture applied here */}
+          {/* Top face mesh: dish + chamfers */}
           <mesh geometry={topGeo} castShadow receiveShadow>
             <meshPhysicalMaterial
               map={activeTopTexture}
@@ -858,7 +895,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             />
           </mesh>
 
-          {/* Front face legend (sideprint) - positioned on the BACK face (positive Z, facing user in keyboard view) */}
+          {/* Front face legend (sideprint) - on the BACK wall (+Z, facing user) */}
           {showFrontLegend && frontFaceTexture && frontFaceGeometry && (() => {
             const normalizedProfile = normalizeProfile(profile);
             const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
@@ -867,20 +904,19 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             const td = spec.topDepth * h * scale;
             const H = spec.maxHeight * scale * (rowHeight || 1);
 
-            // Back wall (positive Z, facing user) goes from (z=D/2, y=0) at bottom to (z=td/2, y=H) at top
-            // Calculate wall tilt angle - wall slopes inward from bottom to top
+            // Back wall (+Z) slopes from (D/2, 0) at bottom to (td/2, H) at top
             const wallAngle = Math.atan2((D - td) / 2, H);
 
-            // Position legend at ~40% height on the wall
-            const t = 0.4;
+            // Position at 45% height for better centering
+            const t = 0.45;
             const frontY = H * t;
-            const frontZ = D/2 - ((D - td) / 2) * t; // Interpolate Z along the slanted back wall
+            const frontZ = D/2 - ((D - td) / 2) * t;
 
             return (
               <mesh
                 geometry={frontFaceGeometry}
-                position={[0, frontY, frontZ + 0.003]} // Slight offset to prevent z-fighting
-                rotation={[wallAngle, 0, 0]} // Tilt to match wall angle, no Y rotation (faces +Z naturally)
+                position={[0, frontY, frontZ + 0.004]}
+                rotation={[wallAngle, 0, 0]}
               >
                 <meshBasicMaterial
                   map={frontFaceTexture}
@@ -893,7 +929,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             );
           })()}
 
-          {/* Cherry MX stem underneath */}
+          {/* Cherry MX stem */}
           <group position={[0, -0.15, 0]}>
             <mesh castShadow>
               <boxGeometry args={[0.07, 0.12, 0.22]} />
