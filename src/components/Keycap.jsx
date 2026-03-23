@@ -498,30 +498,31 @@ async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont, ba
 
   try {
     await Promise.race([
-      document.fonts.load(`bold 120px "${fontFamily}"`),
+      document.fonts.load(`bold 80px "${fontFamily}"`),
       new Promise(resolve => setTimeout(resolve, 500))
     ]);
   } catch (e) {}
 
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 128;
+  canvas.width = 512;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
   // Transparent background - we'll use the keycap color underneath
-  ctx.clearRect(0, 0, 256, 128);
+  ctx.clearRect(0, 0, 512, 256);
 
   if (legend && legend.trim() !== '') {
-    const fontSize = legend.length > 3 ? 40 : legend.length > 1 ? 56 : 72;
+    // Smaller font sizes to fit within the front face
+    const fontSize = legend.length > 3 ? 48 : legend.length > 1 ? 64 : 80;
 
     ctx.fillStyle = legendColor || '#ffffff';
     ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0,0,0,0.3)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 1;
-    ctx.fillText(legend, 128, 64);
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 2;
+    ctx.fillText(legend, 256, 128);
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -697,10 +698,10 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     const W = spec.baseWidth * w * scale;
     const tw = spec.topWidth * w * scale;
     const H = spec.maxHeight * scale;
-    // Front face width is average of base and top width
+    // Front face width is average of base and top width, make it wider to fit text
     const faceWidth = (W + tw) / 2;
-    const faceHeight = H * 0.4; // Legend takes ~40% of front face height
-    return new THREE.PlaneGeometry(faceWidth * 0.85, faceHeight);
+    const faceHeight = H * 0.5; // Legend takes ~50% of front face height
+    return new THREE.PlaneGeometry(faceWidth * 0.9, faceHeight);
   }, [showFrontLegend, profile, w]);
 
   // ============================================================
@@ -806,7 +807,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             />
           </mesh>
 
-          {/* Front face legend (sideprint) */}
+          {/* Front face legend (sideprint) - positioned on the BACK face (positive Z, facing user in keyboard view) */}
           {showFrontLegend && frontFaceTexture && frontFaceGeometry && (() => {
             const normalizedProfile = normalizeProfile(profile);
             const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
@@ -815,20 +816,20 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             const td = spec.topDepth * h * scale;
             const H = spec.maxHeight * scale * (rowHeight || 1);
 
-            // Front wall goes from (z=-D/2, y=0) at bottom to (z=-td/2, y=H) at top
-            // Calculate wall tilt angle
+            // Back wall (positive Z, facing user) goes from (z=D/2, y=0) at bottom to (z=td/2, y=H) at top
+            // Calculate wall tilt angle - wall slopes inward from bottom to top
             const wallAngle = Math.atan2((D - td) / 2, H);
 
-            // Position legend at ~35% height on the front wall
-            const t = 0.35; // Parameter along the wall (0=bottom, 1=top)
+            // Position legend at ~40% height on the wall
+            const t = 0.4;
             const frontY = H * t;
-            const frontZ = -D/2 + ((D - td) / 2) * t; // Interpolate Z along the slanted wall
+            const frontZ = D/2 - ((D - td) / 2) * t; // Interpolate Z along the slanted back wall
 
             return (
               <mesh
                 geometry={frontFaceGeometry}
-                position={[0, frontY, frontZ - 0.003]} // Slight offset to prevent z-fighting
-                rotation={[-wallAngle, Math.PI, 0]} // Tilt to match wall angle, face outward
+                position={[0, frontY, frontZ + 0.003]} // Slight offset to prevent z-fighting
+                rotation={[wallAngle, 0, 0]} // Tilt to match wall angle, no Y rotation (faces +Z naturally)
               >
                 <meshBasicMaterial
                   map={frontFaceTexture}
