@@ -233,6 +233,15 @@ export default function EntryScreen() {
 
     function animate(now) {
       try {
+        // Debug: log once
+        if (!window._animateLogged) {
+          window._animateLogged = true;
+          console.log('[Animate Debug] W:', W, 'H:', H);
+          console.log('[Animate Debug] keyStates count:', keyStates.length);
+          console.log('[Animate Debug] First key:', keyStates[0]);
+          console.log('[Animate Debug] canvas.width:', canvas.width, 'canvas.height:', canvas.height);
+        }
+
         const dtMs = Math.min(Math.max(0, now - lastFrameTime), 48);
         lastFrameTime = now;
 
