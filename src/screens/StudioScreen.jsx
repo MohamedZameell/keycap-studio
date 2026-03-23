@@ -165,8 +165,7 @@ export default function StudioScreen() {
   }, [store.selectedFormFactor]);
 
   const handleKeyFocus = useCallback((keyId) => {
-    // Just select the key - no camera movement
-    // User can switch to single view mode manually if they want focused view
+    // Just select the key in full view - no camera movement
     store.setSelectedKey(keyId);
   }, [store]);
 
@@ -176,6 +175,23 @@ export default function StudioScreen() {
     cameraStateRef.current.isAnimating = true;
     setIsCameraFocused(false);
   }, []);
+
+  // Animate camera when switching to single view mode
+  useEffect(() => {
+    if (viewMode === 'single') {
+      // Animate to single key focus position
+      cameraStateRef.current.pos = [0, 1.0, 3.2];
+      cameraStateRef.current.target = [0, 0, 0];
+      cameraStateRef.current.isAnimating = true;
+      setIsCameraFocused(true);
+    } else {
+      // Animate back to full view position
+      cameraStateRef.current.pos = [...defaultCamPos];
+      cameraStateRef.current.target = [...defaultCamTarget];
+      cameraStateRef.current.isAnimating = true;
+      setIsCameraFocused(false);
+    }
+  }, [viewMode]);
 
   const targetKeyId = targetScope === 'selected' ? store.selectedKey : null;
 
