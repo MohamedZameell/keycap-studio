@@ -165,17 +165,10 @@ export default function StudioScreen() {
   }, [store.selectedFormFactor]);
 
   const handleKeyFocus = useCallback((keyId) => {
+    // Just select the key - no camera movement
+    // User can switch to single view mode manually if they want focused view
     store.setSelectedKey(keyId);
-    const { layout, minX, minZ, maxW, maxH } = layoutData();
-    const key = layout.find(k => k.id === keyId);
-    if (!key || viewMode !== 'full') return;
-    const kx = (Number(key.x) - minX - maxW / 2 + (Number(key.w) || 1) / 2) * KEY_UNIT;
-    const kz = (Number(key.y) - minZ - maxH / 2 + (Number(key.h) || 1) / 2) * KEY_UNIT;
-    cameraStateRef.current.target = [kx, 0, kz];
-    cameraStateRef.current.pos = [kx, 3.5, kz + 5];
-    cameraStateRef.current.isAnimating = true;
-    setIsCameraFocused(true);
-  }, [store, layoutData, viewMode]);
+  }, [store]);
 
   const resetCamera = useCallback(() => {
     cameraStateRef.current.pos = [...defaultCamPos];

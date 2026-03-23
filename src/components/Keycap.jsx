@@ -201,6 +201,7 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
   indices.push(b0, b2, b1, b0, b3, b2);
 
   // --- SIDE WALLS (4 sides, each a quad from base to top) ---
+  // UV mapping projects texture from top view for proper image wrapping
   const baseCorners = [
     [-W / 2, 0, -D / 2],
     [W / 2, 0, -D / 2],
@@ -214,18 +215,31 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     [-tw / 2, H, td / 2],
   ];
 
+  // Helper to compute UV from X,Z position (top-down projection)
+  function getTopDownUV(x, z) {
+    // Normalize to 0-1 based on base dimensions (widest part)
+    const u = (x + W / 2) / W;
+    const v = 1 - (z + D / 2) / D; // Flip V to match texture orientation
+    return [u, v];
+  }
+
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
     const bl = baseCorners[i];
     const br = baseCorners[j];
     const tr = topCorners[j];
     const tl = topCorners[i];
-    const uL = i / 4;
-    const uR = (i + 1) / 4;
-    const v0 = pushVert(bl[0], bl[1], bl[2], uL, 0);
-    const v1 = pushVert(br[0], br[1], br[2], uR, 0);
-    const v2 = pushVert(tr[0], tr[1], tr[2], uR, 1);
-    const v3 = pushVert(tl[0], tl[1], tl[2], uL, 1);
+
+    // Use top-down projected UVs for proper image wrapping
+    const [uBL, vBL] = getTopDownUV(bl[0], bl[2]);
+    const [uBR, vBR] = getTopDownUV(br[0], br[2]);
+    const [uTR, vTR] = getTopDownUV(tr[0], tr[2]);
+    const [uTL, vTL] = getTopDownUV(tl[0], tl[2]);
+
+    const v0 = pushVert(bl[0], bl[1], bl[2], uBL, vBL);
+    const v1 = pushVert(br[0], br[1], br[2], uBR, vBR);
+    const v2 = pushVert(tr[0], tr[1], tr[2], uTR, vTR);
+    const v3 = pushVert(tl[0], tl[1], tl[2], uTL, vTL);
     indices.push(v0, v1, v2, v0, v2, v3);
   }
 
@@ -799,15 +813,22 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             const scale = 1 / 19.05;
             const D = spec.baseDepth * h * scale;
             const td = spec.topDepth * h * scale;
-            const H = spec.maxHeight * scale;
-            // Position at front face, vertically centered in lower portion
-            const frontZ = -(D + td) / 4; // Average of base and top depth, divided by 2
-            const frontY = H * 0.35; // Position legend in lower-middle of front face
+            const H = spec.maxHeight * scale * (rowHeight || 1);
+
+            // Front wall goes from (z=-D/2, y=0) at bottom to (z=-td/2, y=H) at top
+            // Calculate wall tilt angle
+            const wallAngle = Math.atan2((D - td) / 2, H);
+
+            // Position legend at ~35% height on the front wall
+            const t = 0.35; // Parameter along the wall (0=bottom, 1=top)
+            const frontY = H * t;
+            const frontZ = -D/2 + ((D - td) / 2) * t; // Interpolate Z along the slanted wall
+
             return (
               <mesh
                 geometry={frontFaceGeometry}
-                position={[0, frontY, frontZ - 0.002]} // Slight offset to prevent z-fighting
-                rotation={[0, Math.PI, 0]} // Rotate 180° to face viewer (looking from front)
+                position={[0, frontY, frontZ - 0.003]} // Slight offset to prevent z-fighting
+                rotation={[-wallAngle, Math.PI, 0]} // Tilt to match wall angle, face outward
               >
                 <meshBasicMaterial
                   map={frontFaceTexture}
