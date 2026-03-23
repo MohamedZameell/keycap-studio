@@ -201,7 +201,6 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
   indices.push(b0, b2, b1, b0, b3, b2);
 
   // --- SIDE WALLS (4 sides, each a quad from base to top) ---
-  // UV mapping projects texture from top view for proper image wrapping
   const baseCorners = [
     [-W / 2, 0, -D / 2],
     [W / 2, 0, -D / 2],
@@ -215,14 +214,6 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     [-tw / 2, H, td / 2],
   ];
 
-  // Helper to compute UV from X,Z position (top-down projection)
-  function getTopDownUV(x, z) {
-    // Normalize to 0-1 based on base dimensions (widest part)
-    const u = (x + W / 2) / W;
-    const v = 1 - (z + D / 2) / D; // Flip V to match texture orientation
-    return [u, v];
-  }
-
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
     const bl = baseCorners[i];
@@ -230,16 +221,12 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
     const tr = topCorners[j];
     const tl = topCorners[i];
 
-    // Use top-down projected UVs for proper image wrapping
-    const [uBL, vBL] = getTopDownUV(bl[0], bl[2]);
-    const [uBR, vBR] = getTopDownUV(br[0], br[2]);
-    const [uTR, vTR] = getTopDownUV(tr[0], tr[2]);
-    const [uTL, vTL] = getTopDownUV(tl[0], tl[2]);
-
-    const v0 = pushVert(bl[0], bl[1], bl[2], uBL, vBL);
-    const v1 = pushVert(br[0], br[1], br[2], uBR, vBR);
-    const v2 = pushVert(tr[0], tr[1], tr[2], uTR, vTR);
-    const v3 = pushVert(tl[0], tl[1], tl[2], uTL, vTL);
+    // UV mapping: each side gets full texture coverage (0-1)
+    // This allows the texture to be visible on all sides
+    const v0 = pushVert(bl[0], bl[1], bl[2], 0, 0);
+    const v1 = pushVert(br[0], br[1], br[2], 1, 0);
+    const v2 = pushVert(tr[0], tr[1], tr[2], 1, 1);
+    const v3 = pushVert(tl[0], tl[1], tl[2], 0, 1);
     indices.push(v0, v1, v2, v0, v2, v3);
   }
 
@@ -657,7 +644,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   // Priority: perKey > wrap > tile > baked legend texture
   const activeTopTexture = perKeyTexture || (imageMode === 'wrap' ? wrapTexture : (imageMode === 'tile' ? tileTexture : topTexture));
 
-  // Determine if we should apply image texture to sides
+  // For sides: use the same portion of image as the top face
+  // Side UVs are 0-1, so wrapTexture's offset/repeat will show the correct portion
   const hasImageTexture = perKeyTexture || (imageMode === 'wrap' && wrapTexture) || (imageMode === 'tile' && tileTexture);
   const activeSideTexture = hasImageTexture ? activeTopTexture : null;
 
