@@ -892,6 +892,7 @@ export default function StudioScreen() {
                       isSelected={false}
                       singleKeyMode={true}
                       onClick={() => {}}
+                      profile={store.selectedProfile || 'cherry'}
                     />
                   </group>
                 )}

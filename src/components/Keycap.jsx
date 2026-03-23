@@ -16,15 +16,129 @@ function darkenColor(hex, factor) {
 }
 
 // ============================================================
-// TASK 3 — Cherry MX profile keycap geometry (body only: sides + bottom)
+// KEYCAP PROFILE SPECIFICATIONS
 // ============================================================
-function createBodyGeometry(widthU = 1, heightU = 1) {
+const PROFILE_SPECS = {
+  cherry: {
+    maxHeight: 9.4,
+    dishType: 'cylindrical',
+    dishDepth: 0.6,
+    topWidth: 14.0,
+    topDepth: 13.0,
+    baseWidth: 17.5,
+    baseDepth: 17.5,
+    chamfer: 0.7,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.904, 0.787, 0.904, 0.904],
+    rowTilts: [0.122, 0.122, 0.087, 0, -0.105, -0.105],
+  },
+  oem: {
+    maxHeight: 11.9,
+    dishType: 'cylindrical',
+    dishDepth: 0.8,
+    topWidth: 13.5,
+    topDepth: 12.5,
+    baseWidth: 18.0,
+    baseDepth: 18.0,
+    chamfer: 0.6,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.924, 0.807, 0.924, 0.924],
+    rowTilts: [0.140, 0.140, 0.100, 0, -0.120, -0.120],
+  },
+  sa: {
+    maxHeight: 16.5,
+    dishType: 'spherical',
+    dishDepth: 2.5,
+    topWidth: 12.5,
+    topDepth: 12.5,
+    baseWidth: 18.4,
+    baseDepth: 18.4,
+    chamfer: 0.5,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.971, 0.941, 0.941, 0.941],
+    rowTilts: [0.150, 0.150, 0.100, 0, -0.100, -0.100],
+  },
+  dsa: {
+    maxHeight: 7.6,
+    dishType: 'spherical',
+    dishDepth: 1.0,
+    topWidth: 13.0,
+    topDepth: 13.0,
+    baseWidth: 18.0,
+    baseDepth: 18.0,
+    chamfer: 0.8,
+    uniform: true,
+    rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
+    rowTilts: [0, 0, 0, 0, 0, 0],
+  },
+  xda: {
+    maxHeight: 9.1,
+    dishType: 'spherical',
+    dishDepth: 0.5,
+    topWidth: 13.5,
+    topDepth: 13.5,
+    baseWidth: 18.0,
+    baseDepth: 18.0,
+    chamfer: 0.8,
+    uniform: true,
+    rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
+    rowTilts: [0, 0, 0, 0, 0, 0],
+  },
+  kat: {
+    maxHeight: 13.5,
+    dishType: 'spherical',
+    dishDepth: 1.8,
+    topWidth: 13.0,
+    topDepth: 12.5,
+    baseWidth: 18.2,
+    baseDepth: 18.2,
+    chamfer: 0.6,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.926, 0.852, 0.926, 0.926],
+    rowTilts: [0.140, 0.140, 0.090, 0, -0.110, -0.110],
+  },
+  mt3: {
+    maxHeight: 16.0,
+    dishType: 'spherical',
+    dishDepth: 3.0,
+    topWidth: 12.0,
+    topDepth: 12.0,
+    baseWidth: 18.4,
+    baseDepth: 18.4,
+    chamfer: 0.5,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.969, 0.906, 0.938, 0.938],
+    rowTilts: [0.160, 0.160, 0.110, 0, -0.120, -0.120],
+  },
+  asa: {
+    maxHeight: 13.5,
+    dishType: 'spherical',
+    dishDepth: 1.5,
+    topWidth: 13.2,
+    topDepth: 12.8,
+    baseWidth: 18.2,
+    baseDepth: 18.2,
+    chamfer: 0.6,
+    uniform: false,
+    rowHeights: [1.000, 1.000, 0.926, 0.852, 0.926, 0.926],
+    rowTilts: [0.140, 0.140, 0.095, 0, -0.110, -0.110],
+  },
+};
+
+// Export for use in other components
+export { PROFILE_SPECS };
+
+// ============================================================
+// Keycap geometry (body only: sides + bottom)
+// ============================================================
+function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
+  const spec = PROFILE_SPECS[profile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
-  const W = 17.5 * widthU * scale;
-  const D = 17.5 * heightU * scale;
-  const tw = 14.0 * widthU * scale;
-  const td = 13.0 * heightU * scale;
-  const H = 9.4 * scale;
+  const W = spec.baseWidth * widthU * scale;
+  const D = spec.baseDepth * heightU * scale;
+  const tw = spec.topWidth * widthU * scale;
+  const td = spec.topDepth * heightU * scale;
+  const H = spec.maxHeight * scale;
 
   const positions = [];
   const uvs = [];
@@ -81,15 +195,17 @@ function createBodyGeometry(widthU = 1, heightU = 1) {
 }
 
 // ============================================================
-// TASK 3 — Cherry MX profile keycap top face geometry (dish + chamfers)
+// Keycap top face geometry (dish + chamfers)
 // ============================================================
-function createTopFaceGeometry(widthU = 1, heightU = 1) {
+function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry') {
+  const spec = PROFILE_SPECS[profile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
-  const tw = 14.0 * widthU * scale;
-  const td = 13.0 * heightU * scale;
-  const H = 9.4 * scale;
-  const dishDepth = 0.6 * scale;
-  const chamfer = 0.7 * scale;
+  const tw = spec.topWidth * widthU * scale;
+  const td = spec.topDepth * heightU * scale;
+  const H = spec.maxHeight * scale;
+  const dishDepth = spec.dishDepth * scale;
+  const chamfer = spec.chamfer * scale;
+  const dishType = spec.dishType; // 'cylindrical' or 'spherical'
   const dishCols = 10;
   const dishRows = 6;
 
@@ -114,7 +230,11 @@ function createTopFaceGeometry(widthU = 1, heightU = 1) {
       const x = -tw / 2 + chamfer + (tw - 2 * chamfer) * u;
       const z = -td / 2 + chamfer + (td - 2 * chamfer) * v;
 
-      const dishOffset = -dishDepth * Math.sin(Math.PI * u);
+      // Cylindrical dish curves along X axis only
+      // Spherical dish curves along both X and Z axes
+      const dishOffset = dishType === 'spherical'
+        ? -dishDepth * Math.sin(Math.PI * u) * Math.sin(Math.PI * v)
+        : -dishDepth * Math.sin(Math.PI * u);
       const y = H + dishOffset;
 
       pushVert(x, y, z, u, v);
@@ -319,7 +439,7 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
 // ============================================================
 // Main Keycap component
 // ============================================================
-export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPerformanceMode, singleKeyMode = false, onClick }) {
+export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPerformanceMode, singleKeyMode = false, onClick, profile = 'cherry' }) {
   const meshRef = useRef();
 
   const [hovered, setHovered] = useState(false);
@@ -348,8 +468,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   // ============================================================
   // Separate body and top-face geometries (memoized per width/height)
   // ============================================================
-  const bodyGeo = useMemo(() => createBodyGeometry(w, h), [w, h]);
-  const topGeo = useMemo(() => createTopFaceGeometry(w, h), [w, h]);
+  const bodyGeo = useMemo(() => createBodyGeometry(w, h, profile), [w, h, profile]);
+  const topGeo = useMemo(() => createTopFaceGeometry(w, h, profile), [w, h, profile]);
 
   // ============================================================
   // TASK 4 — Baked legend texture (regenerated when design changes)
