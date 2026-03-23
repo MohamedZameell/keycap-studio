@@ -447,16 +447,18 @@ export default function EntryScreen() {
             <button
               onClick={() => setScreen('gallery')}
               style={{
-                background: 'rgba(255,255,255,0.08)',
+                background: 'rgba(19, 19, 21, 0.7)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
                 color: '#d0bcff',
-                border: '1px solid rgba(208,188,255,0.4)',
+                border: '1px solid rgba(208,188,255,0.5)',
                 borderRadius: '6px',
                 padding: '14px 36px',
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
                 fontSize: '1rem',
                 cursor: 'pointer',
-                boxShadow: '0 4px 0 rgba(0,0,0,0.3)',
+                boxShadow: '0 4px 0 rgba(0,0,0,0.4), 0 0 20px rgba(0,0,0,0.3)',
                 transform: 'translateY(0)',
                 transition: 'transform 0.1s, box-shadow 0.1s',
               }}
