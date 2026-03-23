@@ -99,11 +99,14 @@ const THEMES = [
 ];
 
 const LEGEND_POSITIONS = [
+  { value: 'center', label: 'Center' },
   { value: 'top-center', label: 'Top Center' },
   { value: 'top-left', label: 'Top Left' },
   { value: 'top-right', label: 'Top Right' },
+  { value: 'bottom-left', label: 'Bottom Left' },
+  { value: 'bottom-right', label: 'Bottom Right' },
   { value: 'front', label: 'Front Face' },
-  { value: 'none', label: 'Hidden' },
+  { value: 'hidden', label: 'Hidden' },
 ];
 
 const IMAGE_MODES = [
@@ -534,17 +537,21 @@ export default function StudioScreen() {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {[
-                      { label: 'Cherry', value: 'cherry' },
-                      { label: 'OEM', value: 'oem' },
-                      { label: 'SA', value: 'sa' },
-                      { label: 'DSA', value: 'dsa' },
-                      { label: 'XDA', value: 'xda' },
-                      { label: 'KAT', value: 'kat' },
-                      { label: 'MT3', value: 'mt3' },
-                      { label: 'ASA', value: 'asa' },
+                      { label: 'Cherry', value: 'cherry', desc: 'Low sculpted, cylindrical dish' },
+                      { label: 'OEM', value: 'oem', desc: 'Taller than Cherry, common stock' },
+                      { label: 'SA', value: 'sa', desc: 'Tall spherical, retro typewriter' },
+                      { label: 'DSA', value: 'dsa', desc: 'Uniform flat, spherical dish' },
+                      { label: 'XDA', value: 'xda', desc: 'Uniform flat, wider surface' },
+                      { label: 'KAT', value: 'kat', desc: 'Medium height, smooth sculpt' },
+                      { label: 'MT3', value: 'mt3', desc: 'Deep spherical, ergonomic' },
+                      { label: 'ASA', value: 'asa', desc: 'Akko sculpted, balanced' },
+                      { label: 'OSA', value: 'osa', desc: 'Medium spherical, comfortable' },
+                      { label: 'KSA', value: 'ksa', desc: 'Tall uniform, deep dish' },
+                      { label: 'Low', value: 'low profile', desc: 'Laptop-style, minimal height' },
                     ].map(p => (
                       <button key={p.value}
                         onClick={() => store.setSelectedProfile(p.value)}
+                        title={p.desc}
                         style={{
                           padding: '8px 12px',
                           fontFamily: 'Space Grotesk, sans-serif',
@@ -635,20 +642,65 @@ export default function StudioScreen() {
 
                 <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Legend Position</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {LEGEND_POSITIONS.map(pos => (
-                    <button
-                      key={pos.value}
-                      style={{
-                        ...styles.pillInactive,
-                        ...(store.globalLegendPosition === pos.value ? { background: '#6c63ff', color: '#fff' } : {}),
-                        borderRadius: 17, fontSize: 11,
-                      }}
-                      onClick={() => store.setGlobalLegendPosition(pos.value)}
-                    >
-                      {pos.label}
-                    </button>
-                  ))}
+                  {LEGEND_POSITIONS.map(pos => {
+                    const isActive = store.globalLegendPosition === pos.value;
+                    const ledType = store.keyboardLEDType || 'None';
+                    // Determine if this position is recommended for the current LED type
+                    let isRecommended = false;
+                    if (ledType.includes('North') && (pos.value === 'top-center' || pos.value === 'top-left' || pos.value === 'top-right')) isRecommended = true;
+                    if (ledType.includes('South') && pos.value === 'front') isRecommended = true;
+                    if (ledType.includes('Per-key')) isRecommended = true; // All positions work
+
+                    return (
+                      <button
+                        key={pos.value}
+                        style={{
+                          ...styles.pillInactive,
+                          ...(isActive ? { background: '#6c63ff', color: '#fff' } : {}),
+                          ...(isRecommended && !isActive ? { borderColor: '#0d9e7555' } : {}),
+                          borderRadius: 17, fontSize: 11,
+                          position: 'relative',
+                        }}
+                        onClick={() => store.setGlobalLegendPosition(pos.value)}
+                      >
+                        {pos.label}
+                        {isRecommended && <span style={{ marginLeft: 4, color: isActive ? '#fff' : '#0d9e75', fontSize: 9 }}>★</span>}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {/* LED + Legend position guidance */}
+                {store.keyboardLEDType && store.keyboardLEDType !== 'None' && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: '10px 12px',
+                    background: 'rgba(13, 158, 117, 0.08)',
+                    border: '1px solid rgba(13, 158, 117, 0.2)',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    color: '#5dcaa5',
+                    lineHeight: 1.5,
+                  }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: store.keyboardLEDType.includes('North') ? '#a09bf5' :
+                                   store.keyboardLEDType.includes('South') ? '#f5a623' : '#5dcaa5'
+                      }} />
+                      {store.keyboardLEDType}
+                    </div>
+                    {store.keyboardLEDType.includes('North') && (
+                      <span>Top positions (★) work best — light shines directly through legends.</span>
+                    )}
+                    {store.keyboardLEDType.includes('South') && (
+                      <span>Front face (★) catches underglow. Top positions also work well.</span>
+                    )}
+                    {store.keyboardLEDType.includes('Per-key') && (
+                      <span>All positions work great with per-key RGB — light fills entire keycap.</span>
+                    )}
+                  </div>
+                )}
 
                 <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Font</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
