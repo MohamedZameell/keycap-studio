@@ -135,9 +135,9 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       const order = [];
 
       // Row 1
-      const row1 = centerRow - 2;
+      const row1 = centerRow - 1;
       const row1Words = ['Design', 'your', 'dream'];
-      const row1StartCol = centerCol - Math.floor(row1Words.length / 2);
+      const row1StartCol = centerCol - 1; // -1, 0, +1
       row1Words.forEach((word, i) => {
         const col = row1StartCol + i;
         wordMap.set(`${row1},${col}`, word);
@@ -145,9 +145,9 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       });
 
       // Row 2
-      const row2 = centerRow;
+      const row2 = centerRow + 1;
       const row2Words = ['keyboard', 'in', 'real-time', '3D'];
-      const row2StartCol = centerCol - Math.floor(row2Words.length / 2);
+      const row2StartCol = centerCol - 2; // -2, -1, 0, +1
       row2Words.forEach((word, i) => {
         const col = row2StartCol + i;
         wordMap.set(`${row2},${col}`, word);
@@ -155,11 +155,12 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       });
 
       // Row 3 buttons (anchor cells)
-      const row3 = centerRow + 2;
-      wordMap.set(`${row3},${centerCol - 3}`, 'START_BTN');
-      wordMap.set(`${row3},${centerCol}`, 'GALLERY_BTN');
-      order.push(`${row3},${centerCol - 3}`);
-      order.push(`${row3},${centerCol}`);
+      const row3 = centerRow + 3;
+      const btnStartCol = centerCol - 1;
+      wordMap.set(`${row3},${btnStartCol}`, 'START_BTN');
+      wordMap.set(`${row3},${btnStartCol + 1}`, 'GALLERY_BTN');
+      order.push(`${row3},${btnStartCol}`);
+      order.push(`${row3},${btnStartCol + 1}`);
 
       return { wordMap, order };
     }
@@ -221,7 +222,6 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
           currentY: FALL_START_Y,
           isWordCell: Boolean(mappedWord),
           isButton,
-          spanUnits: isButton ? 3 : 1,
           word: label,
           activationOrder: orderIdx,
           activated: prev?.activated || false,
@@ -358,46 +358,55 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       return 0;
     };
 
-    function drawWordKey(ctx, key, pressOffset) {
-      const sideDepth = 4; // bottom shadow depth
-      const x = key.gridX - (key.spanUnits > 1 ? UNIT : 0);
-      const y = key.gridY + pressOffset;
-      const w = key.spanUnits * SIZE + (key.spanUnits - 1) * GAP;
-      const h = SIZE;
-      const r = 8; // border radius
+    function drawCell(ctx, cell, now) {
+      const pressOffset = (cell.isButton ? getBtnPressOffset(cell, now) : 0) + (cell.activationPress || 0);
+      const x = cell.gridX;
+      const y = cell.currentY + pressOffset;
+      const size = SIZE;
+      const r = size * 0.18;
+      const sideDepth = size * 0.12;
 
-      // Side wall / shadow (darker, offset down)
-      ctx.fillStyle =
-        key.isButton && key.word === 'Start Designing' ? '#7c6bb0' : 'rgba(0,0,0,0.6)';
-      roundRectFill(ctx, x, y + sideDepth, w, h, r);
+      if (cell.isWordCell && cell.activated) {
+        // Side wall
+        ctx.fillStyle =
+          cell.isButton && cell.word === 'Start Designing' ? '#4a3a8a' : '#2a1f5a';
+        roundRectFill(ctx, x, y + sideDepth, size, size, r);
 
-      // Top face
-      ctx.fillStyle =
-        key.isButton && key.word === 'Start Designing'
-          ? '#d0bcff'
-          : key.isButton
-            ? 'rgba(208,188,255,0.12)'
-            : 'rgba(208,188,255,0.25)';
-      roundRectFill(ctx, x, y, w, h - sideDepth, r);
+        // Top face — violet
+        ctx.fillStyle =
+          cell.isButton && cell.word === 'Start Designing'
+            ? '#d0bcff'
+            : cell.isButton
+              ? 'rgba(208,188,255,0.2)'
+              : '#7c6bb0';
+        roundRectFill(ctx, x, y, size, size - sideDepth, r);
 
-      // Subtle highlight on top edge
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      roundRectFill(ctx, x, y, w, 4, r);
+        // Highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        roundRectFill(ctx, x + 2, y + 2, size - 4, size * 0.2, r * 0.5);
 
-      // Text
-      ctx.fillStyle = key.isButton && key.word === 'Start Designing' ? '#131315' : '#d0bcff';
-      ctx.font = `bold ${key.isButton ? 15 : 18}px "Space Grotesk", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 4;
-      ctx.fillText(key.word, x + w / 2, y + (h - sideDepth) / 2);
-      ctx.shadowBlur = 0;
+        // Text
+        const fontSize = cell.isButton ? size * 0.22 : size * 0.25;
+        ctx.fillStyle =
+          cell.isButton && cell.word === 'Start Designing' ? '#131315' : '#ffffff';
+        ctx.font = `bold ${fontSize}px "Space Grotesk", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(cell.word, x + size / 2, y + (size - sideDepth) / 2);
+        ctx.shadowBlur = 0;
+      } else {
+        const colSwatch = paletteSwatches[cell.colorIdx];
+        ctx.globalAlpha = 0.85;
+        drawKeycap(ctx, x, y, SIZE, { bg: colSwatch.bg, shadow: colSwatch.shadow }, cell.pressAmt || 0);
+        ctx.globalAlpha = 1;
+      }
 
-      key.drawnX = x;
-      key.drawnY = key.gridY;
-      key.drawnW = w;
-      key.drawnH = h;
+      cell.drawnX = x;
+      cell.drawnY = cell.currentY;
+      cell.drawnW = size;
+      cell.drawnH = size;
     }
 
     const getWordKeys = () =>
@@ -463,7 +472,7 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
       for (const wk of keyStates) {
         if (!wk.isWordCell || !wk.activated) continue;
         if (!wk.isButton && wk.row === row && wk.col === col) return wk;
-        if (wk.isButton && wk.row === row && col >= wk.col - 1 && col <= wk.col + 1) return wk;
+        if (wk.isButton && wk.row === row && wk.col === col) return wk;
       }
       return null;
     };
@@ -521,22 +530,14 @@ function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
           if (wkCover) continue;
 
           updateFall(key, now);
-
-          const drawY = key.falling ? (key.fallStart === null ? FALL_START_Y : key.currentY) : key.gridY;
-          const x = key.gridX;
-          const colSwatch = paletteSwatches[key.colorIdx];
-
-          ctx.globalAlpha = 0.85;
-          drawKeycap(ctx, x, drawY, SIZE, { bg: colSwatch.bg, shadow: colSwatch.shadow }, key.pressAmt || 0);
-          ctx.globalAlpha = 1;
+          if (key.fallStart === null) {
+            key.currentY = FALL_START_Y;
+          } else if (!key.falling) {
+            key.currentY = key.gridY;
+          }
+          drawCell(ctx, key, now);
         }
       }
-
-      getWordKeys().forEach((wk) => {
-        if (!wk.activated) return;
-        const pressOffset = (wk.isButton ? getBtnPressOffset(wk, now) : 0) + (wk.activationPress || 0);
-        drawWordKey(ctx, wk, pressOffset);
-      });
 
       frameId = requestAnimationFrame(draw);
     };
@@ -604,11 +605,6 @@ export default function EntryScreen() {
         .keycap-hero-canvas {
           display: block; width: 100%; height: 100%;
         }
-        .hero-fade {
-          position: absolute; inset: 0; z-index: 1; pointer-events: none;
-          background: linear-gradient(to bottom, rgba(13,13,16,0.45) 0%, rgba(13,13,16,0.65) 60%, rgba(13,13,16,0.88) 100%);
-        }
-
         .hero-section {
           position: relative; width: 100%; min-height: 100vh;
           padding-top: 56px;
@@ -676,7 +672,6 @@ export default function EntryScreen() {
       {/* Hero — full canvas (rain → words → idle); no HTML overlay */}
       <div className="hero-section">
         <KeycapGrid onStartDesigning={handleStart} onBrowseGallery={() => setScreen('gallery')} />
-        <div className="hero-fade" />
       </div>
 
       {/* Bento Grid */}
