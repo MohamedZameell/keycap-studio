@@ -250,6 +250,24 @@ export default function EntryScreen() {
 
         ctx.clearRect(0, 0, W, H);
 
+        // Debug: draw a green rectangle to verify drawing works in animate loop
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(50, 50, 100, 100);
+
+        // Debug: log first key draw params once
+        if (!window._drawLogged && keyStates.length > 0) {
+          window._drawLogged = true;
+          const k = keyStates[0];
+          console.log('[Draw Debug] First key params:', {
+            gridX: k.gridX,
+            currentY: k.currentY,
+            SIZE: SIZE,
+            colorIdx: k.colorIdx,
+            color: paletteSwatches[k.colorIdx],
+            pressAmt: k.pressAmt
+          });
+        }
+
         keyStates.forEach((key) => {
           if (key.falling && key.fallStart === null) {
             const savedY = key.currentY;
