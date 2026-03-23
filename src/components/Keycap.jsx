@@ -535,6 +535,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
           {/* Body - sides use same texture as top when in wrap mode */}
           <mesh geometry={bodyGeo} castShadow receiveShadow>
             <meshPhysicalMaterial
+              key={imageMode === 'wrap' && imageTexture ? `img-${keyId}` : `solid-${keyId}`}
               map={imageMode === 'wrap' && imageTexture ? activeTexture : null}
               color={imageMode === 'wrap' && imageTexture ? "#ffffff" : sideColor}
               {...sideMatProps}
