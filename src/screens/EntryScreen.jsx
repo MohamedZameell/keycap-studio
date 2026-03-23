@@ -2,8 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import KeyboardSilhouette from '../components/KeyboardSilhouette';
 
-function KeycapGrid() {
+export default function EntryScreen() {
+  const setScreen = useStore(s => s.setScreen);
+  const setSelectionPath = useStore(s => s.setSelectionPath);
   const canvasRef = useRef(null);
+
+  const handleStart = () => {
+    setSelectionPath('beginner');
+    setScreen('selector');
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -32,15 +39,8 @@ function KeycapGrid() {
     const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
     const KEYCAP_COLORS = [
-      '#005f73',
-      '#0a9396',
-      '#94d2bd',
-      '#e9d8a6',
-      '#ee9b00',
-      '#ca6702',
-      '#bb3e03',
-      '#ae2012',
-      '#9b2226',
+      '#005f73', '#0a9396', '#94d2bd', '#e9d8a6', '#ee9b00',
+      '#ca6702', '#bb3e03', '#ae2012', '#9b2226',
     ];
 
     const darkenHex = (hex, factor) => {
@@ -50,10 +50,7 @@ function KeycapGrid() {
       return `#${[r, g, b].map((x) => Math.min(255, Math.max(0, x)).toString(16).padStart(2, '0')).join('')}`;
     };
 
-    const paletteSwatches = KEYCAP_COLORS.map((bg) => ({
-      bg,
-      shadow: darkenHex(bg, 0.68),
-    }));
+    const paletteSwatches = KEYCAP_COLORS.map((bg) => ({ bg, shadow: darkenHex(bg, 0.68) }));
 
     function roundRectPath(c, x, y, w, h, r) {
       const rr = Math.min(r, w / 2, h / 2);
@@ -100,28 +97,20 @@ function KeycapGrid() {
     let W = 0;
     let H = 0;
     let COLS_COUNT = 0;
-    let ROWS_COUNT = 0;
     let keyStates = [];
 
     const pickPendingColorIdx = (currentIdx) => {
       if (paletteSwatches.length <= 1) return 0;
       let p;
-      do {
-        p = Math.floor(Math.random() * paletteSwatches.length);
-      } while (p === currentIdx);
+      do p = Math.floor(Math.random() * paletteSwatches.length);
+      while (p === currentIdx);
       return p;
     };
 
     const recalculateGrid = () => {
       const dpr = window.devicePixelRatio || 1;
-      const cssW = Math.max(
-        320,
-        Math.floor(canvas.offsetWidth || canvas.parentElement?.offsetWidth || window.innerWidth)
-      );
-      const cssH = Math.max(
-        400,
-        Math.floor(canvas.offsetHeight || canvas.parentElement?.offsetHeight || window.innerHeight)
-      );
+      const cssW = Math.max(320, Math.floor(canvas.offsetWidth || window.innerWidth));
+      const cssH = Math.max(400, Math.floor(canvas.offsetHeight || window.innerHeight));
 
       canvas.width = cssW * dpr;
       canvas.height = cssH * dpr;
@@ -132,21 +121,19 @@ function KeycapGrid() {
       W = cssW;
       H = cssH;
 
-      COLS_COUNT = Math.ceil(W / UNIT) + 3;
-      ROWS_COUNT = Math.ceil(H / UNIT) + 3;
-      const totalKeys = COLS_COUNT * ROWS_COUNT;
+      const cols = Math.ceil(W / UNIT) + 3;
+      const rows = Math.ceil(H / UNIT) + 3;
+      COLS_COUNT = cols;
 
-      keyStates = Array.from({ length: totalKeys }, (_, i) => {
-        const row = Math.floor(i / COLS_COUNT);
-        const col = i % COLS_COUNT;
+      keyStates = Array.from({ length: cols * rows }, (_, i) => {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
         const startIdx = (row + col) % paletteSwatches.length;
-        const gridX = col * UNIT - UNIT * 0.5;
-        const gridY = row * UNIT - UNIT * 0.5;
         return {
           row,
           col,
-          gridX,
-          gridY,
+          gridX: col * UNIT - UNIT * 0.5,
+          gridY: row * UNIT - UNIT * 0.5,
           colorIdx: startIdx,
           pendingColorIdx: pickPendingColorIdx(startIdx),
           keyPhase: 'idle',
@@ -165,16 +152,13 @@ function KeycapGrid() {
     recalculateGrid();
 
     const ro = new ResizeObserver(() => recalculateGrid());
-    const parent = canvas.parentElement;
-    if (parent) ro.observe(parent);
+    if (canvas.parentElement) ro.observe(canvas.parentElement);
     window.addEventListener('resize', recalculateGrid);
 
     const updateFall = (key, now) => {
       if (!key.falling) return;
       if (key.fallStart === null) {
-        if (now >= mountTime + key.fallDelay) {
-          key.fallStart = now;
-        }
+        if (now >= mountTime + key.fallDelay) key.fallStart = now;
         return;
       }
       const elapsed = now - key.fallStart;
@@ -223,7 +207,7 @@ function KeycapGrid() {
           key.keyPhase = 'releasing';
           key.phaseElapsed = 0;
         }
-      } else if (key.keyPhase === 'releasing') {
+      } else {
         key.phaseElapsed += dtMs;
         const t = Math.min(1, key.phaseElapsed / RELEASE_MS);
         key.pressAmt = MAX_PRESS_PX * (1 - t);
@@ -241,37 +225,27 @@ function KeycapGrid() {
         const dtMs = Math.min(Math.max(0, now - lastFrameTime), 48);
         lastFrameTime = now;
 
-        if (phase === PHASES.RAIN && now - mountTime > RAIN_PHASE_MS) {
-          phase = PHASES.IDLE;
-        }
+        if (phase === PHASES.RAIN && now - mountTime > RAIN_PHASE_MS) phase = PHASES.IDLE;
+        if (phase === PHASES.IDLE) keyStates.forEach((k) => updateKeyIdlePress(k, dtMs));
 
-        if (phase === PHASES.IDLE) {
-          keyStates.forEach((key) => updateKeyIdlePress(key, dtMs));
-        }
-
-        const devicePixelRatio = window.devicePixelRatio || 1;
+        const dpr = window.devicePixelRatio || 1;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         keyStates.forEach((key) => {
           if (key.falling && key.fallStart === null) {
             const savedY = key.currentY;
             key.currentY = -SIZE - 10;
-            const colSwatch = paletteSwatches[key.colorIdx];
-            drawKeycap(ctx, key.gridX, key.currentY, SIZE, colSwatch, key.pressAmt || 0);
+            drawKeycap(ctx, key.gridX, key.currentY, SIZE, paletteSwatches[key.colorIdx], key.pressAmt || 0);
             key.currentY = savedY;
             return;
           }
 
-          if (key.falling) {
-            updateFall(key, now);
-          } else {
-            key.currentY = key.gridY;
-          }
+          if (key.falling) updateFall(key, now);
+          else key.currentY = key.gridY;
 
-          const colSwatch = paletteSwatches[key.colorIdx];
-          drawKeycap(ctx, key.gridX, key.currentY, SIZE, colSwatch, key.pressAmt || 0);
+          drawKeycap(ctx, key.gridX, key.currentY, SIZE, paletteSwatches[key.colorIdx], key.pressAmt || 0);
         });
       } catch (e) {
         console.error('Canvas animation error:', e);
@@ -287,27 +261,6 @@ function KeycapGrid() {
       window.removeEventListener('resize', recalculateGrid);
     };
   }, []);
-
-  return (
-    <div className="keycap-grid-container keycap-hero-canvas-wrap">
-      <canvas
-        ref={canvasRef}
-        className="keycap-hero-canvas"
-        role="img"
-        aria-label="Design your dream keyboard in real-time 3D — interactive keycap grid with Start Designing and Browse Gallery actions."
-      />
-    </div>
-  );
-}
-
-export default function EntryScreen() {
-  const setScreen = useStore(s => s.setScreen);
-  const setSelectionPath = useStore(s => s.setSelectionPath);
-
-  const handleStart = () => {
-    setSelectionPath('beginner');
-    setScreen('selector');
-  };
 
   return (
     <div className="entry-container">
@@ -405,9 +358,25 @@ export default function EntryScreen() {
         </div>
       </nav>
 
-      {/* Hero — full canvas (rain → words → idle); no HTML overlay */}
-      <div className="hero-section">
-        <KeycapGrid />
+      {/* Hero */}
+      <section style={{
+        position: 'relative',
+        width: '100%',
+        height: '100vh',
+        overflow: 'hidden',
+        background: '#111118',
+      }}>
+        <canvas
+          ref={canvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'block',
+          }}
+        />
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -493,7 +462,7 @@ export default function EntryScreen() {
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Bento Grid */}
       <div className="page-section">
