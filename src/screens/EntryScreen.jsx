@@ -86,6 +86,10 @@ export default function EntryScreen() {
     }
 
     const drawKeycap = (c, x, y, size, col, pressAmount) => {
+      if (!col || !col.bg || !col.shadow) {
+        console.error('[drawKeycap] Invalid color:', col);
+        return;
+      }
       const r = size * 0.22;
       const shadowDepth = size * 0.12;
       const actualY = y + pressAmount;
@@ -258,14 +262,11 @@ export default function EntryScreen() {
         if (!window._drawLogged && keyStates.length > 0) {
           window._drawLogged = true;
           const k = keyStates[0];
-          console.log('[Draw Debug] First key params:', {
-            gridX: k.gridX,
-            currentY: k.currentY,
-            SIZE: SIZE,
-            colorIdx: k.colorIdx,
-            color: paletteSwatches[k.colorIdx],
-            pressAmt: k.pressAmt
-          });
+          const col = paletteSwatches[k.colorIdx];
+          console.log('[Draw Debug] gridX:', k.gridX, 'currentY:', k.currentY, 'SIZE:', SIZE);
+          console.log('[Draw Debug] colorIdx:', k.colorIdx, 'paletteSwatches.length:', paletteSwatches.length);
+          console.log('[Draw Debug] color object:', col ? JSON.stringify(col) : 'UNDEFINED');
+          console.log('[Draw Debug] falling:', k.falling, 'fallStart:', k.fallStart);
         }
 
         keyStates.forEach((key) => {
