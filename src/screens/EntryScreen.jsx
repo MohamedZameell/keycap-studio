@@ -13,10 +13,13 @@ export default function EntryScreen() {
   };
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    let cleanup = () => {};
+    const startFrame = requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
     let frameId;
     let lastFrameTime = performance.now();
@@ -94,8 +97,8 @@ export default function EntryScreen() {
     const GAP = 2;
     const UNIT = SIZE + GAP;
 
-    let W = 0;
-    let H = 0;
+    let W = window.innerWidth;
+    let H = window.innerHeight;
     let COLS_COUNT = 0;
     let keyStates = [];
 
@@ -108,18 +111,10 @@ export default function EntryScreen() {
     };
 
     const recalculateGrid = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = Math.max(320, Math.floor(canvas.offsetWidth || window.innerWidth));
-      const cssH = Math.max(400, Math.floor(canvas.offsetHeight || window.innerHeight));
-
-      canvas.width = cssW * dpr;
-      canvas.height = cssH * dpr;
-      canvas.style.width = `${cssW}px`;
-      canvas.style.height = `${cssH}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      W = cssW;
-      H = cssH;
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W;
+      canvas.height = H;
 
       const cols = Math.ceil(W / UNIT) + 3;
       const rows = Math.ceil(H / UNIT) + 3;
@@ -228,10 +223,7 @@ export default function EntryScreen() {
         if (phase === PHASES.RAIN && now - mountTime > RAIN_PHASE_MS) phase = PHASES.IDLE;
         if (phase === PHASES.IDLE) keyStates.forEach((k) => updateKeyIdlePress(k, dtMs));
 
-        const dpr = window.devicePixelRatio || 1;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
 
         keyStates.forEach((key) => {
           if (key.falling && key.fallStart === null) {
@@ -255,10 +247,16 @@ export default function EntryScreen() {
 
     frameId = requestAnimationFrame(animate);
 
-    return () => {
+    cleanup = () => {
       cancelAnimationFrame(frameId);
       ro.disconnect();
       window.removeEventListener('resize', recalculateGrid);
+    };
+    });
+
+    return () => {
+      cancelAnimationFrame(startFrame);
+      cleanup();
     };
   }, []);
 
