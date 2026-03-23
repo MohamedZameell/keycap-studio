@@ -592,6 +592,17 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const displayText = legendText && legendText.trim() !== '' ? legendText : label;
   const isSingleView = (x === undefined && y === undefined);
 
+  // Adjusted UV values based on user's pan/zoom settings (must be before bodyGeo)
+  const adjustedUvOffset = useMemo(() => [
+    uvOffset[0] / imageScale - imageOffsetX * 0.5,
+    uvOffset[1] / imageScale - imageOffsetY * 0.5
+  ], [uvOffset, imageScale, imageOffsetX, imageOffsetY]);
+
+  const adjustedUvScale = useMemo(() => [
+    uvScale[0] / imageScale,
+    uvScale[1] / imageScale
+  ], [uvScale, imageScale]);
+
   // ============================================================
   // Separate body and top-face geometries (memoized per width/height)
   // ============================================================
@@ -661,17 +672,6 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   }, [imageUrl, imageMode]);
 
   const [wrapTexture, setWrapTexture] = useState(null);
-
-  // Adjusted UV values based on user's pan/zoom settings
-  const adjustedUvOffset = useMemo(() => [
-    uvOffset[0] / imageScale - imageOffsetX * 0.5,
-    uvOffset[1] / imageScale - imageOffsetY * 0.5
-  ], [uvOffset, imageScale, imageOffsetX, imageOffsetY]);
-
-  const adjustedUvScale = useMemo(() => [
-    uvScale[0] / imageScale,
-    uvScale[1] / imageScale
-  ], [uvScale, imageScale]);
 
   useEffect(() => {
     if (!tileTexture || imageMode !== 'wrap') {
