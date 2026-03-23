@@ -223,42 +223,44 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvData 
     let uBL, vBL, uBR, vBR, uTR, vTR, uTL, vTL;
 
     if (uvData) {
-      // GLOBAL image UV mapping for cloth-drape effect
-      // uvData contains the keycap's position in IMAGE space (0-1)
-      const { uMin, uMax, vMin, vMax, drape } = uvData;
+      // GLOBAL TEXTURE UV mapping for cloth-drape effect
+      // uvData contains the keycap's edges in TEXTURE space (accounts for V-flip)
+      // vBack = texture V at keycap back (+Z), vFront = texture V at keycap front (-Z)
+      // In Three.js texture: V=0 is bottom, V=1 is top of image
+      const { uMin, uMax, vBack, vFront, drape } = uvData;
 
       if (i === 0) {
         // Front wall (-Z, faces AWAY from user)
-        // Top edge at vMax (front of keycap = bottom in image)
-        // Bottom extends further DOWN in image (higher V)
-        uTL = uMin;         uTR = uMax;
-        vTL = vMax;         vTR = vMax;
-        uBL = uMin;         uBR = uMax;
-        vBL = vMax + drape; vBR = vMax + drape;
+        // Top edge connects to keycap front at V = vFront
+        // Cloth draping DOWN shows what's "in front of" keycap = LOWER V in texture
+        uTL = uMin;          uTR = uMax;
+        vTL = vFront;        vTR = vFront;
+        uBL = uMin;          uBR = uMax;
+        vBL = vFront - drape; vBR = vFront - drape;  // Lower V = further down in image
       } else if (i === 1) {
         // Right wall (+X)
-        // Top edge at uMax (right of keycap)
-        // Bottom extends further RIGHT in image (higher U)
-        uTL = uMax;         uTR = uMax + drape;
-        vTL = vMax;         vTR = vMax;
-        uBL = uMax;         uBR = uMax + drape;
-        vBL = vMin;         vBR = vMin;
+        // Top edge connects to keycap right at U = uMax
+        // Cloth draping DOWN shows what's to the RIGHT of keycap = HIGHER U
+        uTL = uMax;          uTR = uMax + drape;
+        vTL = vFront;        vTR = vFront;
+        uBL = uMax;          uBR = uMax + drape;
+        vBL = vBack;         vBR = vBack;
       } else if (i === 2) {
-        // Back wall (+Z, faces TOWARD user)
-        // Top edge at vMin (back of keycap = top in image)
-        // Bottom extends further UP in image (lower V)
-        uTL = uMax;         uTR = uMin;  // Reversed for winding
-        vTL = vMin;         vTR = vMin;
-        uBL = uMax;         uBR = uMin;
-        vBL = vMin - drape; vBR = vMin - drape;
+        // Back wall (+Z, faces TOWARD user) - THIS IS WHAT USER SEES
+        // Top edge connects to keycap back at V = vBack
+        // Cloth draping DOWN shows what's "behind" keycap = HIGHER V in texture
+        uTL = uMax;          uTR = uMin;  // Reversed for correct winding
+        vTL = vBack;         vTR = vBack;
+        uBL = uMax;          uBR = uMin;
+        vBL = vBack + drape; vBR = vBack + drape;  // Higher V = further up in image
       } else {
         // Left wall (-X)
-        // Top edge at uMin (left of keycap)
-        // Bottom extends further LEFT in image (lower U)
-        uTL = uMin - drape; uTR = uMin;
-        vTL = vMin;         vTR = vMin;
-        uBL = uMin - drape; uBR = uMin;
-        vBL = vMax;         vBR = vMax;
+        // Top edge connects to keycap left at U = uMin
+        // Cloth draping DOWN shows what's to the LEFT of keycap = LOWER U
+        uTL = uMin - drape;  uTR = uMin;
+        vTL = vBack;         vTR = vBack;
+        uBL = uMin - drape;  uBR = uMin;
+        vBL = vFront;        vBR = vFront;
       }
     } else {
       // No image - simple solid color (no meaningful UVs)
@@ -614,22 +616,31 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     uvScale[1] / imageScale
   ], [uvScale, imageScale]);
 
-  // Calculate GLOBAL image UV data for body sides
-  // This is in IMAGE space (0-1), not local keycap space
+  // Calculate GLOBAL TEXTURE UV data for body sides
+  // Must match the coordinate system that wrapTexture uses!
+  // wrapTexture.offset.y = 1 - adjustedUvOffset[1] - adjustedUvScale[1]
+  // This accounts for the V-flip in the top geometry (uvs.push(u, 1-v))
   const bodyUvData = useMemo(() => {
     if (imageMode !== 'wrap') return null;
 
-    // Keycap's region in image space
+    // U coordinates are straightforward
     const uMin = adjustedUvOffset[0];
     const uMax = adjustedUvOffset[0] + adjustedUvScale[0];
-    const vMin = adjustedUvOffset[1];  // Back of keycap (top in image after flip)
-    const vMax = adjustedUvOffset[1] + adjustedUvScale[1];  // Front of keycap
 
-    // Fixed drape amount in IMAGE space (not relative to keycap size)
-    // 0.08 = 8% of image extends onto each side
+    // V coordinates MUST match where wrapTexture samples!
+    // In Three.js: V=0 is BOTTOM of texture, V=1 is TOP
+    // After flipY (default): V=0 is bottom of image, V=1 is top of image
+    // The top geometry flips V: local v=0 (front/-Z) → UV.v=1, local v=1 (back/+Z) → UV.v=0
+    // wrapTexture offset transforms local UV (0,0) → texture (offset.x, offset.y)
+    // So keycap back is at textureV = 1 - adjustedUvOffset[1] - adjustedUvScale[1]
+    // And keycap front is at textureV = 1 - adjustedUvOffset[1]
+    const vBack = 1 - adjustedUvOffset[1] - adjustedUvScale[1];  // Keycap back edge in texture
+    const vFront = 1 - adjustedUvOffset[1];  // Keycap front edge in texture
+
+    // Drape amount: 8% of image extends onto each side
     const drape = 0.08;
 
-    return { uMin, uMax, vMin, vMax, drape };
+    return { uMin, uMax, vBack, vFront, drape };
   }, [imageMode, adjustedUvOffset, adjustedUvScale]);
 
   // Body geometry with GLOBAL image UVs for sides
