@@ -12,6 +12,14 @@ import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
+import {
+  exportKLEJson,
+  exportManufacturingSVG,
+  exportWASDTemplate,
+  exportFullPackage,
+  runPreflightChecks,
+  generateMetadataJson
+} from '../utils/exportEngine';
 
 const KEY_UNIT = 1.05;
 
@@ -124,6 +132,8 @@ export default function StudioScreen() {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
+  const [preflightIssues, setPreflightIssues] = useState([]);
+  const [showPreflightModal, setShowPreflightModal] = useState(false);
   const fileInputRef = useRef(null);
   const orbitRef = useRef(null);
 
@@ -300,6 +310,109 @@ export default function StudioScreen() {
       showToast('Link copied to clipboard!');
     } catch (e) {
       showToast('Failed to copy link');
+    }
+  };
+
+  // --- MANUFACTURING EXPORT HANDLERS ---
+  const getDesignState = () => {
+    const state = useStore.getState();
+    return {
+      globalColor: state.globalColor,
+      globalLegendColor: state.globalLegendColor,
+      globalFont: state.globalFont,
+      selectedProfile: state.selectedProfile,
+      selectedFormFactor: state.selectedFormFactor,
+      selectedModel: state.selectedModel,
+      materialPreset: state.materialPreset,
+      keyboardLEDType: state.keyboardLEDType,
+      perKeyDesigns: state.perKeyDesigns
+    };
+  };
+
+  const getCurrentLayout = () => {
+    const state = useStore.getState();
+    let mappedFF = 'SIXTY';
+    const ff = state.selectedFormFactor;
+    if (ff === '75%') mappedFF = 'SEVENTY_FIVE';
+    else if (ff === 'TKL' || ff === '80%') mappedFF = 'TKL_80';
+    else if (ff === '100%') mappedFF = 'FULL_100';
+    else if (ff === '65%') mappedFF = 'SIXTY_FIVE';
+    return getLayoutForFormFactor(mappedFF) || [];
+  };
+
+  const handleRunPreflight = () => {
+    const layout = getCurrentLayout();
+    const designState = getDesignState();
+    const issues = runPreflightChecks(layout, designState);
+    setPreflightIssues(issues);
+    setShowPreflightModal(true);
+  };
+
+  const handleExportKLE = () => {
+    try {
+      const layout = getCurrentLayout();
+      const designState = getDesignState();
+      exportKLEJson(layout, designState);
+      showToast('KLE JSON exported!');
+    } catch (e) {
+      console.error('KLE export failed:', e);
+      showToast('KLE export failed');
+    }
+  };
+
+  const handleExportManufacturingSVG = () => {
+    try {
+      const layout = getCurrentLayout();
+      const designState = getDesignState();
+      exportManufacturingSVG(layout, designState, { includeBleed: true, colorMode: 'cmyk-annotation' });
+      showToast('Manufacturing SVG exported!');
+    } catch (e) {
+      console.error('Manufacturing SVG export failed:', e);
+      showToast('Export failed');
+    }
+  };
+
+  const handleExportWASD = () => {
+    try {
+      const layout = getCurrentLayout();
+      const designState = getDesignState();
+      exportWASDTemplate(layout, designState);
+      showToast('WASD template exported!');
+    } catch (e) {
+      console.error('WASD export failed:', e);
+      showToast('Export failed');
+    }
+  };
+
+  const handleExportMetadata = () => {
+    try {
+      const layout = getCurrentLayout();
+      const designState = getDesignState();
+      const metadata = generateMetadataJson(layout, designState);
+      const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `keycap-metadata-${Date.now()}.json`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('Metadata exported!');
+    } catch (e) {
+      console.error('Metadata export failed:', e);
+      showToast('Export failed');
+    }
+  };
+
+  const handleExportFullPackage = async () => {
+    try {
+      showToast('Exporting full package...');
+      const layout = getCurrentLayout();
+      const designState = getDesignState();
+      await exportFullPackage(layout, designState);
+      showToast('Full package exported!');
+    } catch (e) {
+      console.error('Full package export failed:', e);
+      showToast('Export failed');
     }
   };
 
@@ -855,11 +968,27 @@ export default function StudioScreen() {
             {/* ===== EXPORT TAB ===== */}
             {activeTab === 'EXPORT' && (
               <div style={styles.section}>
+                {/* Pre-flight Check Button */}
+                <button
+                  onClick={handleRunPreflight}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px',
+                    background: 'linear-gradient(135deg, #2d2d5a 0%, #1a1a3a 100%)', border: '1px solid #4a4a8a',
+                    borderRadius: 8, cursor: 'pointer', marginBottom: 16, width: '100%',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6c63ff'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#4a4a8a'; }}
+                >
+                  <span style={{ fontSize: 16 }}>✓</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: '#a09bf5' }}>Run Pre-flight Check</span>
+                </button>
+
+                {/* Quick Exports Section */}
+                <div style={{ fontSize: 11, color: '#666680', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Quick Exports</div>
                 {[
                   { icon: '🖼', label: 'PNG Render', desc: 'High quality 3D screenshot', size: '~2-4MB', onClick: handleExportPNG, prominent: true },
-                  { icon: '📐', label: 'SVG Layout', desc: 'Vector layout for manufacturers', size: '~50KB', onClick: handleExportSVG },
-                  { icon: '🔗', label: 'Share URL', desc: 'Copy link to this design', size: '', onClick: handleShareURL },
                   { icon: '📄', label: 'Print-ready PDF', desc: 'High quality PDF render', size: '~2-4MB', onClick: handleExportPDF },
+                  { icon: '🔗', label: 'Share URL', desc: 'Copy link to this design', size: '', onClick: handleShareURL },
                 ].map(btn => (
                   <button
                     key={btn.label}
@@ -881,6 +1010,52 @@ export default function StudioScreen() {
                     </div>
                   </button>
                 ))}
+
+                {/* Manufacturing Exports Section */}
+                <div style={{ fontSize: 11, color: '#666680', marginTop: 20, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Manufacturing</div>
+                {[
+                  { icon: '⌨', label: 'KLE JSON', desc: 'Industry-standard layout format', size: '~5KB', onClick: handleExportKLE },
+                  { icon: '📐', label: 'Manufacturing SVG', desc: '1:1 scale with CMYK annotations', size: '~50KB', onClick: handleExportManufacturingSVG },
+                  { icon: '📋', label: 'Metadata JSON', desc: 'Colors, specs, RAL matching', size: '~2KB', onClick: handleExportMetadata },
+                  { icon: '🎯', label: 'WASD Template', desc: 'Ready for wasdkeyboards.com', size: '~50KB', onClick: handleExportWASD },
+                ].map(btn => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.onClick}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                      background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8,
+                      cursor: 'pointer', transition: '0.2s', marginBottom: 10, width: '100%', textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; e.currentTarget.style.background = '#6c63ff15'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
+                  >
+                    <span style={{ fontSize: 24 }}>{btn.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{btn.label}</div>
+                      <div style={{ fontSize: 11, color: '#666680' }}>{btn.desc}</div>
+                      {btn.size && <div style={{ fontSize: 10, color: '#444460' }}>{btn.size}</div>}
+                    </div>
+                  </button>
+                ))}
+
+                {/* Full Package Button */}
+                <button
+                  onClick={handleExportFullPackage}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px',
+                    background: 'linear-gradient(135deg, #6c63ff 0%, #4a4090 100%)', border: 'none',
+                    borderRadius: 8, cursor: 'pointer', marginTop: 16, width: '100%',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(108, 99, 255, 0.4)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <span style={{ fontSize: 20 }}>📦</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Export Full Package</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>KLE + SVG + Metadata (3 files)</div>
+                  </div>
+                </button>
               </div>
             )}
           </div>
@@ -1036,6 +1211,68 @@ export default function StudioScreen() {
           RENDER ENGINE: WEBGL_RTX
         </span>
       </div>
+
+      {/* Pre-flight Check Modal */}
+      {showPreflightModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }} onClick={() => setShowPreflightModal(false)}>
+          <div style={{
+            background: '#1a1a2e', borderRadius: 12, padding: 24, maxWidth: 480, width: '90%',
+            maxHeight: '80vh', overflow: 'auto', border: '1px solid #2a2a4a'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 18, color: '#fff' }}>Pre-flight Check</h3>
+              <button onClick={() => setShowPreflightModal(false)} style={{
+                background: 'none', border: 'none', color: '#666', fontSize: 24, cursor: 'pointer', lineHeight: 1
+              }}>&times;</button>
+            </div>
+
+            {preflightIssues.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+                <div style={{ fontSize: 16, color: '#0d9e75', fontWeight: 500 }}>All checks passed!</div>
+                <div style={{ fontSize: 13, color: '#666680', marginTop: 8 }}>Your design is ready for manufacturing export.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {preflightIssues.map((issue, i) => (
+                  <div key={i} style={{
+                    padding: 14, borderRadius: 8,
+                    background: issue.type === 'error' ? 'rgba(220, 53, 69, 0.15)' :
+                               issue.type === 'warning' ? 'rgba(255, 193, 7, 0.15)' : 'rgba(108, 99, 255, 0.15)',
+                    border: `1px solid ${issue.type === 'error' ? '#dc3545' :
+                                         issue.type === 'warning' ? '#ffc107' : '#6c63ff'}40`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <span style={{ fontSize: 18 }}>
+                        {issue.type === 'error' ? '❌' : issue.type === 'warning' ? '⚠️' : 'ℹ️'}
+                      </span>
+                      <div>
+                        <div style={{ fontSize: 13, color: '#fff', fontWeight: 500, marginBottom: 4 }}>{issue.message}</div>
+                        {issue.suggestion && (
+                          <div style={{ fontSize: 12, color: '#888899' }}>💡 {issue.suggestion}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowPreflightModal(false)}
+              style={{
+                marginTop: 24, width: '100%', padding: '12px', background: '#6c63ff',
+                border: 'none', borderRadius: 6, color: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer'
+              }}
+            >
+              {preflightIssues.length === 0 ? 'Continue to Export' : 'Got it'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast notification */}
       {toastVisible && (
