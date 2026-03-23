@@ -2,8 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import KeyboardSilhouette from '../components/KeyboardSilhouette';
 
-function KeycapGrid() {
+function KeycapGrid({ onStartDesigning, onBrowseGallery }) {
   const canvasRef = useRef(null);
+  const onStartRef = useRef(onStartDesigning);
+  const onGalleryRef = useRef(onBrowseGallery);
+  onStartRef.current = onStartDesigning;
+  onGalleryRef.current = onBrowseGallery;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -11,6 +15,7 @@ function KeycapGrid() {
     const ctx = canvas.getContext('2d');
     let frameId;
     let lastFrameTime = performance.now();
+    const mountTime = performance.now();
 
     const PRESS_DOWN_MS = 200;
     const HOLD_MS = 90;
@@ -18,6 +23,18 @@ function KeycapGrid() {
     const MAX_PRESS_PX = 4;
     const MIN_IDLE_MS = 1800;
     const MAX_IDLE_MS = 3500;
+    const FALL_DURATION = 600;
+    const BOUNCE_AMOUNT = 8;
+    const RAIN_PHASE_MS = 5000;
+    const WORD_STAGGER_MS = 150;
+    const FALL_START_Y = -100;
+
+    const PHASES = { RAIN: 'rain', WORDS: 'words', IDLE: 'idle' };
+    let phase = PHASES.RAIN;
+    let phaseStartTime = mountTime;
+    let allWordsActivated = false;
+
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
     const KEYCAP_COLORS = [
       '#005f73',
@@ -44,36 +61,40 @@ function KeycapGrid() {
     }));
 
     function roundRectPath(ctx, x, y, w, h, r) {
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.moveTo(x + rr, y);
+      ctx.lineTo(x + w - rr, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+      ctx.lineTo(x + w, y + h - rr);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+      ctx.lineTo(x + rr, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+      ctx.lineTo(x, y + rr);
+      ctx.quadraticCurveTo(x, y, x + rr, y);
       ctx.closePath();
     }
 
+    function roundRectFill(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      roundRectPath(ctx, x, y, w, h, r);
+      ctx.fill();
+    }
+
     const drawKeycap = (ctx, x, y, size, col, pressAmount) => {
-      const r = size * 0.22;  // large corner radius — pillowy look
-      const shadowDepth = size * 0.12;  // 3D depth
+      const r = size * 0.22;
+      const shadowDepth = size * 0.12;
       const actualY = y + pressAmount;
 
-      // Bottom shadow layer (the "side wall" of the keycap)
       ctx.fillStyle = col.shadow;
       ctx.beginPath();
       roundRectPath(ctx, x, actualY + shadowDepth, size, size, r);
       ctx.fill();
 
-      // Top surface
       ctx.fillStyle = col.bg;
       ctx.beginPath();
       roundRectPath(ctx, x, actualY, size, size, r);
       ctx.fill();
 
-      // Inner highlight — subtle lighter area on top portion
       const gradient = ctx.createLinearGradient(x, actualY, x, actualY + size * 0.5);
       gradient.addColorStop(0, 'rgba(255,255,255,0.35)');
       gradient.addColorStop(1, 'rgba(255,255,255,0)');
@@ -87,9 +108,63 @@ function KeycapGrid() {
     const GAP = 2;
     const UNIT = SIZE + GAP;
 
-    const COLS_COUNT = Math.ceil(canvas.width / UNIT) + 3;
-    const ROWS_COUNT = Math.ceil(canvas.height / UNIT) + 3;
+    const container = canvas.parentElement;
+    const fitCanvas = () => {
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const cw = Math.max(320, Math.floor(rect.width));
+      const ch = Math.max(400, Math.floor(rect.height));
+      canvas.width = cw * dpr;
+      canvas.height = ch * dpr;
+      canvas.style.width = `${cw}px`;
+      canvas.style.height = `${ch}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { W: cw, H: ch };
+    };
+
+    let { W, H } = fitCanvas();
+    const ro = new ResizeObserver(() => {
+      fitCanvas();
+    });
+    ro.observe(container);
+    const dpr = () => window.devicePixelRatio || 1;
+
+    const COLS_COUNT = Math.ceil(W / UNIT) + 3;
+    const ROWS_COUNT = Math.ceil(H / UNIT) + 3;
     const totalKeys = COLS_COUNT * ROWS_COUNT;
+
+    const centerRow = Math.floor(ROWS_COUNT / 2) - 3;
+    const centerCol = Math.floor(COLS_COUNT / 2);
+
+    const WORD_LAYOUT = [
+      { word: 'Design', row: centerRow, col: centerCol - 3, isButton: false, span: 2 },
+      { word: 'your', row: centerRow, col: centerCol - 1, isButton: false, span: 1 },
+      { word: 'dream', row: centerRow, col: centerCol + 1, isButton: false, span: 2 },
+      { word: 'keyboard', row: centerRow + 2, col: centerCol - 4, isButton: false, span: 3 },
+      { word: 'in', row: centerRow + 2, col: centerCol - 1, isButton: false, span: 1 },
+      { word: 'real-time', row: centerRow + 2, col: centerCol + 1, isButton: false, span: 3 },
+      { word: '3D', row: centerRow + 2, col: centerCol + 5, isButton: false, span: 1 },
+      { word: 'Start Designing', row: centerRow + 4, col: centerCol - 2, isButton: true, span: 3 },
+      { word: 'Browse Gallery', row: centerRow + 4, col: centerCol + 2, isButton: true, span: 3 },
+    ];
+
+    const wordKeys = WORD_LAYOUT.map((def, idx) => ({
+      ...def,
+      anchorX: def.col * UNIT - UNIT * 0.5,
+      anchorY: def.row * UNIT - UNIT * 0.5,
+      w: def.span * SIZE + (def.span - 1) * GAP,
+      h: SIZE,
+      activated: false,
+      activationAt: mountTime + RAIN_PHASE_MS + idx * WORD_STAGGER_MS,
+      activationPress: 0,
+      activationPressPhase: 'idle',
+      pressing: false,
+      pressStart: 0,
+      drawnX: 0,
+      drawnY: 0,
+      drawnW: 0,
+      drawnH: 0,
+    }));
 
     const pickPendingColorIdx = (currentIdx) => {
       if (paletteSwatches.length <= 1) return 0;
@@ -104,64 +179,265 @@ function KeycapGrid() {
       const row = Math.floor(i / COLS_COUNT);
       const col = i % COLS_COUNT;
       const startIdx = (row + col) % paletteSwatches.length;
+      const gridX = col * UNIT - UNIT * 0.5;
+      const gridY = row * UNIT - UNIT * 0.5;
       return {
+        row,
+        col,
+        gridX,
+        gridY,
         colorIdx: startIdx,
         pendingColorIdx: pickPendingColorIdx(startIdx),
-        phase: 'idle',
+        keyPhase: 'idle',
         phaseElapsed: 0,
         idleElapsed: Math.random() * MAX_IDLE_MS,
         nextPressDelay: MIN_IDLE_MS + Math.random() * (MAX_IDLE_MS - MIN_IDLE_MS),
         pressAmt: 0,
+        falling: true,
+        fallDelay: Math.random() * 3000,
+        fallStart: null,
+        currentY: FALL_START_Y,
       };
     });
 
-    const updateKey = (key, dtMs) => {
-      if (key.phase === 'idle') {
+    const updateFall = (key, now) => {
+      if (!key.falling) return;
+      if (key.fallStart === null) {
+        if (now >= mountTime + key.fallDelay) {
+          key.fallStart = now;
+        }
+        return;
+      }
+      const elapsed = now - key.fallStart;
+      const progress = Math.min(elapsed / FALL_DURATION, 1);
+      const targetY = key.gridY;
+
+      if (progress < 0.7) {
+        const t = progress / 0.7;
+        key.currentY = FALL_START_Y + (targetY - FALL_START_Y) * easeOutCubic(t);
+      } else if (progress < 0.85) {
+        const t = (progress - 0.7) / 0.15;
+        key.currentY = targetY + BOUNCE_AMOUNT * (1 - t);
+      } else {
+        const t = (progress - 0.85) / 0.15;
+        key.currentY = targetY + BOUNCE_AMOUNT * (1 - t) * (1 - easeOutCubic(t));
+      }
+
+      if (progress >= 1) {
+        key.currentY = targetY;
+        key.falling = false;
+      }
+    };
+
+    const updateKeyIdlePress = (key, dtMs) => {
+      if (key.keyPhase === 'idle') {
         key.idleElapsed += dtMs;
         if (key.idleElapsed >= key.nextPressDelay) {
-          key.phase = 'pressing';
+          key.keyPhase = 'pressing';
           key.phaseElapsed = 0;
         }
-      } else if (key.phase === 'pressing') {
+      } else if (key.keyPhase === 'pressing') {
         key.phaseElapsed += dtMs;
         const t = Math.min(1, key.phaseElapsed / PRESS_DOWN_MS);
         key.pressAmt = MAX_PRESS_PX * t;
         if (key.phaseElapsed >= PRESS_DOWN_MS) {
           key.colorIdx = key.pendingColorIdx;
           key.pendingColorIdx = pickPendingColorIdx(key.colorIdx);
-          key.phase = 'holding';
+          key.keyPhase = 'holding';
           key.phaseElapsed = 0;
           key.pressAmt = MAX_PRESS_PX;
         }
-      } else if (key.phase === 'holding') {
+      } else if (key.keyPhase === 'holding') {
         key.phaseElapsed += dtMs;
         key.pressAmt = MAX_PRESS_PX;
         if (key.phaseElapsed >= HOLD_MS) {
-          key.phase = 'releasing';
+          key.keyPhase = 'releasing';
           key.phaseElapsed = 0;
         }
-      } else if (key.phase === 'releasing') {
+      } else if (key.keyPhase === 'releasing') {
         key.phaseElapsed += dtMs;
         const t = Math.min(1, key.phaseElapsed / RELEASE_MS);
         key.pressAmt = MAX_PRESS_PX * (1 - t);
         if (key.phaseElapsed >= RELEASE_MS) {
           key.pressAmt = 0;
-          key.phase = 'idle';
+          key.keyPhase = 'idle';
           key.idleElapsed = 0;
           key.nextPressDelay = MIN_IDLE_MS + Math.random() * (MAX_IDLE_MS - MIN_IDLE_MS);
         }
       }
     };
 
+    const updateWordActivation = (wk, now) => {
+      if (wk.activated) return;
+      if (now < wk.activationAt) return;
+      wk.activated = true;
+      wk.activationPressPhase = 'pressing';
+      wk.activationPressT = 0;
+    };
+
+    const tickWordActivationPress = (wk, dtMs) => {
+      if (!wk.activated || wk.activationPressPhase === 'done') return;
+      if (wk.activationPressPhase === 'pressing') {
+        wk.activationPressT += dtMs;
+        const t = Math.min(1, wk.activationPressT / 120);
+        wk.activationPress = 4 * t;
+        if (wk.activationPressT >= 120) {
+          wk.activationPressPhase = 'releasing';
+          wk.activationPressT = 0;
+        }
+      } else if (wk.activationPressPhase === 'releasing') {
+        wk.activationPressT += dtMs;
+        const t = Math.min(1, wk.activationPressT / 100);
+        wk.activationPress = 4 * (1 - t);
+        if (wk.activationPressT >= 100) {
+          wk.activationPress = 0;
+          wk.activationPressPhase = 'done';
+        }
+      }
+    };
+
+    const getBtnPressOffset = (wk, now) => {
+      if (!wk.pressing) return 0;
+      const t = now - wk.pressStart;
+      if (t < 0) return 0;
+      if (t < 150) return 4 * (t / 150);
+      if (t < 440) return 4 * (1 - (t - 150) / 290);
+      return 0;
+    };
+
+    function drawWordKey(ctx, wk, now) {
+      const pressOffset = (wk.isButton ? getBtnPressOffset(wk, now) : 0) + (wk.activationPress || 0);
+      const x = wk.anchorX;
+      const y = wk.anchorY + pressOffset;
+      const w = wk.w;
+      const h = wk.h;
+
+      const side = wk.isButton && wk.word === 'Start Designing' ? '#9d8fd4' : 'rgba(0,0,0,0.5)';
+      ctx.fillStyle = side;
+      roundRectFill(ctx, x, y + 3, w, h, 6);
+
+      let topFill;
+      if (wk.isButton && wk.word === 'Start Designing') {
+        topFill = '#d0bcff';
+      } else if (wk.isButton) {
+        topFill = 'rgba(208,188,255,0.15)';
+      } else {
+        topFill = 'rgba(208,188,255,0.2)';
+      }
+      ctx.fillStyle = topFill;
+      roundRectFill(ctx, x, y, w, h - 3, 6);
+
+      const textColor = wk.isButton && wk.word === 'Start Designing' ? '#131315' : '#d0bcff';
+      ctx.fillStyle = textColor;
+      const fontPx = wk.isButton ? 16 : Math.min(20, Math.max(12, w / (wk.word.length * 0.55)));
+      ctx.font = `bold ${fontPx}px "Space Grotesk", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(wk.word, x + w / 2, y + (h - 3) / 2);
+
+      wk.drawnX = x;
+      wk.drawnY = wk.anchorY;
+      wk.drawnW = w;
+      wk.drawnH = h;
+    }
+
+    const onClick = (e) => {
+      if (phase === PHASES.RAIN) return;
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      wordKeys.filter((k) => k.isButton && k.activated).forEach((btn) => {
+        const bx = btn.drawnX;
+        const by = btn.drawnY;
+        const bw = btn.drawnW;
+        const bh = btn.drawnH;
+        if (
+          clickX >= bx &&
+          clickX <= bx + bw &&
+          clickY >= by &&
+          clickY <= by + bh
+        ) {
+          btn.pressing = true;
+          btn.pressStart = performance.now();
+          setTimeout(() => {
+            if (btn.word === 'Start Designing') {
+              onStartRef.current();
+            } else {
+              onGalleryRef.current();
+            }
+          }, 440);
+        }
+      });
+    };
+
+    const onMove = (e) => {
+      if (phase === PHASES.RAIN) {
+        canvas.style.cursor = 'default';
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const overButton = wordKeys.some(
+        (btn) =>
+          btn.isButton &&
+          btn.activated &&
+          mx >= btn.drawnX &&
+          mx <= btn.drawnX + btn.drawnW &&
+          my >= btn.drawnY &&
+          my <= btn.drawnY + btn.drawnH
+      );
+      canvas.style.cursor = overButton ? 'pointer' : 'default';
+    };
+
+    canvas.addEventListener('click', onClick);
+    canvas.addEventListener('mousemove', onMove);
+
+    const findWordCoveringCell = (row, col) =>
+      wordKeys.find((wk) => wk.row === row && col >= wk.col && col < wk.col + wk.span);
+
     const draw = (now) => {
       const dtMs = Math.min(Math.max(0, now - lastFrameTime), 48);
       lastFrameTime = now;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const elapsedGlobal = now - phaseStartTime;
+      if (phase === PHASES.RAIN && elapsedGlobal > RAIN_PHASE_MS) {
+        phase = PHASES.WORDS;
+        phaseStartTime = now;
+      }
 
-      keyStates.forEach((key) => {
-        updateKey(key, dtMs);
+      if (now >= mountTime + RAIN_PHASE_MS) {
+        wordKeys.forEach((wk) => updateWordActivation(wk, now));
+        wordKeys.forEach((wk) => tickWordActivationPress(wk, dtMs));
+      }
+
+      if (
+        phase === PHASES.WORDS &&
+        !allWordsActivated &&
+        wordKeys.every((w) => w.activated && w.activationPressPhase === 'done')
+      ) {
+        allWordsActivated = true;
+        phase = PHASES.IDLE;
+        phaseStartTime = now;
+      }
+
+      if (phase === PHASES.IDLE) {
+        keyStates.forEach((key) => {
+          if (findWordCoveringCell(key.row, key.col)) return;
+          updateKeyIdlePress(key, dtMs);
+        });
+      }
+
+      wordKeys.forEach((wk) => {
+        if (wk.isButton && wk.pressing && now - wk.pressStart > 450) {
+          wk.pressing = false;
+        }
       });
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(dpr(), 0, 0, dpr(), 0, 0);
 
       let i = 0;
       for (let row = 0; row < ROWS_COUNT; row++) {
@@ -169,28 +445,49 @@ function KeycapGrid() {
           const key = keyStates[i++];
           if (!key) continue;
 
-          const x = col * UNIT - UNIT * 0.5;
-          const y = row * UNIT - UNIT * 0.5;
+          const wkCover = findWordCoveringCell(row, col);
+          if (wkCover && wkCover.activated) {
+            continue;
+          }
 
+          updateFall(key, now);
+
+          const drawY = key.falling ? key.currentY : key.gridY;
+          const x = key.gridX;
           const colSwatch = paletteSwatches[key.colorIdx];
 
           ctx.globalAlpha = 0.85;
-          drawKeycap(ctx, x, y, SIZE, { bg: colSwatch.bg, shadow: colSwatch.shadow }, key.pressAmt || 0);
+          drawKeycap(ctx, x, drawY, SIZE, { bg: colSwatch.bg, shadow: colSwatch.shadow }, key.pressAmt || 0);
           ctx.globalAlpha = 1;
         }
       }
 
+      wordKeys.forEach((wk) => {
+        if (wk.activated) {
+          drawWordKey(ctx, wk, now);
+        }
+      });
+
       frameId = requestAnimationFrame(draw);
     };
     frameId = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frameId);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      ro.disconnect();
+      canvas.removeEventListener('click', onClick);
+      canvas.removeEventListener('mousemove', onMove);
+    };
   }, []);
 
   return (
-    <div className="keycap-grid-container">
-      <div className="keycap-grid">
-        <canvas ref={canvasRef} width={1300} height={850} />
-      </div>
+    <div className="keycap-grid-container keycap-hero-canvas-wrap">
+      <canvas
+        ref={canvasRef}
+        className="keycap-hero-canvas"
+        role="img"
+        aria-label="Design your dream keyboard in real-time 3D — interactive keycap grid with Start Designing and Browse Gallery actions."
+      />
     </div>
   );
 }
@@ -226,125 +523,25 @@ export default function EntryScreen() {
         .btn-filled { background: var(--primary); color: var(--on-primary); font-family: var(--font-heading); font-weight: 700; padding: 8px 24px; font-size: 14px; border-radius: 4px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.4); transition: transform 0.1s; }
         .btn-filled:active { transform: translateY(2px); box-shadow: none; }
 
-        /* Animated Grid Overlay */
+        /* Hero canvas — full-bleed interactive grid */
         .keycap-grid-container {
-          position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; overflow: hidden; opacity: 0.6; pointer-events: none;
+          position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; overflow: hidden; opacity: 1; pointer-events: auto;
         }
-        .keycap-grid {
-          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(20deg) scale(1.4);
-          transform-style: preserve-3d; width: 1300px; height: 850px;
+        .keycap-hero-canvas-wrap {
+          width: 100%; height: 100%; min-height: calc(100vh - 56px);
+        }
+        .keycap-hero-canvas {
+          display: block; width: 100%; height: 100%;
         }
         .hero-fade {
           position: absolute; inset: 0; z-index: 1; pointer-events: none;
           background: linear-gradient(to bottom, rgba(13,13,16,0.45) 0%, rgba(13,13,16,0.65) 60%, rgba(13,13,16,0.88) 100%);
         }
 
-        /* Hero Content */
         .hero-section {
           position: relative; width: 100%; min-height: 100vh;
-          display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-          z-index: 10; padding: 0 32px;
-        }
-        .hero-badge {
-          display: inline-block; padding: 4px 16px; border-radius: 100px;
-          border: 1px solid rgba(208,188,255,0.3); background: rgba(208,188,255,0.1); backdrop-filter: blur(12px);
-          margin-bottom: 24px; animation: pulse 2s infinite; color: var(--primary);
-        }
-        @keyframes keyDrop {
-          0% {
-            transform: translateY(-60px);
-            opacity: 0;
-          }
-          60% {
-            transform: translateY(4px);
-            opacity: 1;
-          }
-          80% {
-            transform: translateY(-2px);
-          }
-          100% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-
-        .hero-keycap-stack {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-          max-width: 1100px;
-          margin: 0 auto;
-        }
-        .hero-keycap-row {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-          align-items: center;
-          gap: 0;
-        }
-        .hero-keycap-word {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(208, 188, 255, 0.15);
-          border: 1px solid rgba(208, 188, 255, 0.4);
-          border-radius: 6px;
-          padding: 12px 20px;
-          margin: 6px;
-          font-family: 'Space Grotesk', sans-serif;
-          font-weight: 700;
-          font-size: clamp(1.25rem, 4vw, 2rem);
-          color: #d0bcff;
-          box-shadow: 0 4px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-          animation: keyDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-        }
-        .hero-keycap-actions {
-          margin-top: 16px;
-          gap: 16px;
-        }
-        .hero-keycap-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-family: 'Space Grotesk', sans-serif;
-          font-weight: 700;
-          border-radius: 6px;
-          padding: 14px 40px;
-          font-size: 1.1rem;
-          margin: 6px;
-          cursor: pointer;
-          box-shadow: 0 4px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-          animation: keyDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-          transition: filter 0.15s ease, transform 0.1s ease;
-        }
-        .hero-keycap-btn:hover {
-          filter: brightness(1.06);
-        }
-        .hero-keycap-btn:active {
-          transform: translateY(2px);
-          box-shadow: 0 2px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
-        }
-        .hero-keycap-btn-primary {
-          background: #d0bcff;
-          border: 1px solid #d0bcff;
-          color: #131315;
-        }
-        .hero-keycap-btn-ghost {
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(208,188,255,0.3);
-          color: #d0bcff;
-        }
-        .sr-only {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          margin: -1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
-          white-space: nowrap;
-          border: 0;
+          padding-top: 56px;
+          z-index: 2;
         }
 
         .tech-rail { position: absolute; bottom: 48px; left: 48px; display: flex; flex-direction: column; gap: 12px; }
@@ -405,29 +602,10 @@ export default function EntryScreen() {
         </div>
       </nav>
 
-      {/* Hero */}
+      {/* Hero — full canvas (rain → words → idle); no HTML overlay */}
       <div className="hero-section">
-        <KeycapGrid />
+        <KeycapGrid onStartDesigning={handleStart} onBrowseGallery={() => setScreen('gallery')} />
         <div className="hero-fade" />
-        
-        <div className="hero-keycap-stack" style={{ position: 'relative', zIndex: 10 }}>
-          <h1 className="sr-only">Design your dream keyboard in real-time 3D</h1>
-          <div className="hero-keycap-row">
-            <span className="hero-keycap-word" style={{ animationDelay: '0.3s' }}>Design</span>
-            <span className="hero-keycap-word" style={{ animationDelay: '0.5s' }}>your</span>
-            <span className="hero-keycap-word" style={{ animationDelay: '0.7s' }}>dream</span>
-          </div>
-          <div className="hero-keycap-row">
-            <span className="hero-keycap-word" style={{ animationDelay: '0.9s' }}>keyboard</span>
-            <span className="hero-keycap-word" style={{ animationDelay: '1.1s' }}>in</span>
-            <span className="hero-keycap-word" style={{ animationDelay: '1.3s' }}>real-time</span>
-            <span className="hero-keycap-word" style={{ animationDelay: '1.5s' }}>3D</span>
-          </div>
-          <div className="hero-keycap-row hero-keycap-actions">
-            <button type="button" className="hero-keycap-btn hero-keycap-btn-primary" style={{ animationDelay: '1.8s' }} onClick={handleStart}>Start Designing</button>
-            <button type="button" className="hero-keycap-btn hero-keycap-btn-ghost" style={{ animationDelay: '2.0s' }} onClick={() => setScreen('gallery')}>Browse Gallery</button>
-          </div>
-        </div>
       </div>
 
       {/* Bento Grid */}
