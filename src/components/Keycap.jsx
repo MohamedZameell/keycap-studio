@@ -213,8 +213,10 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', imageUv
     [-tw / 2, H, td / 2],  // 3: back-left
   ];
 
-  // Drape amount - how much image extends onto sides (20% of keycap's UV area)
-  const drape = 0.2;
+  // Drape amount - how much image extends onto sides
+  // Using 4.0 means sides show 4x the keycap's UV height/width
+  // This ensures substantial image coverage on sides, not just thin strips
+  const drape = 4.0;
 
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
@@ -546,39 +548,40 @@ function buildKeycapTextureFallback(color, legend, legendColor, legendFont, lege
 }
 
 // ============================================================
-// Front face legend texture (sideprint) - LARGER for visibility
+// Front face legend texture (sideprint) - MUCH LARGER for visibility
 // ============================================================
 async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont }) {
   const fontFamily = legendFont || 'Inter';
 
   try {
     await Promise.race([
-      document.fonts.load(`bold 140px "${fontFamily}"`),
+      document.fonts.load(`bold 300px "${fontFamily}"`),
       new Promise(resolve => setTimeout(resolve, 500))
     ]);
   } catch (e) {}
 
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
+  canvas.width = 512;  // Square canvas for better aspect ratio
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  ctx.clearRect(0, 0, 1024, 512);
+  ctx.clearRect(0, 0, 512, 512);
 
   if (legend && legend.trim() !== '') {
-    // Larger font sizes for front face visibility
-    const fontSize = legend.length > 3 ? 80 : legend.length > 1 ? 110 : 140;
+    // MUCH larger font sizes - these get scaled down to fit the physical plane
+    // Single char: 300px, short text: 200px, long text: 120px
+    const fontSize = legend.length > 4 ? 100 : legend.length > 2 ? 150 : legend.length > 1 ? 220 : 300;
 
-    // Shadow for depth
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 4;
+    // Strong shadow for depth and visibility
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetY = 6;
 
     ctx.fillStyle = legendColor || '#ffffff';
     ctx.font = `bold ${fontSize}px "${fontFamily}", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(legend, 512, 256);
+    ctx.fillText(legend, 256, 256);
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -777,7 +780,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     return () => { cancelled = true; };
   }, [showFrontLegend, displayText, legendColor, font]);
 
-  // Front face geometry - LARGER to make text visible
+  // Front face geometry - MUCH LARGER to make text clearly visible
   const frontFaceGeometry = useMemo(() => {
     if (!showFrontLegend) return null;
     const normalizedProfile = normalizeProfile(profile);
@@ -786,10 +789,10 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     const W = spec.baseWidth * w * scale;
     const tw = spec.topWidth * w * scale;
     const H = spec.maxHeight * scale;
-    // Make the legend plane wider and taller for visibility
-    const faceWidth = (W + tw) / 2;
-    const faceHeight = H * 0.65; // 65% of height for better visibility
-    return new THREE.PlaneGeometry(faceWidth * 0.95, faceHeight);
+    // Make the plane cover most of the front face
+    const faceWidth = (W + tw) / 2;  // Average of base and top width
+    const faceHeight = H * 0.9;      // 90% of keycap height - much taller
+    return new THREE.PlaneGeometry(faceWidth, faceHeight);  // No reduction, full width
   }, [showFrontLegend, profile, w]);
 
   // ============================================================
