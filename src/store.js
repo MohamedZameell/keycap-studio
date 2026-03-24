@@ -27,12 +27,21 @@ export const useStore = create((set) => ({
   soundEnabled: true,
   ledPreviewExpanded: false,
 
-  // IMAGE STATE
+  // IMAGE STATE (legacy single-image - kept for compatibility)
   keyboardImageMode: 'none',
   keyboardImageUrl: null,
-  keyboardImageOffsetX: 0,  // Pan X offset (-1 to 1)
-  keyboardImageOffsetY: 0,  // Pan Y offset (-1 to 1)
-  keyboardImageScale: 1,    // Zoom scale (0.5 to 3)
+  keyboardImageOffsetX: 0,
+  keyboardImageOffsetY: 0,
+  keyboardImageScale: 1,
+
+  // MULTI-IMAGE STATE (5 image layers)
+  keyboardImages: [
+    { id: 1, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+    { id: 2, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+    { id: 3, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+    { id: 4, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+    { id: 5, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+  ],
 
   // EXPORT STATE
   isExporting: false,
@@ -77,6 +86,47 @@ export const useStore = create((set) => ({
   setKeyboardImageOffsetX: (x) => set({ keyboardImageOffsetX: x }),
   setKeyboardImageOffsetY: (y) => set({ keyboardImageOffsetY: y }),
   setKeyboardImageScale: (s) => set({ keyboardImageScale: s }),
+
+  // Multi-image setters
+  setImageUrl: (id, url) => set((state) => ({
+    keyboardImages: state.keyboardImages.map(img =>
+      img.id === id ? { ...img, url, enabled: url ? true : img.enabled } : img
+    )
+  })),
+  setImageScale: (id, scale) => set((state) => ({
+    keyboardImages: state.keyboardImages.map(img =>
+      img.id === id ? { ...img, scale } : img
+    )
+  })),
+  setImageOffset: (id, offsetX, offsetY) => set((state) => ({
+    keyboardImages: state.keyboardImages.map(img =>
+      img.id === id ? { ...img, offsetX, offsetY } : img
+    )
+  })),
+  setImageOpacity: (id, opacity) => set((state) => ({
+    keyboardImages: state.keyboardImages.map(img =>
+      img.id === id ? { ...img, opacity } : img
+    )
+  })),
+  setImageEnabled: (id, enabled) => set((state) => ({
+    keyboardImages: state.keyboardImages.map(img =>
+      img.id === id ? { ...img, enabled } : img
+    )
+  })),
+  clearImage: (id) => set((state) => ({
+    keyboardImages: state.keyboardImages.map(img =>
+      img.id === id ? { ...img, url: null, enabled: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1 } : img
+    )
+  })),
+  clearAllImages: () => set({
+    keyboardImages: [
+      { id: 1, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+      { id: 2, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+      { id: 3, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+      { id: 4, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+      { id: 5, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+    ]
+  }),
 
   setIsExporting: (isExporting) => set({ isExporting }),
 }))

@@ -376,6 +376,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const imageOffsetX = useStore(s => s.keyboardImageOffsetX) || 0;
   const imageOffsetY = useStore(s => s.keyboardImageOffsetY) || 0;
   const imageScale = useStore(s => s.keyboardImageScale) || 1;
+  const keyboardImages = useStore(s => s.keyboardImages);
 
   const perKeyDesigns = useStore(s => s.perKeyDesigns);
   const pkDesign = perKeyDesigns[keyId] || {};
@@ -426,25 +427,90 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const bodyGeo = useMemo(() => createBodyGeometry(w, h, profile, uvBounds), [w, h, profile, uvBounds]);
   const topGeo = useMemo(() => createTopFaceGeometry(w, h, profile, uvBounds), [w, h, profile, uvBounds]);
 
-  // Image texture - ONE texture, NO offset/repeat (UVs are global)
+  // Multi-image texture - composite all enabled images
   const [imageTexture, setImageTexture] = useState(null);
 
+  // Get enabled images for dependency tracking
+  const enabledImages = useMemo(() =>
+    keyboardImages.filter(img => img.enabled && img.url),
+    [keyboardImages]
+  );
+
   useEffect(() => {
-    if (!imageUrl || imageMode !== 'wrap') {
+    if (imageMode !== 'wrap') {
       setImageTexture(null);
       return;
     }
+
+    // Check for legacy single image OR multi-images
+    const hasLegacyImage = imageUrl && enabledImages.length === 0;
+    const hasMultiImages = enabledImages.length > 0;
+
+    if (!hasLegacyImage && !hasMultiImages) {
+      setImageTexture(null);
+      return;
+    }
+
     let cancelled = false;
     const loader = new THREE.TextureLoader();
-    loader.load(imageUrl, (tex) => {
-      if (cancelled) return;
-      tex.wrapS = THREE.ClampToEdgeWrapping;
-      tex.wrapT = THREE.ClampToEdgeWrapping;
-      tex.colorSpace = THREE.SRGBColorSpace;
-      setImageTexture(tex);
-    }, undefined, () => { if (!cancelled) setImageTexture(null); });
+
+    if (hasLegacyImage) {
+      // Legacy single image mode
+      loader.load(imageUrl, (tex) => {
+        if (cancelled) return;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        setImageTexture(tex);
+      }, undefined, () => { if (!cancelled) setImageTexture(null); });
+    } else {
+      // Multi-image mode - load all and composite
+      const loadPromises = enabledImages.map(img =>
+        new Promise((resolve) => {
+          loader.load(img.url, (tex) => {
+            resolve({ tex, opacity: img.opacity, scale: img.scale, offsetX: img.offsetX, offsetY: img.offsetY });
+          }, undefined, () => resolve(null));
+        })
+      );
+
+      Promise.all(loadPromises).then(results => {
+        if (cancelled) return;
+        const validResults = results.filter(r => r !== null);
+        if (validResults.length === 0) {
+          setImageTexture(null);
+          return;
+        }
+
+        // Composite images on canvas
+        const canvas = document.createElement('canvas');
+        const size = 2048; // High res for quality
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Draw each image layer
+        validResults.forEach(({ tex, opacity, scale, offsetX, offsetY }) => {
+          ctx.globalAlpha = opacity;
+          const img = tex.image;
+          // Calculate position and size based on scale/offset
+          const drawW = size * scale;
+          const drawH = size * scale;
+          const drawX = (size - drawW) / 2 + offsetX * size * 0.5;
+          const drawY = (size - drawH) / 2 + offsetY * size * 0.5;
+          ctx.drawImage(img, drawX, drawY, drawW, drawH);
+          tex.dispose(); // Clean up individual textures
+        });
+
+        const compositeTex = new THREE.CanvasTexture(canvas);
+        compositeTex.wrapS = THREE.ClampToEdgeWrapping;
+        compositeTex.wrapT = THREE.ClampToEdgeWrapping;
+        compositeTex.colorSpace = THREE.SRGBColorSpace;
+        setImageTexture(prev => { prev?.dispose(); return compositeTex; });
+      });
+    }
+
     return () => { cancelled = true; };
-  }, [imageUrl, imageMode]);
+  }, [imageUrl, imageMode, enabledImages]);
 
   // Solid color texture (used when no image)
   const [solidTexture, setSolidTexture] = useState(() =>
