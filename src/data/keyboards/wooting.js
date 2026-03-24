@@ -94,5 +94,22 @@ export default [
     "hotswap": true,
     "switchType": "Lekker Hall-Effect",
     "description": "Analog hall-effect gaming keyboard with rapid trigger."
+  },
+  {
+    "id": "wooting-60he-v2",
+    "brand": "Wooting",
+    "series": "HE Series",
+    "model": "Wooting 60HE v2",
+    "formFactor": "60%",
+    "percentage": "60%",
+    "keyCount": 61,
+    "layout": "ANSI",
+    "profile": "OEM",
+    "ledType": "South-facing RGB",
+    "ledDirection": "South",
+    "hotswap": true,
+    "switchType": "Lekker Hall-Effect",
+    "mount": "gasket",
+    "description": "Updated 60HE with gasket mount and improved acoustics."
   }
 ];
