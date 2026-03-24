@@ -1310,19 +1310,36 @@ export default function StudioScreen() {
           onMouseDown={(e) => {
             if (!imageDragMode || store.keyboardImageMode !== 'wrap') return;
             setIsDraggingImage(true);
+            // Store starting offsets for all enabled layers
+            const enabledLayers = store.keyboardImages.filter(img => img.enabled && img.url);
             dragStartRef.current = {
               x: e.clientX,
               y: e.clientY,
+              layers: enabledLayers.map(img => ({ id: img.id, offsetX: img.offsetX, offsetY: img.offsetY })),
+              // Legacy fallback
               offsetX: store.keyboardImageOffsetX || 0,
               offsetY: store.keyboardImageOffsetY || 0
             };
           }}
           onMouseMove={(e) => {
             if (!isDraggingImage) return;
-            const dx = (e.clientX - dragStartRef.current.x) / 300; // Sensitivity factor
+            const dx = (e.clientX - dragStartRef.current.x) / 300;
             const dy = (e.clientY - dragStartRef.current.y) / 300;
-            store.setKeyboardImageOffsetX(Math.max(-2, Math.min(2, dragStartRef.current.offsetX + dx)));
-            store.setKeyboardImageOffsetY(Math.max(-2, Math.min(2, dragStartRef.current.offsetY - dy))); // Invert Y
+
+            // Move all enabled layers together
+            if (dragStartRef.current.layers?.length > 0) {
+              dragStartRef.current.layers.forEach(layer => {
+                store.setImageOffset(
+                  layer.id,
+                  Math.max(-2, Math.min(2, layer.offsetX + dx)),
+                  Math.max(-2, Math.min(2, layer.offsetY + dy))
+                );
+              });
+            } else {
+              // Legacy single image mode
+              store.setKeyboardImageOffsetX(Math.max(-2, Math.min(2, dragStartRef.current.offsetX + dx)));
+              store.setKeyboardImageOffsetY(Math.max(-2, Math.min(2, dragStartRef.current.offsetY + dy)));
+            }
           }}
           onMouseUp={() => setIsDraggingImage(false)}
           onMouseLeave={() => setIsDraggingImage(false)}
@@ -1330,8 +1347,19 @@ export default function StudioScreen() {
             if (!imageDragMode || store.keyboardImageMode !== 'wrap') return;
             e.preventDefault();
             const delta = e.deltaY > 0 ? -0.1 : 0.1;
-            const newScale = Math.max(0.2, Math.min(5, (store.keyboardImageScale || 1) + delta));
-            store.setKeyboardImageScale(newScale);
+
+            // Zoom all enabled layers together
+            const enabledLayers = store.keyboardImages.filter(img => img.enabled && img.url);
+            if (enabledLayers.length > 0) {
+              enabledLayers.forEach(img => {
+                const newScale = Math.max(0.2, Math.min(5, img.scale + delta));
+                store.setImageScale(img.id, newScale);
+              });
+            } else {
+              // Legacy single image mode
+              const newScale = Math.max(0.2, Math.min(5, (store.keyboardImageScale || 1) + delta));
+              store.setKeyboardImageScale(newScale);
+            }
           }}
         >
           <ErrorBoundary>
