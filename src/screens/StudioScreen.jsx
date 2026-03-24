@@ -979,6 +979,78 @@ export default function StudioScreen() {
                       </div>
                     )}
 
+                    {/* Multi-Image Layers */}
+                    {store.keyboardImageMode === 'wrap' && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 11, color: '#666680', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          Image Layers (5 max)
+                        </div>
+                        {store.keyboardImages.map((img, idx) => (
+                          <div key={img.id} style={{ marginBottom: 8, padding: 10, background: '#1a1a2e', borderRadius: 8, border: `1px solid ${img.enabled ? '#6c63ff' : '#2a2a3a'}` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: img.url ? 8 : 0 }}>
+                              <input
+                                type="checkbox"
+                                checked={img.enabled}
+                                onChange={(e) => store.setImageEnabled(img.id, e.target.checked)}
+                                style={{ accentColor: '#6c63ff' }}
+                              />
+                              <span style={{ fontSize: 12, color: '#888899', flex: 1 }}>Layer {img.id}</span>
+                              <input
+                                type="file"
+                                id={`layer-${img.id}`}
+                                accept="image/png,image/jpeg,image/webp"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const url = URL.createObjectURL(file);
+                                    store.setImageUrl(img.id, url);
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => document.getElementById(`layer-${img.id}`).click()}
+                                style={{ padding: '4px 8px', background: '#252542', border: '1px solid #3a3a5a', borderRadius: 4, color: '#888899', fontSize: 10, cursor: 'pointer' }}
+                              >
+                                {img.url ? 'Change' : 'Upload'}
+                              </button>
+                              {img.url && (
+                                <button
+                                  onClick={() => store.clearImage(img.id)}
+                                  style={{ padding: '4px 8px', background: '#3a2020', border: '1px solid #5a3030', borderRadius: 4, color: '#ff6666', fontSize: 10, cursor: 'pointer' }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                            {img.url && (
+                              <>
+                                <img src={img.url} alt={`Layer ${img.id}`} style={{ width: '100%', height: 50, objectFit: 'cover', borderRadius: 4, marginBottom: 8, opacity: img.enabled ? 1 : 0.4 }} />
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                  <div>
+                                    <span style={{ fontSize: 9, color: '#666680' }}>Opacity</span>
+                                    <input type="range" min="0" max="1" step="0.1" value={img.opacity} onChange={(e) => store.setImageOpacity(img.id, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#6c63ff' }} />
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: 9, color: '#666680' }}>Scale</span>
+                                    <input type="range" min="0.5" max="2" step="0.1" value={img.scale} onChange={(e) => store.setImageScale(img.id, parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#6c63ff' }} />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                        {store.keyboardImages.some(img => img.url) && (
+                          <button
+                            onClick={() => store.clearAllImages()}
+                            style={{ width: '100%', padding: '8px', marginTop: 8, background: '#3a2020', border: '1px solid #5a3030', borderRadius: 4, color: '#ff6666', fontSize: 11, cursor: 'pointer' }}
+                          >
+                            Clear All Layers
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     <p style={styles.note}>
                       {store.keyboardImageMode === 'wrap' ? 'Image will span across all keycaps as one unified canvas' : 'Same image repeats on every key'}
                     </p>
