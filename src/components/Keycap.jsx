@@ -84,24 +84,37 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBound
       // drapeV = vertical drape amount for front/back walls
       // drapeU = horizontal drape amount for left/right walls
 
+      // Vertex order: bl (v0), br (v1), tr (v2), tl (v3)
+      // For proper cloth drape, sides should continue the image outward from top face edges
+
       if (i === 0) {
-        // Front wall (-Z) - faces away from user
-        // Connects to front edge of top (vMax), drapes further down (higher V)
-        uTL = uMin; uTR = uMax; vTL = vMax; vTR = vMax;
-        uBL = uMin; uBR = uMax; vBL = vMax + drapeV; vBR = vMax + drapeV;
+        // Front wall (-Z): bl=front-left-base, br=front-right-base, tr=front-right-top, tl=front-left-top
+        // Top edge matches front edge of top face, bottom drapes down (higher V)
+        uTL = uMin; vTL = vMax;           // front-left top
+        uTR = uMax; vTR = vMax;           // front-right top
+        uBL = uMin; vBL = vMax + drapeV;  // front-left base
+        uBR = uMax; vBR = vMax + drapeV;  // front-right base
       } else if (i === 1) {
-        // Right wall (+X)
-        uTL = uMax; uTR = uMax + drapeU; vTL = vMax; vTR = vMax;
-        uBL = uMax; uBR = uMax + drapeU; vBL = vMin; vBR = vMin;
+        // Right wall (+X): bl=front-right-base, br=back-right-base, tr=back-right-top, tl=front-right-top
+        // Top edge matches right edge of top face, bottom drapes right (higher U)
+        uTL = uMax; vTL = vMax;             // front-right top
+        uTR = uMax; vTR = vMin;             // back-right top
+        uBL = uMax + drapeU; vBL = vMax;    // front-right base (drapes right)
+        uBR = uMax + drapeU; vBR = vMin;    // back-right base (drapes right)
       } else if (i === 2) {
-        // Back wall (+Z) - faces toward user (MOST VISIBLE)
-        // Connects to back edge of top (vMin), drapes further up (lower V)
-        uTL = uMax; uTR = uMin; vTL = vMin; vTR = vMin;
-        uBL = uMax; uBR = uMin; vBL = vMin - drapeV; vBR = vMin - drapeV;
+        // Back wall (+Z): bl=back-right-base, br=back-left-base, tr=back-left-top, tl=back-right-top
+        // Top edge matches back edge of top face, bottom drapes up (lower V)
+        uTL = uMax; vTL = vMin;             // back-right top
+        uTR = uMin; vTR = vMin;             // back-left top
+        uBL = uMax; vBL = vMin - drapeV;    // back-right base
+        uBR = uMin; vBR = vMin - drapeV;    // back-left base
       } else {
-        // Left wall (-X)
-        uTL = uMin - drapeU; uTR = uMin; vTL = vMin; vTR = vMin;
-        uBL = uMin - drapeU; uBR = uMin; vBL = vMax; vBR = vMax;
+        // Left wall (-X): bl=back-left-base, br=front-left-base, tr=front-left-top, tl=back-left-top
+        // Top edge matches left edge of top face, bottom drapes left (lower U)
+        uTL = uMin; vTL = vMin;             // back-left top
+        uTR = uMin; vTR = vMax;             // front-left top
+        uBL = uMin - drapeU; vBL = vMin;    // back-left base (drapes left)
+        uBR = uMin - drapeU; vBR = vMax;    // front-left base (drapes left)
       }
     } else {
       uBL = 0; vBL = 0; uBR = 1; vBR = 0; uTR = 1; vTR = 1; uTL = 0; vTL = 1;
