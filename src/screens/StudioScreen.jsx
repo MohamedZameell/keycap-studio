@@ -52,15 +52,17 @@ function CameraAnimator({ cameraStateRef, orbitRef }) {
   return null;
 }
 
-function StudioOrbitControls({ orbitRef, cameraStateRef, viewMode }) {
+function StudioOrbitControls({ orbitRef, cameraStateRef, viewMode, enabled = true }) {
   const { camera } = useThree();
   return (
     <OrbitControls
       ref={orbitRef}
+      enabled={enabled}
       enableDamping
       dampingFactor={0.05}
-      enableZoom
-      enablePan
+      enableZoom={enabled}
+      enablePan={enabled}
+      enableRotate={enabled}
       minDistance={viewMode === 'single' ? 2 : 3}
       maxDistance={viewMode === 'single' ? 8 : 35}
       minPolarAngle={0}
@@ -146,6 +148,9 @@ export default function StudioScreen() {
     isAnimating: false
   });
   const [isCameraFocused, setIsCameraFocused] = useState(false);
+  const [imageDragMode, setImageDragMode] = useState(false);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
 
   // Compute layout bounds for camera positioning
   const layoutData = useCallback(() => {
@@ -1300,7 +1305,35 @@ export default function StudioScreen() {
         </div>
 
         {/* 3D CANVAS */}
-        <div style={styles.canvasArea}>
+        <div
+          style={{ ...styles.canvasArea, cursor: imageDragMode ? (isDraggingImage ? 'grabbing' : 'grab') : 'default' }}
+          onMouseDown={(e) => {
+            if (!imageDragMode || store.keyboardImageMode !== 'wrap') return;
+            setIsDraggingImage(true);
+            dragStartRef.current = {
+              x: e.clientX,
+              y: e.clientY,
+              offsetX: store.keyboardImageOffsetX || 0,
+              offsetY: store.keyboardImageOffsetY || 0
+            };
+          }}
+          onMouseMove={(e) => {
+            if (!isDraggingImage) return;
+            const dx = (e.clientX - dragStartRef.current.x) / 300; // Sensitivity factor
+            const dy = (e.clientY - dragStartRef.current.y) / 300;
+            store.setKeyboardImageOffsetX(Math.max(-2, Math.min(2, dragStartRef.current.offsetX + dx)));
+            store.setKeyboardImageOffsetY(Math.max(-2, Math.min(2, dragStartRef.current.offsetY - dy))); // Invert Y
+          }}
+          onMouseUp={() => setIsDraggingImage(false)}
+          onMouseLeave={() => setIsDraggingImage(false)}
+          onWheel={(e) => {
+            if (!imageDragMode || store.keyboardImageMode !== 'wrap') return;
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            const newScale = Math.max(0.2, Math.min(5, (store.keyboardImageScale || 1) + delta));
+            store.setKeyboardImageScale(newScale);
+          }}
+        >
           <ErrorBoundary>
             <Canvas
               gl={{
@@ -1376,7 +1409,7 @@ export default function StudioScreen() {
 
                 <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
 
-                <StudioOrbitControls orbitRef={orbitRef} cameraStateRef={cameraStateRef} viewMode={viewMode} />
+                <StudioOrbitControls orbitRef={orbitRef} cameraStateRef={cameraStateRef} viewMode={viewMode} enabled={!imageDragMode} />
 
                 {/* POST PROCESSING */}
                 <EffectComposer multisampling={0} disableNormalPass={false}>
@@ -1387,6 +1420,36 @@ export default function StudioScreen() {
           </ErrorBoundary>
 
           <LEDPreviewWidget />
+
+          {/* Image drag mode toggle */}
+          {store.keyboardImageMode === 'wrap' && viewMode === 'full' && (
+            <button
+              onClick={() => setImageDragMode(!imageDragMode)}
+              style={{
+                position: 'absolute', bottom: 24, left: 24, zIndex: 20,
+                padding: '10px 16px', background: imageDragMode ? '#6c63ff' : 'rgba(20,20,30,0.9)',
+                border: `1px solid ${imageDragMode ? '#8b84ff' : '#3a3a5a'}`, borderRadius: 8,
+                color: '#fff', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', backdropFilter: 'blur(8px)',
+                display: 'flex', alignItems: 'center', gap: 8,
+                transition: 'all 0.2s'
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{imageDragMode ? '✋' : '🖼️'}</span>
+              {imageDragMode ? 'Exit Image Mode (Click to orbit)' : 'Move Image (Drag & Scroll)'}
+            </button>
+          )}
+
+          {/* Image drag mode instructions */}
+          {imageDragMode && store.keyboardImageMode === 'wrap' && (
+            <div style={{
+              position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 20,
+              padding: '8px 16px', background: 'rgba(108,99,255,0.9)', borderRadius: 8,
+              color: '#fff', fontSize: 12, fontWeight: 500, backdropFilter: 'blur(8px)',
+            }}>
+              Drag to move image • Scroll to zoom • Click button to exit
+            </div>
+          )}
 
           {/* TASK 4 — Full view reset button overlay */}
           {isCameraFocused && viewMode === 'full' && (
