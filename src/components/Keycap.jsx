@@ -493,38 +493,62 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       );
 
       Promise.all(loadPromises).then(results => {
-        if (cancelled) return;
-        const validResults = results.filter(r => r !== null);
+        if (cancelled) {
+          // Clean up loaded textures if cancelled
+          results.forEach(r => r?.tex?.dispose());
+          return;
+        }
+        const validResults = results.filter(r => r !== null && r.tex?.image);
         if (validResults.length === 0) {
           setImageTexture(null);
           return;
         }
 
-        // Composite images on canvas
-        const canvas = document.createElement('canvas');
-        const size = 2048; // High res for quality
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
+        try {
+          // Composite images on canvas
+          const canvas = document.createElement('canvas');
+          const size = 2048; // High res for quality
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
 
-        // Draw each image layer
-        validResults.forEach(({ tex, opacity, scale, offsetX, offsetY }) => {
-          ctx.globalAlpha = opacity;
-          const img = tex.image;
-          // Calculate position and size based on scale/offset
-          const drawW = size * scale;
-          const drawH = size * scale;
-          const drawX = (size - drawW) / 2 + offsetX * size * 0.5;
-          const drawY = (size - drawH) / 2 + offsetY * size * 0.5;
-          ctx.drawImage(img, drawX, drawY, drawW, drawH);
-          tex.dispose(); // Clean up individual textures
-        });
+          // Draw each image layer
+          validResults.forEach(({ tex, opacity, scale, offsetX, offsetY }) => {
+            if (!tex?.image) return;
+            ctx.globalAlpha = opacity ?? 1;
+            const img = tex.image;
+            // Calculate position and size based on scale/offset
+            const drawW = size * (scale ?? 1);
+            const drawH = size * (scale ?? 1);
+            const drawX = (size - drawW) / 2 + (offsetX ?? 0) * size * 0.5;
+            const drawY = (size - drawH) / 2 + (offsetY ?? 0) * size * 0.5;
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+          });
 
-        const compositeTex = new THREE.CanvasTexture(canvas);
-        compositeTex.wrapS = THREE.ClampToEdgeWrapping;
-        compositeTex.wrapT = THREE.ClampToEdgeWrapping;
-        compositeTex.colorSpace = THREE.SRGBColorSpace;
-        setImageTexture(prev => { prev?.dispose(); return compositeTex; });
+          const compositeTex = new THREE.CanvasTexture(canvas);
+          compositeTex.wrapS = THREE.ClampToEdgeWrapping;
+          compositeTex.wrapT = THREE.ClampToEdgeWrapping;
+          compositeTex.colorSpace = THREE.SRGBColorSpace;
+
+          setImageTexture(prev => {
+            // Dispose previous texture safely
+            if (prev && typeof prev.dispose === 'function') {
+              try { prev.dispose(); } catch (e) {}
+            }
+            return compositeTex;
+          });
+        } catch (err) {
+          console.error('Error compositing images:', err);
+        } finally {
+          // Clean up individual textures after compositing
+          validResults.forEach(({ tex }) => {
+            if (tex && typeof tex.dispose === 'function') {
+              try { tex.dispose(); } catch (e) {}
+            }
+          });
+        }
+      }).catch(err => {
+        console.error('Error loading images:', err);
       });
     }
 
@@ -559,7 +583,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   }, [perKeyImage]);
 
   // Final textures - use image for BOTH top and sides when in wrap mode
-  const activeTexture = perKeyTexture || (imageMode === 'wrap' && imageTexture ? imageTexture : solidTexture);
+  // Ensure we always have a fallback texture
+  const activeTexture = perKeyTexture || (imageMode === 'wrap' && imageTexture ? imageTexture : solidTexture) || null;
 
   // Legend overlay for image mode
   const [legendOverlay, setLegendOverlay] = useState(null);
@@ -698,7 +723,11 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
 
           {/* Top face */}
           <mesh geometry={topGeo} castShadow receiveShadow>
-            <meshPhysicalMaterial map={activeTexture} color="#ffffff" {...topMatProps} />
+            <meshPhysicalMaterial
+              map={activeTexture}
+              color={activeTexture ? "#ffffff" : color}
+              {...topMatProps}
+            />
           </mesh>
 
           {/* Legend overlay for image mode */}
