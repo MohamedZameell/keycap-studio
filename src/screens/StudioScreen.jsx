@@ -1,12 +1,12 @@
 import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Stars, Stats } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
 import { EffectComposer, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { HexColorPicker } from 'react-colorful';
 import * as THREE from 'three';
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically when needed
 import ErrorBoundary from '../components/ErrorBoundary';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
@@ -463,11 +463,13 @@ export default function StudioScreen() {
     }
   };
 
-  // TASK 5 — PDF export
-  const handleExportPDF = () => {
+  // TASK 5 — PDF export (dynamically loads jsPDF)
+  const handleExportPDF = async () => {
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
     try {
+      showToast('Generating PDF...');
+      const { jsPDF } = await import('jspdf');
       const imgData = canvas.toDataURL('image/png', 1.0);
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();

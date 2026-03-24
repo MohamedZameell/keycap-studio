@@ -1,11 +1,12 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import EntryScreen from './screens/EntryScreen';
-import SelectorScreen from './screens/SelectorScreen';
-import AboutScreen from './screens/AboutScreen';
-import SupportScreen from './screens/SupportScreen';
-import SignInModal from './components/SignInModal';
 import { useStore } from './store';
 
+// Lazy load all non-entry screens
+const SelectorScreen = lazy(() => import('./screens/SelectorScreen'));
+const AboutScreen = lazy(() => import('./screens/AboutScreen'));
+const SupportScreen = lazy(() => import('./screens/SupportScreen'));
+const SignInModal = lazy(() => import('./components/SignInModal'));
 const StudioScreen = lazy(() => import('./screens/StudioScreen'));
 const GalleryScreen = lazy(() => import('./screens/GalleryScreen'));
 
@@ -35,21 +36,17 @@ export default function App() {
     }
   }, []);
 
-  if (screen === 'entry') return <><EntryScreen /><SignInModal /></>;
-  if (screen === 'selector') return <><SelectorScreen /><SignInModal /></>;
-  if (screen === 'about') return <><AboutScreen /><SignInModal /></>;
-  if (screen === 'support') return <><SupportScreen /><SignInModal /></>;
-  if (screen === 'studio' || screen === 'gallery') {
-    return (
-      <>
-        <Suspense fallback={<div style={{background:'#0a0a0f', width:'100vw', height:'100vh'}} />}>
-          {screen === 'studio' && <StudioScreen />}
-          {screen === 'gallery' && <GalleryScreen />}
-        </Suspense>
-        <SignInModal />
-      </>
-    );
-  }
-  
-  return <div style={{color: 'white', padding: 20}}>Unknown screen</div>;
+  const fallback = <div style={{background:'#0a0a0f', width:'100vw', height:'100vh'}} />;
+
+  return (
+    <Suspense fallback={fallback}>
+      {screen === 'entry' && <EntryScreen />}
+      {screen === 'selector' && <SelectorScreen />}
+      {screen === 'about' && <AboutScreen />}
+      {screen === 'support' && <SupportScreen />}
+      {screen === 'studio' && <StudioScreen />}
+      {screen === 'gallery' && <GalleryScreen />}
+      <SignInModal />
+    </Suspense>
+  );
 }
