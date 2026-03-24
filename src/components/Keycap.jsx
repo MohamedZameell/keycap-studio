@@ -449,6 +449,12 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     [keyboardImages]
   );
 
+  // Create a dependency key that changes when any image property changes
+  const imagesKey = useMemo(() =>
+    enabledImages.map(img => `${img.id}-${img.url}-${img.scale}-${img.offsetX}-${img.offsetY}-${img.opacity}`).join('|'),
+    [enabledImages]
+  );
+
   useEffect(() => {
     if (imageMode !== 'wrap') {
       setImageTexture(null);
@@ -523,7 +529,7 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     }
 
     return () => { cancelled = true; };
-  }, [imageUrl, imageMode, enabledImages]);
+  }, [imageUrl, imageMode, enabledImages, imagesKey]);
 
   // Solid color texture (used when no image)
   const [solidTexture, setSolidTexture] = useState(() =>
