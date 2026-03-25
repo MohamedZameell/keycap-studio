@@ -7,33 +7,19 @@ export default function AuthModal({ onClose }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(isConfigured ? '' : 'Supabase not configured - check .env file')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState('')
 
-  if (!isConfigured) {
-    return (
-      <div style={styles.overlay} onClick={onClose}>
-        <div style={styles.modal} onClick={e => e.stopPropagation()}>
-          <h2 style={styles.title}>AUTH NOT CONFIGURED</h2>
-          <p style={styles.text}>
-            Supabase is not configured. Add your credentials to .env file:
-          </p>
-          <pre style={styles.code}>
-            VITE_SUPABASE_URL=your_url{'\n'}
-            VITE_SUPABASE_ANON_KEY=your_key
-          </pre>
-          <button style={styles.primaryBtn} onClick={onClose}>GOT IT</button>
-        </div>
-      </div>
-    )
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
-    e.stopPropagation()
     setError('')
     setSuccess('')
+
+    if (!isConfigured) {
+      setError('Supabase not configured - check .env file')
+      return
+    }
 
     // Validate fields before submitting
     if (!email.trim() || !password.trim()) {
@@ -71,9 +57,16 @@ export default function AuthModal({ onClose }) {
     setLoading(false)
   }
 
+  const handleOverlayClick = (e) => {
+    // Only close if clicking directly on overlay, not on children
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+    <div style={styles.overlay} onClick={handleOverlayClick}>
+      <div style={styles.modal}>
         <button style={styles.closeBtn} onClick={onClose}>×</button>
 
         <h2 style={styles.title}>
