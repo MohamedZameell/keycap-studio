@@ -196,79 +196,15 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
 
   return (
     <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <button style={styles.backBtn} onClick={() => store.setScreen('studio')}>← BACK TO STUDIO</button>
-        <h1 style={styles.title}>TYPING TEST</h1>
-        <div style={styles.headerRight}>
-          {[15, 30, 60, 120].map(t => (
-            <button
-              key={t}
-              onClick={() => { setTestDuration(t); setTimeLeft(t); reset(); }}
-              style={testDuration === t ? styles.durationBtnActive : styles.durationBtn}
-            >
-              {t}s
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats Bar */}
-      <div style={styles.statsBar}>
-        <div style={styles.stat}>
-          <span style={styles.statValue}>{wpm}</span>
-          <span style={styles.statLabel}>WPM</span>
-        </div>
-        <div style={styles.stat}>
-          <span style={styles.statValue}>{accuracy}%</span>
-          <span style={styles.statLabel}>ACC</span>
-        </div>
-        <div style={styles.stat}>
-          <span style={{ ...styles.statValue, color: timeLeft <= 10 ? '#ff6b6b' : 'var(--primary)' }}>{timeLeft}</span>
-          <span style={styles.statLabel}>SEC</span>
-        </div>
-        <button style={styles.resetBtn} onClick={reset}>RESET</button>
-      </div>
-
-      {/* Word Display */}
-      <div style={styles.wordSection}>
-        {finished ? (
-          <div style={styles.results}>
-            <div style={styles.finalWpm}>{wpm}</div>
-            <div style={styles.finalLabel}>words per minute</div>
-            <div style={styles.finalStats}>
-              {correctWords}/{totalTyped} correct ({accuracy}% accuracy)
-            </div>
-            <button style={styles.tryAgainBtn} onClick={reset}>TRY AGAIN</button>
-          </div>
-        ) : (
-          <>
-            <div style={styles.wordsContainer}>
-              {words.map((word, idx) => renderWord(word, idx))}
-            </div>
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              style={styles.hiddenInput}
-              autoFocus
-            />
-            {!started && (
-              <div style={styles.hint}>Start typing to begin the test...</div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* 3D Keyboard */}
-      <div style={styles.keyboardSection}>
+      {/* Full-screen 3D Keyboard Background */}
+      <div style={styles.canvasContainer}>
         <Canvas
-          camera={{ position: [0, 6, 7], fov: 55 }}
+          camera={{ position: [0, 12, 12], fov: 60 }}
           style={{ background: 'transparent' }}
         >
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[5, 10, 10]} intensity={0.7} />
+          <directionalLight position={[-4, 3, -10]} intensity={0.2} />
           <Suspense fallback={null}>
             <KeyboardRenderer
               layout={layout}
@@ -279,16 +215,82 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
           </Suspense>
           <OrbitControls
             enablePan={false}
-            enableZoom={false}
-            minPolarAngle={Math.PI / 4}
-            maxPolarAngle={Math.PI / 2.5}
+            enableZoom={true}
+            minDistance={8}
+            maxDistance={25}
+            minPolarAngle={Math.PI / 6}
+            maxPolarAngle={Math.PI / 2.2}
           />
         </Canvas>
       </div>
 
-      {/* Footer hint */}
-      <div style={styles.footer}>
-        <span>Press <kbd style={styles.kbd}>Tab</kbd> + <kbd style={styles.kbd}>Enter</kbd> to restart</span>
+      {/* Overlay UI */}
+      <div style={styles.overlay}>
+        {/* Header */}
+        <div style={styles.header}>
+          <button style={styles.backBtn} onClick={() => store.setScreen('studio')}>← BACK</button>
+          <div style={styles.statsRow}>
+            <div style={styles.stat}>
+              <span style={styles.statValue}>{wpm}</span>
+              <span style={styles.statLabel}>WPM</span>
+            </div>
+            <div style={styles.stat}>
+              <span style={styles.statValue}>{accuracy}%</span>
+              <span style={styles.statLabel}>ACC</span>
+            </div>
+            <div style={styles.stat}>
+              <span style={{ ...styles.statValue, color: timeLeft <= 10 ? '#ff6b6b' : 'var(--primary)' }}>{timeLeft}</span>
+              <span style={styles.statLabel}>SEC</span>
+            </div>
+          </div>
+          <div style={styles.headerRight}>
+            {[15, 30, 60, 120].map(t => (
+              <button
+                key={t}
+                onClick={() => { setTestDuration(t); setTimeLeft(t); reset(); }}
+                style={testDuration === t ? styles.durationBtnActive : styles.durationBtn}
+              >
+                {t}s
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Word Display - centered on screen */}
+        <div style={styles.wordSection}>
+          {finished ? (
+            <div style={styles.results}>
+              <div style={styles.finalWpm}>{wpm}</div>
+              <div style={styles.finalLabel}>words per minute</div>
+              <div style={styles.finalStats}>
+                {correctWords}/{totalTyped} correct ({accuracy}% accuracy)
+              </div>
+              <button style={styles.tryAgainBtn} onClick={reset}>TRY AGAIN</button>
+            </div>
+          ) : (
+            <div style={styles.wordBox}>
+              <div style={styles.wordsContainer}>
+                {words.map((word, idx) => renderWord(word, idx))}
+              </div>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                style={styles.hiddenInput}
+                autoFocus
+              />
+              {!started && (
+                <div style={styles.hint}>Start typing to begin...</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={styles.footer}>
+          <button style={styles.resetBtn} onClick={reset}>RESET</button>
+        </div>
       </div>
     </div>
   );
@@ -296,23 +298,43 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
 
 const styles = {
   container: {
-    minHeight: '100vh',
+    position: 'relative',
+    width: '100vw',
+    height: '100vh',
+    overflow: 'hidden',
     background: 'var(--surface-dim)',
+    fontFamily: 'var(--font-body)'
+  },
+  canvasContainer: {
+    position: 'absolute',
+    inset: 0,
+    zIndex: 1
+  },
+  overlay: {
+    position: 'absolute',
+    inset: 0,
+    zIndex: 10,
     display: 'flex',
     flexDirection: 'column',
-    fontFamily: 'var(--font-body)'
+    pointerEvents: 'none'
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px 32px',
-    borderBottom: '1px solid var(--outline-variant)'
+    padding: '16px 24px',
+    background: 'linear-gradient(to bottom, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0) 100%)',
+    pointerEvents: 'auto'
+  },
+  statsRow: {
+    display: 'flex',
+    gap: 32
   },
   backBtn: {
-    background: 'none',
-    border: '1px solid var(--outline-variant)',
-    color: 'var(--on-surface-variant)',
+    background: 'rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    color: 'var(--on-surface)',
     padding: '8px 16px',
     borderRadius: 4,
     fontFamily: 'var(--font-heading)',
@@ -320,22 +342,16 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer'
   },
-  title: {
-    fontFamily: 'var(--font-heading)',
-    fontSize: 20,
-    fontWeight: 700,
-    color: 'var(--on-surface)',
-    margin: 0
-  },
   headerRight: {
     display: 'flex',
     gap: 8
   },
   durationBtn: {
-    background: 'var(--surface-container)',
-    border: '1px solid var(--outline-variant)',
+    background: 'rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.15)',
     color: 'var(--on-surface-variant)',
-    padding: '8px 16px',
+    padding: '8px 14px',
     borderRadius: 4,
     fontFamily: 'var(--font-mono)',
     fontSize: 12,
@@ -345,19 +361,11 @@ const styles = {
     background: 'var(--primary)',
     border: '1px solid var(--primary)',
     color: 'var(--on-primary)',
-    padding: '8px 16px',
+    padding: '8px 14px',
     borderRadius: 4,
     fontFamily: 'var(--font-mono)',
     fontSize: 12,
     cursor: 'pointer'
-  },
-  statsBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 48,
-    padding: '24px',
-    background: 'var(--surface)'
   },
   stat: {
     textAlign: 'center'
@@ -365,43 +373,53 @@ const styles = {
   statValue: {
     display: 'block',
     fontFamily: 'var(--font-heading)',
-    fontSize: 48,
+    fontSize: 32,
     fontWeight: 700,
     color: 'var(--primary)',
-    lineHeight: 1
+    lineHeight: 1,
+    textShadow: '0 2px 8px rgba(0,0,0,0.5)'
   },
   statLabel: {
     fontFamily: 'var(--font-mono)',
-    fontSize: 11,
+    fontSize: 10,
     color: 'var(--on-surface-variant)',
     textTransform: 'uppercase',
     letterSpacing: '0.1em'
   },
   resetBtn: {
-    background: 'var(--surface-container)',
-    border: '1px solid var(--outline-variant)',
-    color: 'var(--on-surface-variant)',
-    padding: '12px 24px',
+    background: 'rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    color: 'var(--on-surface)',
+    padding: '10px 20px',
     borderRadius: 4,
     fontFamily: 'var(--font-heading)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
-    marginLeft: 24
+    pointerEvents: 'auto'
   },
   wordSection: {
-    padding: '24px 64px',
-    minHeight: 100,
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'flex-start',
+    paddingTop: '5vh',
+    pointerEvents: 'auto'
+  },
+  wordBox: {
+    background: 'rgba(10,10,15,0.85)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: 8,
+    padding: '24px 32px',
+    maxWidth: 700,
+    border: '1px solid rgba(255,255,255,0.1)'
   },
   wordsContainer: {
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: 'var(--font-body)',
     lineHeight: 1.8,
-    maxWidth: 900,
     textAlign: 'center'
   },
   hiddenInput: {
@@ -410,20 +428,27 @@ const styles = {
     pointerEvents: 'none'
   },
   hint: {
-    marginTop: 16,
+    marginTop: 12,
     color: 'var(--on-surface-variant)',
     fontFamily: 'var(--font-mono)',
-    fontSize: 14
+    fontSize: 13,
+    textAlign: 'center'
   },
   results: {
-    textAlign: 'center'
+    textAlign: 'center',
+    background: 'rgba(10,10,15,0.9)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: 8,
+    padding: '40px 60px',
+    border: '1px solid rgba(255,255,255,0.1)'
   },
   finalWpm: {
     fontFamily: 'var(--font-heading)',
-    fontSize: 120,
+    fontSize: 100,
     fontWeight: 700,
     color: 'var(--primary)',
-    lineHeight: 1
+    lineHeight: 1,
+    textShadow: '0 4px 20px rgba(108,99,255,0.4)'
   },
   finalLabel: {
     fontFamily: 'var(--font-mono)',
@@ -435,39 +460,25 @@ const styles = {
   },
   finalStats: {
     fontFamily: 'var(--font-body)',
-    fontSize: 18,
+    fontSize: 16,
     color: 'var(--on-surface-variant)',
-    marginBottom: 32
+    marginBottom: 24
   },
   tryAgainBtn: {
     background: 'var(--primary)',
     border: 'none',
     color: 'var(--on-primary)',
-    padding: '16px 48px',
+    padding: '14px 40px',
     borderRadius: 4,
     fontFamily: 'var(--font-heading)',
     fontSize: 14,
     fontWeight: 700,
     cursor: 'pointer'
   },
-  keyboardSection: {
-    flex: 1,
-    minHeight: 450,
-    maxHeight: 550
-  },
   footer: {
-    padding: 16,
+    padding: '16px 24px',
     textAlign: 'center',
-    color: 'var(--on-surface-variant)',
-    fontFamily: 'var(--font-mono)',
-    fontSize: 12
-  },
-  kbd: {
-    background: 'var(--surface-container)',
-    border: '1px solid var(--outline-variant)',
-    borderRadius: 4,
-    padding: '2px 8px',
-    fontFamily: 'var(--font-mono)',
-    fontSize: 11
+    background: 'linear-gradient(to top, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0) 100%)',
+    pointerEvents: 'auto'
   }
 };
