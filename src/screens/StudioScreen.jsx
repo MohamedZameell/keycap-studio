@@ -728,26 +728,38 @@ export default function StudioScreen() {
 
                 {/* GMK COLORWAYS */}
                 <div style={{ marginBottom: 16 }}>
-                  <div style={styles.sectionLabel}>GMK Colorways <span style={{ opacity: 0.5, fontWeight: 400 }}>({COLORWAY_LIST.length})</span></div>
+                  <div style={styles.sectionLabel}>
+                    GMK Colorways <span style={{ opacity: 0.5, fontWeight: 400 }}>({COLORWAY_LIST.length})</span>
+                    {store.selectedColorway && (
+                      <button
+                        onClick={() => store.setSelectedColorway(null)}
+                        style={{ marginLeft: 8, padding: '2px 6px', fontSize: 9, background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: 2, color: 'var(--on-surface-variant)', cursor: 'pointer' }}
+                      >
+                        CLEAR
+                      </button>
+                    )}
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, maxHeight: 200, overflowY: 'auto', padding: '4px 0' }}>
                     {COLORWAY_LIST.slice(0, 48).map(id => {
                       const c = COLORWAYS[id];
                       const theme = colorwayToTheme(c);
+                      const isActive = store.selectedColorway === id;
                       return (
                         <button key={id}
-                          onClick={() => { store.setGlobalColor(theme.baseColor); store.setGlobalLegendColor(theme.baseLegend); }}
+                          onClick={() => store.setSelectedColorway(id)}
                           title={c.label}
                           style={{
                             aspectRatio: '1',
                             background: `linear-gradient(135deg, ${theme.baseColor} 60%, ${theme.modColor} 60%)`,
-                            border: '2px solid transparent',
+                            border: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                             borderRadius: 2,
                             cursor: 'pointer',
                             transition: 'border 0.15s, transform 0.1s',
                             position: 'relative',
+                            boxShadow: isActive ? '0 0 8px var(--primary)' : 'none'
                           }}
-                          onMouseEnter={e => { e.currentTarget.style.border = '2px solid var(--primary)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.border = '2px solid transparent'; e.currentTarget.style.transform = 'scale(1)'; }}
+                          onMouseEnter={e => { if (!isActive) { e.currentTarget.style.border = '2px solid rgba(255,255,255,0.4)'; e.currentTarget.style.transform = 'scale(1.1)'; }}}
+                          onMouseLeave={e => { if (!isActive) { e.currentTarget.style.border = '2px solid transparent'; e.currentTarget.style.transform = 'scale(1)'; }}}
                         >
                           <div style={{
                             position: 'absolute', bottom: 2, right: 2,

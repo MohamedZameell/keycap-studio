@@ -156,6 +156,44 @@ export const COLORWAYS = {
 // Get colorway by id
 export const getColorway = (id) => COLORWAYS[id] || COLORWAYS.olivia;
 
+// Modifier key labels (keys that should use mods color)
+const MOD_LABELS = [
+  'Backspace', 'Tab', 'Enter', 'Caps Lock', 'Shift', 'Ctrl', 'Control',
+  'Alt', 'Win', 'Super', 'Fn', 'Menu', 'Space', '', // empty is spacebar
+  '←', '→', '↑', '↓', 'Left', 'Right', 'Up', 'Down',
+  'PgUp', 'PgDn', 'Home', 'End', 'Ins', 'Del', 'Delete', 'Insert',
+  'PrtSc', 'ScrLk', 'Pause', 'NumLk',
+  'Ent', '+', '-', '*', '/', 'Num'
+];
+
+// Accent key labels
+const ACCENT_LABELS = ['Esc', 'Escape'];
+
+// Determine key type based on label
+export const getKeyType = (label) => {
+  if (!label) return 'mod'; // spacebar
+  if (ACCENT_LABELS.includes(label)) return 'accent';
+  if (MOD_LABELS.includes(label)) return 'mod';
+  if (label.startsWith('F') && !isNaN(label.slice(1))) return 'mod'; // F1-F12
+  return 'base';
+};
+
+// Get colors for a specific key based on colorway
+export const getKeyColors = (colorway, label) => {
+  const c = typeof colorway === 'string' ? getColorway(colorway) : colorway;
+  if (!c || !c.swatches) {
+    return { background: '#7c6bb0', legend: '#ffffff' };
+  }
+
+  const keyType = getKeyType(label);
+  const swatch = c.swatches[keyType] || c.swatches.base;
+
+  return {
+    background: swatch.background,
+    legend: swatch.color
+  };
+};
+
 // Get list of all colorway IDs sorted by popularity
 export const COLORWAY_LIST = Object.keys(COLORWAYS);
 

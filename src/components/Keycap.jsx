@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
+import { getKeyColors } from '../data/colorways';
 
 // ============================================================
 // Darken a hex color by a luminance factor
@@ -390,12 +391,21 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
   const imageOffsetY = useStore(s => s.keyboardImageOffsetY) || 0;
   const imageScale = useStore(s => s.keyboardImageScale) || 1;
   const keyboardImages = useStore(s => s.keyboardImages);
+  const selectedColorway = useStore(s => s.selectedColorway);
 
   const perKeyDesigns = useStore(s => s.perKeyDesigns);
   const pkDesign = perKeyDesigns[keyId] || {};
 
-  const color = pkDesign.color || globalColor;
-  const legendColor = pkDesign.legendColor || globalLegendColor;
+  // Get colors - priority: per-key > colorway > global
+  const colorwayColors = useMemo(() => {
+    if (selectedColorway) {
+      return getKeyColors(selectedColorway, label);
+    }
+    return null;
+  }, [selectedColorway, label]);
+
+  const color = pkDesign.color || (colorwayColors?.background) || globalColor;
+  const legendColor = pkDesign.legendColor || (colorwayColors?.legend) || globalLegendColor;
   const legendText = pkDesign.legendText || globalLegendText;
   const font = pkDesign.font || globalFont;
   const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';

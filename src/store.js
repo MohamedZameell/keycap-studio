@@ -15,6 +15,7 @@ export const useStore = create((set) => ({
 
   // DESIGN STATE
   selectedKey: null,
+  selectedColorway: null, // GMK colorway id - when set, overrides globalColor
   globalColor: '#6c63ff',
   globalLegendColor: '#ffffff',
   globalLegendText: '',
@@ -58,6 +59,7 @@ export const useStore = create((set) => ({
   setKeyboardLEDType: (ledType) => set({ keyboardLEDType: ledType }),
 
   setSelectedKey: (keyId) => set({ selectedKey: keyId }),
+  setSelectedColorway: (id) => set({ selectedColorway: id }),
   setGlobalColor: (color) => set({ globalColor: color }),
   setGlobalLegendColor: (color) => set({ globalLegendColor: color }),
   setGlobalLegendText: (text) => set({ globalLegendText: text }),
