@@ -264,7 +264,7 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
       {/* 3D Keyboard */}
       <div style={styles.keyboardSection}>
         <Canvas
-          camera={{ position: [0, 8, 10], fov: 50 }}
+          camera={{ position: [0, 6, 7], fov: 55 }}
           style={{ background: 'transparent' }}
         >
           <ambientLight intensity={0.4} />
@@ -390,8 +390,8 @@ const styles = {
     marginLeft: 24
   },
   wordSection: {
-    padding: '32px 64px',
-    minHeight: 120,
+    padding: '24px 64px',
+    minHeight: 100,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -452,7 +452,8 @@ const styles = {
   },
   keyboardSection: {
     flex: 1,
-    minHeight: 300
+    minHeight: 450,
+    maxHeight: 550
   },
   footer: {
     padding: 16,
