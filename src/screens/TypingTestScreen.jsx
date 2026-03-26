@@ -175,21 +175,39 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
       );
     }
 
-    // Current word - show character by character
+    // Current word - show character by character (Monkeytype style)
+    const hasError = input.length > word.length || (input.length > 0 && !word.startsWith(input.slice(0, word.length).split('').filter((c, i) => c === word[i]).join('')));
+
     return (
-      <span key={idx} style={{ marginRight: 12 }}>
+      <span key={idx} style={{
+        marginRight: 16,
+        padding: '4px 8px',
+        borderRadius: 4,
+        background: 'rgba(255,255,255,0.05)',
+        border: input.length > word.length ? '1px solid #ff6b6b' : '1px solid transparent'
+      }}>
         {word.split('').map((char, i) => {
-          let color = 'var(--on-surface)';
+          let color = 'rgba(255,255,255,0.4)'; // untyped
+          let textDecoration = 'none';
+
           if (i < input.length) {
-            color = input[i] === char ? 'var(--primary)' : '#ff6b6b';
+            if (input[i] === char) {
+              color = 'var(--primary)'; // correct
+            } else {
+              color = '#ff6b6b'; // wrong
+            }
           }
-          return <span key={i} style={{ color, fontWeight: i < input.length ? 700 : 400 }}>{char}</span>;
+
+          return (
+            <span key={i} style={{
+              color,
+              textDecoration,
+              transition: 'color 0.1s'
+            }}>
+              {char}
+            </span>
+          );
         })}
-        {input.length > word.length && (
-          <span style={{ color: '#ff6b6b', textDecoration: 'line-through' }}>
-            {input.slice(word.length)}
-          </span>
-        )}
       </span>
     );
   };
