@@ -373,7 +373,7 @@ async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont, ke
 // ============================================================
 // Main Keycap component
 // ============================================================
-export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPerformanceMode, singleKeyMode = false, onClick, profile = 'cherry' }) {
+export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPressed, isPerformanceMode, singleKeyMode = false, onClick, profile = 'cherry' }) {
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
 
@@ -689,7 +689,9 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       meshRef.current.rotation.y = clock.elapsedTime * 0.6;
       meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.9) * 0.05;
     } else {
-      meshRef.current.position.y = THREE.MathUtils.lerp(meshRef.current.position.y, hovered ? 0.06 : 0, 0.12);
+      // Determine target Y: pressed goes down, hovered goes up, default is 0
+      const targetY = isPressed ? -0.04 : hovered ? 0.06 : 0;
+      meshRef.current.position.y = THREE.MathUtils.lerp(meshRef.current.position.y, targetY, isPressed ? 0.35 : 0.12);
     }
   });
 

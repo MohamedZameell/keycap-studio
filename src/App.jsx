@@ -10,6 +10,7 @@ const SupportScreen = lazy(() => import('./screens/SupportScreen'));
 const SignInModal = lazy(() => import('./components/SignInModal'));
 const StudioScreen = lazy(() => import('./screens/StudioScreen'));
 const GalleryScreen = lazy(() => import('./screens/GalleryScreen'));
+const TypingTestScreen = lazy(() => import('./screens/TypingTestScreen'));
 
 // Sync store screen state with URL
 function ScreenSyncer() {
@@ -27,7 +28,8 @@ function ScreenSyncer() {
       '/studio': 'studio',
       '/gallery': 'gallery',
       '/about': 'about',
-      '/support': 'support'
+      '/support': 'support',
+      '/typing-test': 'typing-test'
     };
     const newScreen = screenMap[path] || 'entry';
     if (newScreen !== screen) {
@@ -43,7 +45,8 @@ function ScreenSyncer() {
       'studio': '/studio',
       'gallery': '/gallery',
       'about': '/about',
-      'support': '/support'
+      'support': '/support',
+      'typing-test': '/typing-test'
     };
     const targetPath = pathMap[screen] || '/';
     if (location.pathname !== targetPath) {
@@ -94,6 +97,7 @@ export default function App() {
           <Route path="/selector" element={<SelectorScreen />} />
           <Route path="/studio" element={<StudioScreen />} />
           <Route path="/gallery" element={<GalleryScreen />} />
+          <Route path="/typing-test" element={<TypingTestScreen />} />
           <Route path="/about" element={<AboutScreen />} />
           <Route path="/support" element={<SupportScreen />} />
           {/* Fallback to entry for unknown routes */}

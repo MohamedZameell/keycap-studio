@@ -7,7 +7,7 @@ import { Text } from '@react-three/drei';
 
 const KEY_UNIT = 1.05;
 
-export default function KeyboardRenderer({ onKeyClick }) {
+export default function KeyboardRenderer({ onKeyClick, pressedKeys = new Set(), layout: externalLayout }) {
   const formFactor = useStore(s => s.selectedFormFactor);
   const selectedKey = useStore(s => s.selectedKey);
   const setSelectedKey = useStore(s => s.setSelectedKey);
@@ -103,6 +103,7 @@ export default function KeyboardRenderer({ onKeyClick }) {
             uvOffset={[uvOffsetX, uvOffsetY]}
             uvScale={[uvScaleX, uvScaleY]}
             isSelected={selectedKey === key.id}
+            isPressed={pressedKeys.has(key.id)}
             isPerformanceMode={isPerformanceMode}
             onClick={() => onKeyClick ? onKeyClick(key.id) : setSelectedKey(key.id)}
             profile={selectedProfile}

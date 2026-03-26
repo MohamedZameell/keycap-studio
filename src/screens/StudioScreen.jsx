@@ -645,7 +645,7 @@ export default function StudioScreen() {
           >{isAuthenticated ? 'SAVE' : 'SIGN IN TO SAVE'}</button>
 
           <button
-            onClick={() => setShowTypingTest(true)}
+            onClick={() => store.setScreen('typing-test')}
             title="Test your typing speed"
             style={{
               fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
