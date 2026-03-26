@@ -8,6 +8,10 @@ import { HexColorPicker } from 'react-colorful';
 import * as THREE from 'three';
 // jsPDF loaded dynamically when needed
 import ErrorBoundary from '../components/ErrorBoundary';
+import { useAuth } from '../hooks/useAuth';
+import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
+import { COLORWAYS, COLORWAY_LIST, colorwayToTheme } from '../data/colorways';
+import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
@@ -128,6 +132,7 @@ const IMAGE_MODES = [
 
 export default function StudioScreen() {
   const store = useStore();
+  const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('DESIGN');
   const [viewMode, setViewMode] = useState('full');
   const [targetScope, setTargetScope] = useState('all');
@@ -136,6 +141,10 @@ export default function StudioScreen() {
   const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
   const [preflightIssues, setPreflightIssues] = useState([]);
   const [showPreflightModal, setShowPreflightModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [showTypingTest, setShowTypingTest] = useState(false);
   const fileInputRef = useRef(null);
   const orbitRef = useRef(null);
 
@@ -358,6 +367,47 @@ export default function StudioScreen() {
     } catch (e) {
       showToast('Failed to copy link');
     }
+  };
+
+  // --- SAVE DESIGN TO ACCOUNT ---
+  const handleSaveDesign = async () => {
+    if (!saveName.trim()) {
+      showToast('Please enter a name');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      document.dispatchEvent(new CustomEvent('showSignIn'));
+      setShowSaveModal(false);
+      return;
+    }
+
+    setSaveLoading(true);
+    try {
+      const state = useStore.getState();
+      const { data, error } = await saveUserDesign({
+        name: saveName,
+        color: state.globalColor,
+        legendColor: state.globalLegendColor,
+        keyboard: state.selectedModel,
+        font: state.globalFont,
+        material: state.materialPreset,
+        profile: state.selectedProfile,
+        perKeyDesigns: state.perKeyDesigns,
+        images: state.keyboardImages?.filter(i => i.url) || []
+      });
+
+      if (error) {
+        showToast(error.message || 'Save failed');
+      } else {
+        showToast('Design saved!');
+        setShowSaveModal(false);
+        setSaveName('');
+      }
+    } catch (e) {
+      showToast('Save failed');
+    }
+    setSaveLoading(false);
   };
 
   // --- MANUFACTURING EXPORT HANDLERS ---
@@ -584,12 +634,26 @@ export default function StudioScreen() {
             >{v}</button>
           ))}
 
-          <button style={{
-            fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: 13,
-            padding: '6px 16px', borderRadius: 2,
-            border: '1px solid rgba(149,142,160,0.3)',
-            background: 'transparent', color: '#e5e1e4', cursor: 'pointer',
-          }}>SAVE</button>
+          <button
+            onClick={() => isAuthenticated ? setShowSaveModal(true) : document.dispatchEvent(new CustomEvent('showSignIn'))}
+            style={{
+              fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: 13,
+              padding: '6px 16px', borderRadius: 2,
+              border: '1px solid rgba(149,142,160,0.3)',
+              background: 'transparent', color: '#e5e1e4', cursor: 'pointer',
+            }}
+          >{isAuthenticated ? 'SAVE' : 'SIGN IN TO SAVE'}</button>
+
+          <button
+            onClick={() => setShowTypingTest(true)}
+            title="Test your typing speed"
+            style={{
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+              padding: '5px 12px', borderRadius: 2,
+              border: '1px solid rgba(149,142,160,0.2)',
+              background: 'transparent', color: '#cbc3d7', cursor: 'pointer',
+            }}
+          >WPM TEST</button>
 
           <button
             onClick={() => setActiveTab('EXPORT')}
@@ -662,9 +726,44 @@ export default function StudioScreen() {
                   <div style={styles.warning}>Please select a key on the keyboard first.</div>
                 )}
 
+                {/* GMK COLORWAYS */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={styles.sectionLabel}>GMK Colorways <span style={{ opacity: 0.5, fontWeight: 400 }}>({COLORWAY_LIST.length})</span></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, maxHeight: 200, overflowY: 'auto', padding: '4px 0' }}>
+                    {COLORWAY_LIST.slice(0, 48).map(id => {
+                      const c = COLORWAYS[id];
+                      const theme = colorwayToTheme(c);
+                      return (
+                        <button key={id}
+                          onClick={() => { store.setGlobalColor(theme.baseColor); store.setGlobalLegendColor(theme.baseLegend); }}
+                          title={c.label}
+                          style={{
+                            aspectRatio: '1',
+                            background: `linear-gradient(135deg, ${theme.baseColor} 60%, ${theme.modColor} 60%)`,
+                            border: '2px solid transparent',
+                            borderRadius: 2,
+                            cursor: 'pointer',
+                            transition: 'border 0.15s, transform 0.1s',
+                            position: 'relative',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.border = '2px solid var(--primary)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.border = '2px solid transparent'; e.currentTarget.style.transform = 'scale(1)'; }}
+                        >
+                          <div style={{
+                            position: 'absolute', bottom: 2, right: 2,
+                            width: 5, height: 5, borderRadius: '50%',
+                            background: theme.accentColor,
+                            border: '1px solid rgba(0,0,0,0.3)'
+                          }} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* THEMES */}
                 <div style={{ marginBottom: 8 }}>
-                  <div style={styles.sectionLabel}>Themes</div>
+                  <div style={styles.sectionLabel}>Quick Themes</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
                     {THEMES.map(theme => (
                       <button key={theme.name}
@@ -1583,12 +1682,75 @@ export default function StudioScreen() {
         </div>
       )}
 
+      {/* Save Design Modal */}
+      {showSaveModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }} onClick={() => setShowSaveModal(false)}>
+          <div style={{
+            background: 'var(--surface)', borderRadius: 4, padding: 32, width: 400,
+            border: '1px solid var(--outline-variant)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)'
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{
+              margin: '0 0 8px 0', fontFamily: 'var(--font-heading)', fontSize: 20,
+              fontWeight: 700, color: 'var(--on-surface)', textTransform: 'uppercase'
+            }}>Save Design</h3>
+            <p style={{
+              margin: '0 0 24px 0', fontFamily: 'var(--font-body)', fontSize: 14,
+              color: 'var(--on-surface-variant)'
+            }}>Save your current design to your account.</p>
+
+            <input
+              type="text"
+              placeholder="Design name..."
+              value={saveName}
+              onChange={e => setSaveName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSaveDesign()}
+              autoFocus
+              style={{
+                width: '100%', padding: '14px 16px', background: 'var(--surface-container)',
+                border: '1px solid var(--outline-variant)', borderRadius: 4,
+                color: 'var(--on-surface)', fontFamily: 'var(--font-body)', fontSize: 14,
+                outline: 'none', boxSizing: 'border-box', marginBottom: 24
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                style={{
+                  flex: 1, padding: 12, background: 'transparent',
+                  border: '1px solid var(--outline-variant)', borderRadius: 4,
+                  color: 'var(--on-surface-variant)', fontFamily: 'var(--font-heading)',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', textTransform: 'uppercase'
+                }}
+              >Cancel</button>
+              <button
+                onClick={handleSaveDesign}
+                disabled={saveLoading}
+                style={{
+                  flex: 1, padding: 12, background: 'var(--primary)',
+                  border: 'none', borderRadius: 4, color: 'var(--on-primary)',
+                  fontFamily: 'var(--font-heading)', fontSize: 13, fontWeight: 700,
+                  cursor: saveLoading ? 'wait' : 'pointer', textTransform: 'uppercase',
+                  opacity: saveLoading ? 0.7 : 1
+                }}
+              >{saveLoading ? 'Saving...' : 'Save Design'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast notification */}
       {toastVisible && (
         <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#0d9e75', color: '#fff', padding: '10px 16px', borderRadius: 8, fontSize: '13px', zIndex: 9999, transition: 'opacity 0.3s', pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
           {toastMessage}
         </div>
       )}
+
+      {/* Typing Test Modal */}
+      {showTypingTest && <TypingTest onClose={() => setShowTypingTest(false)} />}
     </div>
   );
 }

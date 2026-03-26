@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import KeyboardSilhouette from '../components/KeyboardSilhouette';
+import { useAuth } from '../hooks/useAuth';
+import UserMenu from '../components/UserMenu';
 
 export default function EntryScreen() {
   const setScreen = useStore(s => s.setScreen);
   const setSelectionPath = useStore(s => s.setSelectionPath);
   const canvasRef = useRef(null);
+  const { user, profile, signOut, isAuthenticated } = useAuth();
 
   const handleStart = () => {
     setSelectionPath(null); // Let user choose path in selector
@@ -363,7 +366,11 @@ export default function EntryScreen() {
       <nav className="nav-bar">
         <div className="nav-logo" onClick={() => setScreen('entry')} style={{ cursor: 'pointer' }}>Keycap Studio</div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <button className="btn-ghost" onClick={() => document.dispatchEvent(new CustomEvent('showSignIn'))}>Sign In</button>
+          {isAuthenticated ? (
+            <UserMenu />
+          ) : (
+            <button className="btn-ghost" onClick={() => document.dispatchEvent(new CustomEvent('showSignIn'))}>Sign In</button>
+          )}
           <button className="btn-filled" onClick={handleStart}>Build Now</button>
         </div>
       </nav>

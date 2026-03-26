@@ -1,4 +1,5 @@
 import React, { useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import EntryScreen from './screens/EntryScreen';
 import { useStore } from './store';
 
@@ -10,10 +11,51 @@ const SignInModal = lazy(() => import('./components/SignInModal'));
 const StudioScreen = lazy(() => import('./screens/StudioScreen'));
 const GalleryScreen = lazy(() => import('./screens/GalleryScreen'));
 
-export default function App() {
+// Sync store screen state with URL
+function ScreenSyncer() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const screen = useStore(s => s.screen);
+  const setScreen = useStore(s => s.setScreen);
 
-  // TASK 3 — URL decode on page load: read ?d= query param and apply to store
+  // When URL changes, update store
+  useEffect(() => {
+    const path = location.pathname;
+    const screenMap = {
+      '/': 'entry',
+      '/selector': 'selector',
+      '/studio': 'studio',
+      '/gallery': 'gallery',
+      '/about': 'about',
+      '/support': 'support'
+    };
+    const newScreen = screenMap[path] || 'entry';
+    if (newScreen !== screen) {
+      setScreen(newScreen);
+    }
+  }, [location.pathname]);
+
+  // When store screen changes (from setScreen calls), update URL
+  useEffect(() => {
+    const pathMap = {
+      'entry': '/',
+      'selector': '/selector',
+      'studio': '/studio',
+      'gallery': '/gallery',
+      'about': '/about',
+      'support': '/support'
+    };
+    const targetPath = pathMap[screen] || '/';
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
+  }, [screen]);
+
+  return null;
+}
+
+// Handle URL-encoded design state
+function DesignLoader() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const encoded = params.get('d');
@@ -36,17 +78,29 @@ export default function App() {
     }
   }, []);
 
+  return null;
+}
+
+export default function App() {
   const fallback = <div style={{background:'#0a0a0f', width:'100vw', height:'100vh'}} />;
 
   return (
-    <Suspense fallback={fallback}>
-      {screen === 'entry' && <EntryScreen />}
-      {screen === 'selector' && <SelectorScreen />}
-      {screen === 'about' && <AboutScreen />}
-      {screen === 'support' && <SupportScreen />}
-      {screen === 'studio' && <StudioScreen />}
-      {screen === 'gallery' && <GalleryScreen />}
-      <SignInModal />
-    </Suspense>
+    <BrowserRouter>
+      <ScreenSyncer />
+      <DesignLoader />
+      <Suspense fallback={fallback}>
+        <Routes>
+          <Route path="/" element={<EntryScreen />} />
+          <Route path="/selector" element={<SelectorScreen />} />
+          <Route path="/studio" element={<StudioScreen />} />
+          <Route path="/gallery" element={<GalleryScreen />} />
+          <Route path="/about" element={<AboutScreen />} />
+          <Route path="/support" element={<SupportScreen />} />
+          {/* Fallback to entry for unknown routes */}
+          <Route path="*" element={<EntryScreen />} />
+        </Routes>
+        <SignInModal />
+      </Suspense>
+    </BrowserRouter>
   );
 }
