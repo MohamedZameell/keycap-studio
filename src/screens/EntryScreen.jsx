@@ -21,29 +21,32 @@ export default function EntryScreen() {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) return;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
     let frameId;
     let lastFrameTime = performance.now();
     const mountTime = performance.now();
 
-    const PRESS_DOWN_MS = 350;      // Slower press down
-    const HOLD_MS = 150;            // Longer hold at bottom
-    const RELEASE_MS = 300;         // Slower release
-    const MAX_PRESS_PX = 4;
-    const MIN_IDLE_MS = 3000;       // Longer wait between presses
-    const MAX_IDLE_MS = 8000;       // Much longer max wait
-    const FALL_DURATION = 1000;     // Slower fall animation
-    const BOUNCE_AMOUNT = 6;
-    const RAIN_PHASE_MS = 7000;     // Longer rain phase
-    const FALL_START_Y = -100;
-    const MAX_SIMULTANEOUS_PRESSES = 10;  // Limit concurrent presses
+    const PRESS_DOWN_MS = 120;      // Quick press
+    const HOLD_MS = 60;             // Brief hold
+    const RELEASE_MS = 150;         // Quick release
+    const MAX_PRESS_PX = 3;
+    const MIN_IDLE_MS = 2000;       // Shorter wait between presses
+    const MAX_IDLE_MS = 5000;       // Shorter max wait
+    const FALL_DURATION = 400;      // Fast, snappy fall
+    const BOUNCE_AMOUNT = 4;        // Subtle bounce
+    const RAIN_PHASE_MS = 2500;     // Quick rain phase
+    const FALL_START_Y = -80;
+    const MAX_SIMULTANEOUS_PRESSES = 8;
 
     const PHASES = { RAIN: 'rain', IDLE: 'idle' };
     let phase = PHASES.RAIN;
 
     const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);  // Snappier easing
 
     const KEYCAP_COLORS = [
       '#005f73', '#0a9396', '#94d2bd', '#e9d8a6', '#ee9b00',
@@ -141,7 +144,7 @@ export default function EntryScreen() {
           nextPressDelay: MIN_IDLE_MS + Math.random() * (MAX_IDLE_MS - MIN_IDLE_MS),
           pressAmt: 0,
           falling: true,
-          fallDelay: Math.random() * 5000,  // Spread falls over 5 seconds
+          fallDelay: Math.random() * 1200,  // Quick staggered fall
           fallStart: null,
           currentY: FALL_START_Y,
         };
@@ -164,15 +167,15 @@ export default function EntryScreen() {
       const progress = Math.min(elapsed / FALL_DURATION, 1);
       const targetY = key.gridY;
 
-      if (progress < 0.7) {
-        const t = progress / 0.7;
-        key.currentY = FALL_START_Y + (targetY - FALL_START_Y) * easeOutCubic(t);
-      } else if (progress < 0.85) {
-        const t = (progress - 0.7) / 0.15;
-        key.currentY = targetY + BOUNCE_AMOUNT * (1 - t);
+      if (progress < 0.75) {
+        // Main fall with snappy easing
+        const t = progress / 0.75;
+        key.currentY = FALL_START_Y + (targetY - FALL_START_Y) * easeOutQuart(t);
       } else {
-        const t = (progress - 0.85) / 0.15;
-        key.currentY = targetY + BOUNCE_AMOUNT * (1 - t) * (1 - easeOutCubic(t));
+        // Quick subtle bounce
+        const t = (progress - 0.75) / 0.25;
+        const bounce = Math.sin(t * Math.PI) * BOUNCE_AMOUNT * (1 - t);
+        key.currentY = targetY + bounce;
       }
 
       if (progress >= 1) {
@@ -241,7 +244,9 @@ export default function EntryScreen() {
           });
         }
 
-        ctx.clearRect(0, 0, W, H);
+        // Solid fill (faster than clearRect with alpha:false)
+        ctx.fillStyle = '#060608';
+        ctx.fillRect(0, 0, W, H);
 
         keyStates.forEach((key) => {
           // Always try to update fall state first
@@ -519,6 +524,7 @@ export default function EntryScreen() {
             zIndex: 1,
             height: '100%',
             display: 'block',
+            willChange: 'contents',
           }}
         />
 
