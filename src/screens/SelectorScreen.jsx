@@ -119,32 +119,81 @@ export default function SelectorScreen() {
   return (
     <div style={styles.container}>
       <style>{`
-        .brand-pill { 
-          background-color: var(--surface-container); border: 1px solid transparent; padding: 14px 20px; 
-          border-radius: 4px; color: var(--on-surface-variant); cursor: pointer; 
-          font-family: var(--font-heading); font-size: 14px; font-weight: 600; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s;
+        .brand-pill {
+          background: rgba(16, 16, 20, 0.6); border: 1px solid rgba(246, 246, 246, 0.06);
+          padding: 14px 20px; border-radius: 10px; color: var(--on-surface-variant);
+          cursor: pointer; font-family: var(--font-heading); font-size: 14px; font-weight: 600;
+          text-align: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          backdrop-filter: blur(8px);
         }
-        .brand-pill:hover { background-color: var(--surface-container-high); color: var(--on-surface); transform: translateY(-2px); }
-        .brand-pill.active { background-color: var(--primary); color: var(--on-primary); font-weight: 700; }
-        
-        .model-card { 
-          background-color: var(--surface-container); border: 1px solid transparent; border-radius: 4px; 
-          padding: 24px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; height: 100%; position: relative; overflow: hidden;
+        .brand-pill:hover {
+          background: rgba(30, 30, 36, 0.8); color: var(--on-surface);
+          transform: translateY(-3px); border-color: rgba(246, 246, 246, 0.12);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         }
-        .model-card:hover { transform: translateY(-4px); background-color: var(--surface-container-high); border-color: var(--primary); }
-        
-        .enter-btn { width: 100%; height: 52px; background: var(--primary); color: var(--on-primary); font-family: var(--font-heading); font-size: 16px; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-        .enter-btn:hover { background: var(--surface-container-high); color: var(--primary); border: 1px solid var(--primary); transform: translateY(-1px); }
-        
-        .secondary-btn { width: 100%; height: 44px; background: transparent; color: var(--on-surface-variant); font-family: var(--font-heading); font-size: 14px; font-weight: 600; border-radius: 4px; border: 1px solid var(--outline-variant); cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
-        .secondary-btn:hover { background-color: var(--surface-container); color: var(--on-surface); }
-        
-        .step-indicator { border-bottom: 2px solid transparent; padding-bottom: 4px; transition: all 0.3s ease; color: var(--on-surface-variant); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
-        .step-indicator.active { border-bottom-color: var(--primary); color: var(--primary); font-weight: 600; }
-        
-        .brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-top: 24px; }
-        .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px; }
-        
+        .brand-pill.active {
+          background: linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%);
+          color: var(--on-primary); font-weight: 700; border-color: transparent;
+          box-shadow: 0 4px 20px rgba(208, 188, 255, 0.3);
+        }
+
+        .model-card {
+          background: rgba(16, 16, 20, 0.6); border: 1px solid rgba(246, 246, 246, 0.06);
+          border-radius: 12px; padding: 24px; cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex; flex-direction: column; height: 100%;
+          position: relative; overflow: hidden; backdrop-filter: blur(8px);
+        }
+        .model-card:hover {
+          transform: translateY(-6px);
+          background: rgba(22, 22, 26, 0.8);
+          border-color: rgba(208, 188, 255, 0.25);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .enter-btn {
+          width: 100%; height: 54px;
+          background: linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%);
+          color: var(--on-primary); font-family: var(--font-heading);
+          font-size: 15px; font-weight: 700; border-radius: 10px;
+          border: none; cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          margin-bottom: 12px;
+          box-shadow: 0 4px 20px rgba(208, 188, 255, 0.3);
+        }
+        .enter-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 28px rgba(208, 188, 255, 0.4);
+        }
+
+        .secondary-btn {
+          width: 100%; height: 48px;
+          background: transparent; color: var(--on-surface-variant);
+          font-family: var(--font-heading); font-size: 14px; font-weight: 600;
+          border-radius: 10px; border: 1px solid rgba(246, 246, 246, 0.1);
+          cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .secondary-btn:hover {
+          background: rgba(246, 246, 246, 0.05);
+          border-color: rgba(246, 246, 246, 0.2);
+          color: var(--on-surface);
+        }
+
+        .step-indicator {
+          padding: 6px 12px; border-radius: 100px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          color: var(--on-surface-variant); font-family: var(--font-mono);
+          font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+          background: transparent;
+        }
+        .step-indicator.active {
+          background: rgba(208, 188, 255, 0.15);
+          color: var(--primary); font-weight: 600;
+        }
+
+        .brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-top: 24px; }
+        .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 24px; }
+
         @media (max-width: 1100px) { .model-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 700px) { .model-grid { grid-template-columns: 1fr; } .brand-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 500px) { .brand-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -191,52 +240,97 @@ export default function SelectorScreen() {
         {/* PATH SELECTION */}
         {!path && (
           <div style={styles.fadeContainer}>
-            <div style={{ textAlign: 'center', marginBottom: 40 }}>
-              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#fff', marginBottom: 12 }}>Choose Your Path</h1>
-              <p style={{ fontSize: 16, color: '#888899' }}>How would you like to set up your keyboard?</p>
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <p style={{
+                fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--secondary)',
+                textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '16px',
+              }}>Get Started</p>
+              <h1 style={{
+                fontFamily: 'var(--font-heading)', fontSize: 'clamp(28px, 4vw, 40px)',
+                fontWeight: 700, color: 'var(--on-surface)', marginBottom: 12, letterSpacing: '-0.02em',
+              }}>Choose your path</h1>
+              <p style={{ fontSize: 16, color: 'var(--on-surface-variant)', maxWidth: 400, margin: '0 auto' }}>
+                How would you like to set up your keyboard?
+              </p>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 800, margin: '0 auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 800, margin: '0 auto' }}>
               <button
                 onClick={() => store.setSelectionPath('beginner')}
                 style={{
                   padding: '40px 32px',
-                  background: 'var(--surface-container)',
-                  border: '1px solid var(--outline-variant)',
-                  borderRadius: 8,
+                  background: 'rgba(16, 16, 20, 0.6)',
+                  border: '1px solid rgba(246, 246, 246, 0.06)',
+                  borderRadius: 14,
                   cursor: 'pointer',
                   textAlign: 'left',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  backdropFilter: 'blur(12px)',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#6c63ff'; e.currentTarget.style.background = 'rgba(108,99,255,0.08)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--outline-variant)'; e.currentTarget.style.background = 'var(--surface-container)'; }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(208, 188, 255, 0.3)';
+                  e.currentTarget.style.background = 'rgba(208, 188, 255, 0.06)';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.3)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(246, 246, 246, 0.06)';
+                  e.currentTarget.style.background = 'rgba(16, 16, 20, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
-                <div style={{ fontSize: 28, marginBottom: 12 }}>⌨️</div>
-                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8 }}>I have a keyboard</h3>
-                <p style={{ fontSize: 14, color: '#888899', lineHeight: 1.5 }}>
-                  Browse our database of 800+ keyboard models. Select your exact brand and model for accurate specs.
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: 'rgba(208, 188, 255, 0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 24, marginBottom: 20,
+                }}>⌨️</div>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, color: 'var(--on-surface)', marginBottom: 10 }}>I have a keyboard</h3>
+                <p style={{ fontSize: 14, color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
+                  Browse 800+ keyboard models and select your exact brand for accurate specs.
                 </p>
-                <div style={{ marginTop: 16, fontSize: 12, color: '#6c63ff', fontWeight: 600 }}>RECOMMENDED FOR BEGINNERS →</div>
+                <div style={{ marginTop: 20, fontSize: 12, color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Recommended <span style={{ opacity: 0.6 }}>→</span>
+                </div>
               </button>
               <button
                 onClick={() => store.setSelectionPath('enthusiast')}
                 style={{
                   padding: '40px 32px',
-                  background: 'var(--surface-container)',
-                  border: '1px solid var(--outline-variant)',
-                  borderRadius: 8,
+                  background: 'rgba(16, 16, 20, 0.6)',
+                  border: '1px solid rgba(246, 246, 246, 0.06)',
+                  borderRadius: 14,
                   cursor: 'pointer',
                   textAlign: 'left',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  backdropFilter: 'blur(12px)',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#44e2cd'; e.currentTarget.style.background = 'rgba(68,226,205,0.08)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--outline-variant)'; e.currentTarget.style.background = 'var(--surface-container)'; }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(68, 226, 205, 0.3)';
+                  e.currentTarget.style.background = 'rgba(68, 226, 205, 0.06)';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.3)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(246, 246, 246, 0.06)';
+                  e.currentTarget.style.background = 'rgba(16, 16, 20, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
-                <div style={{ fontSize: 28, marginBottom: 12 }}>🔧</div>
-                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8 }}>I know my setup</h3>
-                <p style={{ fontSize: 14, color: '#888899', lineHeight: 1.5 }}>
-                  Manually select keycap profile, form factor, and layout. For custom builds and enthusiasts.
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: 'rgba(68, 226, 205, 0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 24, marginBottom: 20,
+                }}>🔧</div>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, color: 'var(--on-surface)', marginBottom: 10 }}>I know my setup</h3>
+                <p style={{ fontSize: 14, color: 'var(--on-surface-variant)', lineHeight: 1.6 }}>
+                  Manually select profile, form factor, and layout for custom builds.
                 </p>
-                <div style={{ marginTop: 16, fontSize: 12, color: '#44e2cd', fontWeight: 600 }}>FOR ENTHUSIASTS →</div>
+                <div style={{ marginTop: 20, fontSize: 12, color: 'var(--secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  For Enthusiasts <span style={{ opacity: 0.6 }}>→</span>
+                </div>
               </button>
             </div>
           </div>
@@ -432,19 +526,50 @@ const styles = {
   container: {
     width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--surface-dim)',
   },
-  header: { display: 'flex', alignItems: 'center', padding: '24px 48px', borderBottom: '1px solid var(--outline-variant)', justifyContent: 'space-between', backgroundColor: 'var(--surface)' },
-  progressContainer: { display: 'flex', gap: '24px', alignItems: 'center' },
-  backBtn: { color: 'var(--on-surface-variant)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--surface-container)', border: '1px solid var(--outline-variant)', cursor: 'pointer', transition: 'all 0.2s' },
+  header: {
+    display: 'flex', alignItems: 'center', padding: '20px 40px',
+    borderBottom: '1px solid rgba(246, 246, 246, 0.06)', justifyContent: 'space-between',
+    backgroundColor: 'rgba(6, 6, 8, 0.8)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+    position: 'sticky', top: 0, zIndex: 100,
+  },
+  progressContainer: { display: 'flex', gap: '20px', alignItems: 'center' },
+  backBtn: {
+    color: 'var(--on-surface-variant)', fontFamily: 'var(--font-heading)', fontWeight: 600,
+    fontSize: '13px', padding: '10px 18px', borderRadius: '8px',
+    backgroundColor: 'rgba(246, 246, 246, 0.05)', border: '1px solid rgba(246, 246, 246, 0.08)',
+    cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+  },
   content: { flex: 1, padding: '64px 48px', maxWidth: '1200px', margin: '0 auto', width: '100%' },
   fadeContainer: { animation: 'fadeIn 0.3s ease-out' },
-  stepTitle: { fontFamily: 'var(--font-heading)', fontSize: '40px', fontWeight: 700, color: 'var(--on-surface)', margin: 0, letterSpacing: '-0.02em', textTransform: 'uppercase' },
+  stepTitle: {
+    fontFamily: 'var(--font-heading)', fontSize: '36px', fontWeight: 700,
+    color: 'var(--on-surface)', margin: 0, letterSpacing: '-0.02em',
+  },
 
-  enthusiastGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '24px', marginTop: 32 },
-  selectCard: { backgroundColor: 'var(--surface-container)', border: '1px solid transparent', borderRadius: '4px', padding: '48px 24px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', color: 'var(--on-surface)', fontFamily: 'var(--font-heading)' },
-  selectCardActive: { backgroundColor: 'var(--surface-container-high)', border: '1px solid var(--primary)', borderRadius: '4px', padding: '48px 24px', textAlign: 'center', cursor: 'pointer', color: 'var(--on-surface)', fontFamily: 'var(--font-heading)', boxShadow: 'inset 0 0 0 1px var(--primary)' },
+  enthusiastGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', marginTop: 32 },
+  selectCard: {
+    backgroundColor: 'rgba(16, 16, 20, 0.6)', border: '1px solid rgba(246, 246, 246, 0.06)',
+    borderRadius: '12px', padding: '40px 24px', textAlign: 'center', cursor: 'pointer',
+    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)', color: 'var(--on-surface)',
+    fontFamily: 'var(--font-heading)', backdropFilter: 'blur(8px)',
+  },
+  selectCardActive: {
+    backgroundColor: 'rgba(208, 188, 255, 0.08)', border: '1px solid rgba(208, 188, 255, 0.3)',
+    borderRadius: '12px', padding: '40px 24px', textAlign: 'center', cursor: 'pointer',
+    color: 'var(--on-surface)', fontFamily: 'var(--font-heading)',
+    boxShadow: '0 0 40px rgba(208, 188, 255, 0.15)',
+  },
 
-  confirmCard: { backgroundColor: 'var(--surface)', border: '1px solid var(--outline-variant)', borderRadius: '4px', padding: '48px', width: '100%', maxWidth: '900px', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 48px rgba(0,0,0,0.6)' },
-  specColumn: { backgroundColor: 'var(--surface-container-lowest)', padding: '24px', borderRadius: '4px', border: '1px solid var(--outline-variant)', flex: 1, display: 'flex', flexDirection: 'column' },
-  specLabel: { fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', color: 'var(--secondary)', fontWeight: 600, letterSpacing: '0.1em' },
+  confirmCard: {
+    backgroundColor: 'rgba(16, 16, 20, 0.8)', border: '1px solid rgba(246, 246, 246, 0.08)',
+    borderRadius: '16px', padding: '48px', width: '100%', maxWidth: '900px',
+    display: 'flex', flexDirection: 'column',
+    boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(16px)',
+  },
+  specColumn: {
+    backgroundColor: 'rgba(6, 6, 8, 0.6)', padding: '24px', borderRadius: '12px',
+    border: '1px solid rgba(246, 246, 246, 0.06)', flex: 1, display: 'flex', flexDirection: 'column',
+  },
+  specLabel: { fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', color: 'var(--secondary)', fontWeight: 500, letterSpacing: '0.12em' },
   specValue: { fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 600, color: 'var(--on-surface)', marginTop: 8 },
 };

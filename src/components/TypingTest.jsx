@@ -193,165 +193,194 @@ const styles = {
   overlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(0,0,0,0.85)',
-    backdropFilter: 'blur(12px)',
+    background: 'rgba(6, 6, 8, 0.9)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999
   },
   modal: {
-    background: 'var(--surface)',
-    border: '1px solid var(--outline-variant)',
-    borderRadius: 4,
+    background: 'rgba(16, 16, 20, 0.95)',
+    border: '1px solid rgba(246, 246, 246, 0.08)',
+    borderRadius: 16,
     padding: '40px 48px',
     width: '100%',
-    maxWidth: 600,
-    position: 'relative'
+    maxWidth: 620,
+    position: 'relative',
+    boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)'
   },
   closeBtn: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    background: 'none',
+    top: 20,
+    right: 20,
+    background: 'rgba(246, 246, 246, 0.05)',
     border: 'none',
     color: 'var(--on-surface-variant)',
-    fontSize: 24,
-    cursor: 'pointer'
+    fontSize: 20,
+    cursor: 'pointer',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s'
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24
+    marginBottom: 28
   },
   title: {
     fontFamily: 'var(--font-heading)',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 700,
     margin: 0,
-    color: 'var(--on-surface)'
+    color: 'var(--on-surface)',
+    letterSpacing: '-0.02em'
   },
   wordListToggle: {
     display: 'flex',
-    gap: 8
+    gap: 6,
+    background: 'rgba(246, 246, 246, 0.04)',
+    padding: 4,
+    borderRadius: 10
   },
   listBtn: {
-    padding: '6px 12px',
-    background: 'var(--surface-container)',
-    border: '1px solid var(--outline-variant)',
-    borderRadius: 4,
+    padding: '8px 14px',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 8,
     color: 'var(--on-surface-variant)',
     fontFamily: 'var(--font-heading)',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 600,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   },
   listBtnActive: {
-    padding: '6px 12px',
-    background: 'var(--primary)',
-    border: '1px solid var(--primary)',
-    borderRadius: 4,
+    padding: '8px 14px',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%)',
+    border: 'none',
+    borderRadius: 8,
     color: 'var(--on-primary)',
     fontFamily: 'var(--font-heading)',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 600,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    boxShadow: '0 2px 12px rgba(208, 188, 255, 0.25)'
   },
   stats: {
     display: 'flex',
-    gap: 24,
-    marginBottom: 32
+    gap: 20,
+    marginBottom: 32,
+    background: 'rgba(6, 6, 8, 0.5)',
+    padding: '20px 24px',
+    borderRadius: 12
   },
   stat: {
-    textAlign: 'center'
+    textAlign: 'center',
+    flex: 1
   },
   statValue: {
     fontFamily: 'var(--font-heading)',
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: 700,
-    color: 'var(--primary)'
+    color: 'var(--primary)',
+    letterSpacing: '-0.02em'
   },
   statLabel: {
     fontFamily: 'var(--font-mono)',
     fontSize: 10,
     color: 'var(--on-surface-variant)',
-    textTransform: 'uppercase'
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+    marginTop: 4
   },
   wordContainer: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
     marginBottom: 24,
     minHeight: 80,
-    alignItems: 'center'
+    alignItems: 'center',
+    padding: '16px 0'
   },
   word: {
     fontFamily: 'var(--font-body)',
     fontSize: 18,
-    transition: 'all 0.15s'
+    transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
   },
   input: {
     width: '100%',
-    padding: '16px 20px',
-    background: 'var(--surface-container)',
-    border: '2px solid var(--outline-variant)',
-    borderRadius: 4,
+    padding: '18px 22px',
+    background: 'rgba(246, 246, 246, 0.04)',
+    border: '2px solid rgba(246, 246, 246, 0.08)',
+    borderRadius: 12,
     color: 'var(--on-surface)',
     fontFamily: 'var(--font-body)',
     fontSize: 20,
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'border-color 0.2s'
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
   },
   hint: {
     fontFamily: 'var(--font-mono)',
     fontSize: 11,
-    color: 'var(--on-surface-variant)',
+    color: 'var(--text-muted)',
     textAlign: 'center',
-    marginTop: 12
+    marginTop: 14,
+    letterSpacing: '0.05em'
   },
   results: {
     textAlign: 'center',
-    padding: '32px 0'
+    padding: '40px 0'
   },
   finalWpm: {
     fontFamily: 'var(--font-heading)',
-    fontSize: 72,
+    fontSize: 80,
     fontWeight: 700,
-    color: 'var(--primary)',
-    marginBottom: 8
+    background: 'linear-gradient(180deg, #ffffff 20%, var(--primary) 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+    marginBottom: 8,
+    letterSpacing: '-0.03em'
   },
   finalStats: {
     fontFamily: 'var(--font-body)',
-    fontSize: 16,
+    fontSize: 15,
     color: 'var(--on-surface-variant)',
-    marginBottom: 32
+    marginBottom: 36
   },
   resetBtn: {
-    padding: '14px 32px',
-    background: 'var(--primary)',
+    padding: '16px 36px',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%)',
     border: 'none',
-    borderRadius: 4,
+    borderRadius: 10,
     color: 'var(--on-primary)',
     fontFamily: 'var(--font-heading)',
     fontSize: 14,
     fontWeight: 700,
     cursor: 'pointer',
-    textTransform: 'uppercase'
+    boxShadow: '0 4px 20px rgba(208, 188, 255, 0.3)',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
   },
   resetBtnSmall: {
     display: 'block',
-    margin: '24px auto 0',
-    padding: '8px 16px',
+    margin: '28px auto 0',
+    padding: '10px 20px',
     background: 'transparent',
-    border: '1px solid var(--outline-variant)',
-    borderRadius: 4,
+    border: '1px solid rgba(246, 246, 246, 0.1)',
+    borderRadius: 8,
     color: 'var(--on-surface-variant)',
     fontFamily: 'var(--font-heading)',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
-    textTransform: 'uppercase'
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
   }
 };
