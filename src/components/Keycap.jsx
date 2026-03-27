@@ -1,9 +1,40 @@
-import React, { useRef, useMemo, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useEffect, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 import { getKeyColors } from '../data/colorways';
+
+// ============================================================
+// TEXTURE CACHE - shared across all keycaps for performance
+// ============================================================
+const textureCache = new Map();
+const geometryCache = new Map();
+const MAX_CACHE_SIZE = 200;
+
+function getCachedTexture(key, createFn) {
+  if (textureCache.has(key)) {
+    return textureCache.get(key);
+  }
+  const texture = createFn();
+  if (textureCache.size > MAX_CACHE_SIZE) {
+    const firstKey = textureCache.keys().next().value;
+    const oldTex = textureCache.get(firstKey);
+    if (oldTex?.dispose) oldTex.dispose();
+    textureCache.delete(firstKey);
+  }
+  textureCache.set(key, texture);
+  return texture;
+}
+
+function getCachedGeometry(key, createFn) {
+  if (geometryCache.has(key)) {
+    return geometryCache.get(key);
+  }
+  const geometry = createFn();
+  geometryCache.set(key, geometry);
+  return geometry;
+}
 
 // ============================================================
 // Darken a hex color by a luminance factor
@@ -260,15 +291,10 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBo
 // ============================================================
 async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition, keyWidth = 1, keyHeight = 1 }) {
   const fontFamily = legendFont || 'Inter';
-  try {
-    await Promise.race([
-      document.fonts.load(`bold 160px "${fontFamily}"`),
-      new Promise(r => setTimeout(r, 500))
-    ]);
-  } catch (e) {}
+  // Skip font loading - use fallback if not ready (faster)
 
-  // Canvas dimensions proportional to key size
-  const baseSize = 512;
+  // Smaller canvas = faster (256 instead of 512)
+  const baseSize = 256;
   const canvasWidth = Math.round(baseSize * keyWidth);
   const canvasHeight = Math.round(baseSize * keyHeight);
 
@@ -315,7 +341,8 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
 }
 
 function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1) {
-  const baseSize = 512;
+  // Smaller canvas = faster rendering (128 instead of 512)
+  const baseSize = 128;
   const canvasWidth = Math.round(baseSize * keyWidth);
   const canvasHeight = Math.round(baseSize * keyHeight);
 
@@ -329,7 +356,7 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
   if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
     const cx = canvasWidth / 2;
     const cy = canvasHeight / 2;
-    const baseFont = canvasHeight * 0.31;
+    const baseFont = canvasHeight * 0.35;
     const fontSize = legend.length > 5 ? baseFont * 0.5 :
                      legend.length > 3 ? baseFont * 0.65 :
                      legend.length > 1 ? baseFont * 0.85 : baseFont;
@@ -374,7 +401,7 @@ async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont, ke
 // ============================================================
 // Main Keycap component
 // ============================================================
-export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPressed, isPerformanceMode, singleKeyMode = false, onClick, profile = 'cherry' }) {
+function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPressed, isPerformanceMode, singleKeyMode = false, onClick, profile = 'cherry' }) {
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
 
@@ -446,9 +473,20 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     return { uMin, uMax, vMin, vMax, drapeV, drapeU };
   }, [imageMode, adjustedUvOffset, adjustedUvScale]);
 
-  // Geometries - now with global UV coordinates baked in
-  const bodyGeo = useMemo(() => createBodyGeometry(w, h, profile, uvBounds), [w, h, profile, uvBounds]);
-  const topGeo = useMemo(() => createTopFaceGeometry(w, h, profile, uvBounds), [w, h, profile, uvBounds]);
+  // Geometries - cached for performance (only non-wrap mode can share)
+  const geoKey = imageMode === 'wrap' ? null : `${w}-${h}-${profile}`;
+  const bodyGeo = useMemo(() => {
+    if (geoKey) {
+      return getCachedGeometry(`body-${geoKey}`, () => createBodyGeometry(w, h, profile, null));
+    }
+    return createBodyGeometry(w, h, profile, uvBounds);
+  }, [w, h, profile, uvBounds, geoKey]);
+  const topGeo = useMemo(() => {
+    if (geoKey) {
+      return getCachedGeometry(`top-${geoKey}`, () => createTopFaceGeometry(w, h, profile, null));
+    }
+    return createTopFaceGeometry(w, h, profile, uvBounds);
+  }, [w, h, profile, uvBounds, geoKey]);
 
   // Multi-image texture - composite all enabled images
   const [imageTexture, setImageTexture] = useState(null);
@@ -487,8 +525,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
       // Legacy single image mode
       loader.load(imageUrl, (tex) => {
         if (cancelled) return;
-        tex.wrapS = THREE.ClampToEdgeWrapping;
-        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
         tex.colorSpace = THREE.SRGBColorSpace;
         setImageTexture(tex);
       }, undefined, () => { if (!cancelled) setImageTexture(null); });
@@ -536,8 +574,8 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
           });
 
           const compositeTex = new THREE.CanvasTexture(canvas);
-          compositeTex.wrapS = THREE.ClampToEdgeWrapping;
-          compositeTex.wrapT = THREE.ClampToEdgeWrapping;
+          compositeTex.wrapS = THREE.RepeatWrapping;
+          compositeTex.wrapT = THREE.RepeatWrapping;
           compositeTex.colorSpace = THREE.SRGBColorSpace;
 
           setImageTexture(prev => {
@@ -565,18 +603,14 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     return () => { cancelled = true; };
   }, [imageUrl, imageMode, enabledImages, imagesKey]);
 
-  // Solid color texture (used when no image)
-  const [solidTexture, setSolidTexture] = useState(() =>
-    buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h)
-  );
-
-  useEffect(() => {
-    if (imageMode === 'wrap') return; // Don't rebuild when using image
-    let cancelled = false;
-    buildKeycapTexture({ color, legend: displayText, legendColor, legendFont: font, legendPosition, keyWidth: w, keyHeight: h })
-      .then(tex => { if (!cancelled) setSolidTexture(prev => { prev?.dispose(); return tex; }); });
-    return () => { cancelled = true; };
-  }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h]);
+  // Solid color texture - use simple sync version for speed
+  const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${w}-${h}`;
+  const solidTexture = useMemo(() => {
+    if (imageMode === 'wrap') return null;
+    return getCachedTexture(textureKey, () =>
+      buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h)
+    );
+  }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h, textureKey]);
 
   // Per-key image
   const perKeyImage = pkDesign?.imageUrl;
@@ -693,15 +727,16 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     reflectivity: isABS ? 0.08 : 0.03, envMapIntensity: isABS ? 0.12 : 0.06, side: THREE.DoubleSide,
   }), [isABS]);
 
+  // Only animate when needed (single key mode, pressed, or hovered)
+  const needsAnimation = singleKeyMode || isPressed || hovered;
   useFrame(({ clock }) => {
-    if (!meshRef.current) return;
+    if (!meshRef.current || !needsAnimation) return;
     if (singleKeyMode) {
       meshRef.current.rotation.y = clock.elapsedTime * 0.6;
       meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.9) * 0.05;
     } else {
-      // Determine target Y: pressed goes down, hovered goes up, default is 0
       const targetY = isPressed ? -0.04 : hovered ? 0.06 : 0;
-      meshRef.current.position.y = THREE.MathUtils.lerp(meshRef.current.position.y, targetY, isPressed ? 0.35 : 0.12);
+      meshRef.current.position.y = THREE.MathUtils.lerp(meshRef.current.position.y, targetY, 0.3);
     }
   });
 
@@ -723,22 +758,25 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
             </mesh>
           )}
 
-          {/* Body - sides use same texture as top when in wrap mode */}
+          {/* Body - sides */}
           <mesh geometry={bodyGeo} castShadow receiveShadow>
-            <meshPhysicalMaterial
-              key={imageMode === 'wrap' && imageTexture ? `img-${keyId}` : `solid-${keyId}`}
-              map={imageMode === 'wrap' && imageTexture ? activeTexture : null}
+            <meshStandardMaterial
+              key={`side-${keyId}-${imageMode}-${!!imageTexture}`}
               color={imageMode === 'wrap' && imageTexture ? "#ffffff" : sideColor}
-              {...sideMatProps}
+              map={imageMode === 'wrap' ? activeTexture : null}
+              roughness={isABS ? 0.5 : 0.9}
+              metalness={0}
+              side={THREE.DoubleSide}
             />
           </mesh>
 
           {/* Top face */}
           <mesh geometry={topGeo} castShadow receiveShadow>
-            <meshPhysicalMaterial
-              map={activeTexture}
+            <meshStandardMaterial
               color={activeTexture ? "#ffffff" : color}
-              {...topMatProps}
+              map={activeTexture}
+              roughness={isABS ? 0.45 : 0.85}
+              metalness={0}
             />
           </mesh>
 
@@ -779,3 +817,19 @@ export default function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, ro
     </group>
   );
 }
+
+// Memoize to prevent unnecessary re-renders
+export default memo(Keycap, (prevProps, nextProps) => {
+  // Only re-render if these props change
+  return (
+    prevProps.keyId === nextProps.keyId &&
+    prevProps.label === nextProps.label &&
+    prevProps.x === nextProps.x &&
+    prevProps.y === nextProps.y &&
+    prevProps.w === nextProps.w &&
+    prevProps.h === nextProps.h &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isPressed === nextProps.isPressed &&
+    prevProps.profile === nextProps.profile
+  );
+});

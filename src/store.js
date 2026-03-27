@@ -28,6 +28,11 @@ export const useStore = create((set) => ({
   soundEnabled: true,
   ledPreviewExpanded: false,
 
+  // CASE SETTINGS
+  caseStyle: 'rounded',       // 'rounded' (like CASE_1) or 'angular' (like CASE_2)
+  caseFinish: 'matte',        // 'matte', 'brushed', 'glossy'
+  caseColor: '#08080c',       // Case color
+
   // IMAGE STATE (legacy single-image - kept for compatibility)
   keyboardImageMode: 'none',
   keyboardImageUrl: null,
@@ -70,7 +75,12 @@ export const useStore = create((set) => ({
   setMaterialPreset: (p) => set({ materialPreset: p }),
   setSoundEnabled: (v) => set({ soundEnabled: v }),
   setLedPreviewExpanded: (v) => set({ ledPreviewExpanded: v }),
-  
+
+  // Case setters
+  setCaseStyle: (style) => set({ caseStyle: style }),
+  setCaseFinish: (finish) => set({ caseFinish: finish }),
+  setCaseColor: (color) => set({ caseColor: color }),
+
   setPerKeyDesign: (keyId, designObj) => set((state) => ({
     perKeyDesigns: {
       ...state.perKeyDesigns,
