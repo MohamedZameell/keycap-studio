@@ -1,9 +1,7 @@
 import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
-import { EffectComposer, ToneMapping } from '@react-three/postprocessing';
-import { ToneMappingMode } from 'postprocessing';
+import { OrbitControls, ContactShadows } from '@react-three/drei';
 import { HexColorPicker } from 'react-colorful';
 import * as THREE from 'three';
 // jsPDF loaded dynamically when needed
@@ -513,25 +511,57 @@ export default function StudioScreen() {
     }
   };
 
-  // TASK 5 — PDF export (dynamically loads jsPDF)
+  // PDF export — pdf-lib (smaller bundle than jsPDF, no html2canvas dependency)
   const handleExportPDF = async () => {
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
     try {
       showToast('Generating PDF...');
-      const { jsPDF } = await import('jspdf');
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = pdf.internal.pageSize.getHeight();
-      pdf.setFillColor(10, 10, 15);
-      pdf.rect(0, 0, pdfW, pdfH, 'F');
-      pdf.addImage(imgData, 'PNG', 10, 10, pdfW - 20, pdfH - 30);
+      const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+      const pngBytes = await new Promise((resolve, reject) => {
+        canvas.toBlob(async (blob) => {
+          if (!blob) return reject(new Error('Canvas toBlob failed'));
+          resolve(new Uint8Array(await blob.arrayBuffer()));
+        }, 'image/png', 1.0);
+      });
+
+      const pdfDoc = await PDFDocument.create();
+      // A4 landscape in points: 842 × 595
+      const page = pdfDoc.addPage([842, 595]);
+      page.drawRectangle({ x: 0, y: 0, width: 842, height: 595, color: rgb(10/255, 10/255, 15/255) });
+
+      const png = await pdfDoc.embedPng(pngBytes);
+      const margin = 28;
+      const maxW = 842 - margin * 2;
+      const maxH = 595 - margin * 2 - 24;
+      const scale = Math.min(maxW / png.width, maxH / png.height);
+      const drawW = png.width * scale;
+      const drawH = png.height * scale;
+      page.drawImage(png, {
+        x: (842 - drawW) / 2,
+        y: 595 - margin - drawH,
+        width: drawW,
+        height: drawH,
+      });
+
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const state = useStore.getState();
-      pdf.setTextColor(108, 99, 255);
-      pdf.setFontSize(10);
-      pdf.text(`Keycap Studio — ${state.selectedModel || 'Custom Layout'} — ${state.globalColor}`, 10, pdfH - 8);
-      pdf.save(`keycap-design-${Date.now()}.pdf`);
+      page.drawText(`Keycap Studio — ${state.selectedModel || 'Custom Layout'} — ${state.globalColor}`, {
+        x: margin,
+        y: 16,
+        size: 10,
+        font,
+        color: rgb(108/255, 99/255, 255/255),
+      });
+
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `keycap-design-${Date.now()}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
       showToast('PDF exported!');
     } catch (e) {
       console.error('PDF export failed:', e);
@@ -1066,7 +1096,7 @@ export default function StudioScreen() {
                             <span style={{ fontSize: 11, color: '#a09bf5' }}>{((store.keyboardImageOffsetX || 0) * 100).toFixed(0)}%</span>
                           </div>
                           <input
-                            type="range" min="-1" max="1" step="0.05"
+                            type="range" min="-3" max="3" step="0.05"
                             value={store.keyboardImageOffsetX || 0}
                             onChange={(e) => store.setKeyboardImageOffsetX(parseFloat(e.target.value))}
                             style={{ width: '100%', accentColor: '#6c63ff' }}
@@ -1080,7 +1110,7 @@ export default function StudioScreen() {
                             <span style={{ fontSize: 11, color: '#a09bf5' }}>{((store.keyboardImageOffsetY || 0) * 100).toFixed(0)}%</span>
                           </div>
                           <input
-                            type="range" min="-1" max="1" step="0.05"
+                            type="range" min="-3" max="3" step="0.05"
                             value={store.keyboardImageOffsetY || 0}
                             onChange={(e) => store.setKeyboardImageOffsetY(parseFloat(e.target.value))}
                             style={{ width: '100%', accentColor: '#6c63ff' }}
@@ -1442,16 +1472,11 @@ export default function StudioScreen() {
             // Move all enabled layers together
             if (dragStartRef.current.layers?.length > 0) {
               dragStartRef.current.layers.forEach(layer => {
-                store.setImageOffset(
-                  layer.id,
-                  Math.max(-2, Math.min(2, layer.offsetX + dx)),
-                  Math.max(-2, Math.min(2, layer.offsetY + dy))
-                );
+                store.setImageOffset(layer.id, layer.offsetX + dx, layer.offsetY + dy);
               });
             } else {
-              // Legacy single image mode
-              store.setKeyboardImageOffsetX(Math.max(-2, Math.min(2, dragStartRef.current.offsetX + dx)));
-              store.setKeyboardImageOffsetY(Math.max(-2, Math.min(2, dragStartRef.current.offsetY + dy)));
+              store.setKeyboardImageOffsetX(dragStartRef.current.offsetX + dx);
+              store.setKeyboardImageOffsetY(dragStartRef.current.offsetY + dy);
             }
           }}
           onMouseUp={() => setIsDraggingImage(false)}
@@ -1504,7 +1529,6 @@ export default function StudioScreen() {
                 <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
                 <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
                 <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
-                <Environment preset="apartment" background={false} blur={1} />
 
                 {/* Background handled by CSS gradient on canvas container */}
 
@@ -1551,11 +1575,6 @@ export default function StudioScreen() {
                 <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
 
                 <StudioOrbitControls orbitRef={orbitRef} cameraStateRef={cameraStateRef} viewMode={viewMode} enabled={!imageDragMode} />
-
-                {/* POST PROCESSING */}
-                <EffectComposer multisampling={0} disableNormalPass={false}>
-                  <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-                </EffectComposer>
               </Suspense>
             </Canvas>
           </ErrorBoundary>

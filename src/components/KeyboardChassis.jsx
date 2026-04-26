@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { RoundedBox } from '@react-three/drei';
 
 const KEY_UNIT = 1.05;
@@ -20,15 +20,10 @@ export default function KeyboardChassis({ totalW, totalH }) {
         castShadow
         receiveShadow
       >
-        <meshPhysicalMaterial
+        <meshStandardMaterial
           color="#08080c"
-          roughness={0.65}
+          roughness={0.55}
           metalness={0.35}
-          clearcoat={0.5}
-          clearcoatRoughness={0.15}
-          envMapIntensity={0.8}
-          emissive="#000000"
-          emissiveIntensity={0}
         />
       </RoundedBox>
 
@@ -40,25 +35,20 @@ export default function KeyboardChassis({ totalW, totalH }) {
         position={[0, -0.18, 0]}
         receiveShadow
       >
-        <meshPhysicalMaterial
+        <meshStandardMaterial
           color="#111116"
-          roughness={0.6}
+          roughness={0.55}
           metalness={0.2}
-          clearcoat={0.2}
-          emissive="#000000"
-          emissiveIntensity={0}
         />
       </RoundedBox>
 
       {/* PART 3 — Front edge accent (thin strip) */}
       <mesh position={[0, -0.33, plateZ / 2 - 0.05]}>
         <boxGeometry args={[plateW - 0.4, 0.04, 0.06]} />
-        <meshPhysicalMaterial
+        <meshStandardMaterial
           color="#5b54cc"
-          roughness={0.7}
+          roughness={0.6}
           metalness={0.4}
-          emissive="#000000"
-          emissiveIntensity={0}
         />
       </mesh>
     </group>
