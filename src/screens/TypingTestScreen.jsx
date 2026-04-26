@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useStore } from '../store';
 import KeyboardRenderer from '../components/KeyboardRenderer';
-import { getLayoutForFormFactor } from '../data/layouts';
+import { getLayoutForFormFactor, formFactorToLayoutKey } from '../data/layouts';
 
 const WORD_LISTS = {
   common: ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it', 'for', 'not', 'on', 'with', 'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take', 'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also', 'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us'],
@@ -57,9 +57,7 @@ export default function TypingTestScreen() {
   // Accuracy is derived — no state, no stale-closure risk on rapid keypresses.
   const accuracy = totalTyped > 0 ? Math.round((correctWords / totalTyped) * 100) : 100;
 
-  // Map form factor to layout key
-  const ffMap = { '60%': 'SIXTY', '65%': 'SIXTY_FIVE', '75%': 'SEVENTY_FIVE', 'TKL': 'TKL_80', '80%': 'TKL_80', '100%': 'FULL_100' };
-  const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENTY_FIVE');
+  const layout = getLayoutForFormFactor(formFactorToLayoutKey(store.selectedFormFactor));
 
   // Timer
   useEffect(() => {

@@ -1,7 +1,16 @@
 // GMK-style colorway presets
-// Imported from keysim project - 72 curated colorways
+// Imported from keysim project — 73 curated colorways
+//
+// Bundle strategy:
+// - The 27 'Popular' colorways are imported eagerly so they're available
+//   the moment Studio opens (getKeyColors is called sync inside Keycap
+//   render and we don't want to fall back to default colors).
+// - The 46 'More' colorways are loaded lazily via Vite's import.meta.glob.
+//   Call warmupExtraColorways() once when the colorway picker UI opens
+//   (or just after Studio mount) to pre-fetch all of them in parallel.
+//   By the time the user clicks one, it's in the in-memory cache.
 
-// Popular colorways
+// === EAGER: Popular tier (27) ===
 import olivia from './colorway_olivia.json';
 import _8008 from './colorway_8008.json';
 import nautilus from './colorway_nautilus.json';
@@ -31,53 +40,7 @@ import terminal from './colorway_terminal.json';
 import honeywell from './colorway_honeywell.json';
 import sumi from './colorway_sumi.json';
 
-// More colorways
-import _1976 from './colorway_1976.json';
-import _80082 from './colorway_80082.json';
-import amalfi from './colorway_amalfi.json';
-import ashes from './colorway_ashes.json';
-import aurora_polaris from './colorway_aurora_polaris.json';
-import blacklight from './colorway_blacklight.json';
-import bobafett from './colorway_bobafett.json';
-import bread from './colorway_bread.json';
-import bushido from './colorway_bushido.json';
-import deku from './colorway_deku.json';
-import demonic from './colorway_demonic.json';
-import dmg from './colorway_dmg.json';
-import finer_things from './colorway_finer_things.json';
-import gregory from './colorway_gregory.json';
-import hammerhead from './colorway_hammerhead.json';
-import handarbeit from './colorway_handarbeit.json';
-import heavy_industry from './colorway_heavy_industry.json';
-import islander from './colorway_islander.json';
-import jamon from './colorway_jamon.json';
-import kaiju from './colorway_kaiju.json';
-import lunar from './colorway_lunar.json';
-import mecha from './colorway_mecha.json';
-import metropolis from './colorway_metropolis.json';
-import milkshake from './colorway_milkshake.json';
-import modern_dolch_light from './colorway_modern_dolch_light.json';
-import muted from './colorway_muted.json';
-import nautilus_nightmares from './colorway_nautilus_nightmares.json';
-import night_runner from './colorway_night_runner.json';
-import night_sakura from './colorway_night_sakura.json';
-import noire from './colorway_noire.json';
-import nuclear_data from './colorway_nuclear_data.json';
-import pastel from './colorway_pastel.json';
-import peaches_cream from './colorway_peaches_cream.json';
-import pluto from './colorway_pluto.json';
-import pono from './colorway_pono.json';
-import port from './colorway_port.json';
-import prepress from './colorway_prepress.json';
-import rainy_day from './colorway_rainy_day.json';
-import shoko from './colorway_shoko.json';
-import skeletor from './colorway_skeletor.json';
-import space_cadet from './colorway_space_cadet.json';
-import vilebloom from './colorway_vilebloom.json';
-import yuri from './colorway_yuri.json';
-
-export const COLORWAYS = {
-  // Popular - show first
+const POPULAR = {
   olivia,
   '8008': _8008,
   nautilus,
@@ -106,55 +69,114 @@ export const COLORWAYS = {
   terminal,
   honeywell,
   sumi,
-
-  // More
-  '1976': _1976,
-  '80082': _80082,
-  amalfi,
-  ashes,
-  aurora_polaris,
-  blacklight,
-  bobafett,
-  bread,
-  bushido,
-  deku,
-  demonic,
-  dmg,
-  finer_things,
-  gregory,
-  hammerhead,
-  handarbeit,
-  heavy_industry,
-  islander,
-  jamon,
-  kaiju,
-  lunar,
-  mecha,
-  metropolis,
-  milkshake,
-  modern_dolch_light,
-  muted,
-  nautilus_nightmares,
-  night_runner,
-  night_sakura,
-  noire,
-  nuclear_data,
-  pastel,
-  peaches_cream,
-  pluto,
-  pono,
-  port,
-  prepress,
-  rainy_day,
-  shoko,
-  skeletor,
-  space_cadet,
-  vilebloom,
-  yuri
 };
 
-// Get colorway by id
-export const getColorway = (id) => COLORWAYS[id] || COLORWAYS.olivia;
+// === LAZY: More tier (46) ===
+// Explicit dynamic imports — one per file. Listing them by hand (instead of
+// import.meta.glob) means Vite only emits chunks for these 46 files, not all 73.
+// (The glob would also match the popular files we already eager-imported above,
+// causing them to be bundled twice.)
+const EXTRA_LOADERS = {
+  '1976': () => import('./colorway_1976.json'),
+  '80082': () => import('./colorway_80082.json'),
+  'amalfi': () => import('./colorway_amalfi.json'),
+  'ashes': () => import('./colorway_ashes.json'),
+  'aurora_polaris': () => import('./colorway_aurora_polaris.json'),
+  'blacklight': () => import('./colorway_blacklight.json'),
+  'bobafett': () => import('./colorway_bobafett.json'),
+  'bread': () => import('./colorway_bread.json'),
+  'bushido': () => import('./colorway_bushido.json'),
+  'deku': () => import('./colorway_deku.json'),
+  'demonic': () => import('./colorway_demonic.json'),
+  'dmg': () => import('./colorway_dmg.json'),
+  'finer_things': () => import('./colorway_finer_things.json'),
+  'gregory': () => import('./colorway_gregory.json'),
+  'hammerhead': () => import('./colorway_hammerhead.json'),
+  'handarbeit': () => import('./colorway_handarbeit.json'),
+  'heavy_industry': () => import('./colorway_heavy_industry.json'),
+  'islander': () => import('./colorway_islander.json'),
+  'jamon': () => import('./colorway_jamon.json'),
+  'kaiju': () => import('./colorway_kaiju.json'),
+  'lunar': () => import('./colorway_lunar.json'),
+  'mecha': () => import('./colorway_mecha.json'),
+  'metropolis': () => import('./colorway_metropolis.json'),
+  'milkshake': () => import('./colorway_milkshake.json'),
+  'modern_dolch_light': () => import('./colorway_modern_dolch_light.json'),
+  'muted': () => import('./colorway_muted.json'),
+  'nautilus_nightmares': () => import('./colorway_nautilus_nightmares.json'),
+  'night_runner': () => import('./colorway_night_runner.json'),
+  'night_sakura': () => import('./colorway_night_sakura.json'),
+  'noire': () => import('./colorway_noire.json'),
+  'nuclear_data': () => import('./colorway_nuclear_data.json'),
+  'pastel': () => import('./colorway_pastel.json'),
+  'peaches_cream': () => import('./colorway_peaches_cream.json'),
+  'pluto': () => import('./colorway_pluto.json'),
+  'pono': () => import('./colorway_pono.json'),
+  'port': () => import('./colorway_port.json'),
+  'prepress': () => import('./colorway_prepress.json'),
+  'rainy_day': () => import('./colorway_rainy_day.json'),
+  'shoko': () => import('./colorway_shoko.json'),
+  'skeletor': () => import('./colorway_skeletor.json'),
+  'space_cadet': () => import('./colorway_space_cadet.json'),
+  'vilebloom': () => import('./colorway_vilebloom.json'),
+  'yuri': () => import('./colorway_yuri.json'),
+};
+
+const EXTRA_IDS = Object.keys(EXTRA_LOADERS);
+
+// In-memory cache of resolved colorways from the lazy tier.
+const extraCache = {};
+let warmupPromise = null;
+
+// Pre-fetch every 'More' tier colorway in parallel. Idempotent — safe to call multiple times.
+// Returns a Promise that resolves when all are loaded (or when individual loads fail silently).
+export function warmupExtraColorways() {
+  if (warmupPromise) return warmupPromise;
+  warmupPromise = Promise.all(
+    EXTRA_IDS.map(async (id) => {
+      if (extraCache[id]) return;
+      const loader = EXTRA_LOADERS[id];
+      if (!loader) return;
+      try {
+        const mod = await loader();
+        extraCache[id] = mod.default || mod;
+      } catch (e) {
+        // Keep going; one missing colorway shouldn't poison the rest.
+      }
+    })
+  );
+  return warmupPromise;
+}
+
+// Public dictionary of all colorway ids (popular first, then extras).
+// For 'More' tier entries the value is whatever's in the cache; if not yet
+// loaded, the entry exists but is undefined — getColorway() falls back to olivia.
+export const COLORWAYS = new Proxy({}, {
+  get(_, key) {
+    if (Object.prototype.hasOwnProperty.call(POPULAR, key)) return POPULAR[key];
+    return extraCache[key];
+  },
+  has(_, key) {
+    return Object.prototype.hasOwnProperty.call(POPULAR, key) || EXTRA_IDS.includes(key);
+  },
+  ownKeys() {
+    return [...Object.keys(POPULAR), ...EXTRA_IDS];
+  },
+  getOwnPropertyDescriptor(_, key) {
+    if (Object.prototype.hasOwnProperty.call(POPULAR, key) || EXTRA_IDS.includes(key)) {
+      return { enumerable: true, configurable: true, value: this.get(_, key) };
+    }
+    return undefined;
+  },
+});
+
+// Get colorway by id. Returns olivia as a stable fallback if the id is from
+// the lazy tier and warmup hasn't completed yet (or if the id is unknown).
+export const getColorway = (id) => {
+  if (Object.prototype.hasOwnProperty.call(POPULAR, id)) return POPULAR[id];
+  if (extraCache[id]) return extraCache[id];
+  return POPULAR.olivia;
+};
 
 // Modifier key labels (keys that should use mods color)
 const MOD_LABELS = [
@@ -195,7 +217,7 @@ export const getKeyColors = (colorway, label) => {
 };
 
 // Get list of all colorway IDs sorted by popularity
-export const COLORWAY_LIST = Object.keys(COLORWAYS);
+export const COLORWAY_LIST = [...Object.keys(POPULAR), ...EXTRA_IDS];
 
 // Convert colorway to our format { baseColor, baseLegend, modColor, modLegend, accentColor, accentLegend }
 export const colorwayToTheme = (colorway) => {

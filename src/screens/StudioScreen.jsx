@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../store';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, ContactShadows } from '@react-three/drei';
@@ -8,12 +9,13 @@ import * as THREE from 'three';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useAuth } from '../hooks/useAuth';
 import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
-import { COLORWAYS, COLORWAY_LIST, colorwayToTheme } from '../data/colorways';
+import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways } from '../data/colorways';
 import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
+import { formFactorToLayoutKey } from '../data/layouts';
 import {
   exportKLEJson,
   exportManufacturingSVG,
@@ -128,8 +130,87 @@ const IMAGE_MODES = [
   { value: 'perkey', icon: '🎯', label: 'Per Key Image', desc: 'Different image per key' },
 ];
 
+// Single shallow subscription replaces `useStore()` (no selector), which used to
+// re-render this 1855-line component on every store change. With useShallow,
+// only the fields actually read (or whose setters are referenced) trigger a
+// re-render, and only when their value identity changes. Setter functions are
+// stable across renders so including them is free.
+const STUDIO_STORE_SELECTOR = (s) => ({
+  // ---- state ----
+  screen: s.screen,
+  selectionPath: s.selectionPath,
+  selectedBrand: s.selectedBrand,
+  selectedModel: s.selectedModel,
+  selectedFormFactor: s.selectedFormFactor,
+  selectedProfile: s.selectedProfile,
+  selectedLayout: s.selectedLayout,
+  keyboardLEDType: s.keyboardLEDType,
+  selectedKey: s.selectedKey,
+  selectedColorway: s.selectedColorway,
+  globalColor: s.globalColor,
+  globalLegendColor: s.globalLegendColor,
+  globalLegendText: s.globalLegendText,
+  globalFont: s.globalFont,
+  globalLegendPosition: s.globalLegendPosition,
+  backlitEnabled: s.backlitEnabled,
+  backlitColor: s.backlitColor,
+  perKeyDesigns: s.perKeyDesigns,
+  materialPreset: s.materialPreset,
+  soundEnabled: s.soundEnabled,
+  ledPreviewExpanded: s.ledPreviewExpanded,
+  caseStyle: s.caseStyle,
+  caseFinish: s.caseFinish,
+  caseColor: s.caseColor,
+  keyboardImageMode: s.keyboardImageMode,
+  keyboardImageUrl: s.keyboardImageUrl,
+  keyboardImageOffsetX: s.keyboardImageOffsetX,
+  keyboardImageOffsetY: s.keyboardImageOffsetY,
+  keyboardImageScale: s.keyboardImageScale,
+  keyboardImages: s.keyboardImages,
+  isExporting: s.isExporting,
+  // ---- setters (stable refs, never trigger re-render under shallow) ----
+  setScreen: s.setScreen,
+  setSelectionPath: s.setSelectionPath,
+  setSelectedBrand: s.setSelectedBrand,
+  setSelectedModel: s.setSelectedModel,
+  setSelectedFormFactor: s.setSelectedFormFactor,
+  setSelectedProfile: s.setSelectedProfile,
+  setSelectedLayout: s.setSelectedLayout,
+  setKeyboardLEDType: s.setKeyboardLEDType,
+  setSelectedKey: s.setSelectedKey,
+  setSelectedColorway: s.setSelectedColorway,
+  setGlobalColor: s.setGlobalColor,
+  setGlobalLegendColor: s.setGlobalLegendColor,
+  setGlobalLegendText: s.setGlobalLegendText,
+  setGlobalFont: s.setGlobalFont,
+  setGlobalLegendPosition: s.setGlobalLegendPosition,
+  setBacklitEnabled: s.setBacklitEnabled,
+  setBacklitColor: s.setBacklitColor,
+  setMaterialPreset: s.setMaterialPreset,
+  setSoundEnabled: s.setSoundEnabled,
+  setLedPreviewExpanded: s.setLedPreviewExpanded,
+  setCaseStyle: s.setCaseStyle,
+  setCaseFinish: s.setCaseFinish,
+  setCaseColor: s.setCaseColor,
+  setPerKeyDesign: s.setPerKeyDesign,
+  clearPerKeyDesigns: s.clearPerKeyDesigns,
+  setKeyboardImageMode: s.setKeyboardImageMode,
+  setKeyboardImageUrl: s.setKeyboardImageUrl,
+  setKeyboardImageOffsetX: s.setKeyboardImageOffsetX,
+  setKeyboardImageOffsetY: s.setKeyboardImageOffsetY,
+  setKeyboardImageScale: s.setKeyboardImageScale,
+  setImageUrl: s.setImageUrl,
+  setImageScale: s.setImageScale,
+  setImageOffset: s.setImageOffset,
+  setImageOpacity: s.setImageOpacity,
+  setImageEnabled: s.setImageEnabled,
+  clearImage: s.clearImage,
+  clearAllImages: s.clearAllImages,
+  setIsExporting: s.setIsExporting,
+});
+
 export default function StudioScreen() {
-  const store = useStore();
+  const store = useStore(useShallow(STUDIO_STORE_SELECTOR));
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('DESIGN');
   const [viewMode, setViewMode] = useState('full');
@@ -161,13 +242,7 @@ export default function StudioScreen() {
 
   // Compute layout bounds for camera positioning
   const layoutData = useCallback(() => {
-    let mappedFF = 'SIXTY';
-    const ff = store.selectedFormFactor;
-    if (ff === '75%') mappedFF = 'SEVENTY_FIVE';
-    else if (ff === 'TKL' || ff === '80%') mappedFF = 'TKL_80';
-    else if (ff === '100%') mappedFF = 'FULL_100';
-    else if (ff === '65%') mappedFF = 'SIXTY_FIVE';
-    const layout = getLayoutForFormFactor(mappedFF) || [];
+    const layout = getLayoutForFormFactor(formFactorToLayoutKey(store.selectedFormFactor)) || [];
     if (!layout.length) return { layout, minX: 0, minZ: 0, maxW: 0, maxH: 0 };
     const minX = Math.min(...layout.map(k => Number(k.x)));
     const minZ = Math.min(...layout.map(k => Number(k.y)));
@@ -186,6 +261,13 @@ export default function StudioScreen() {
     cameraStateRef.current.target = [...defaultCamTarget];
     cameraStateRef.current.isAnimating = true;
     setIsCameraFocused(false);
+  }, []);
+
+  // Warm up the lazy 'More' tier of colorways shortly after Studio mounts.
+  // Idle delay so it doesn't compete with the initial 3D paint.
+  useEffect(() => {
+    const t = setTimeout(() => { warmupExtraColorways(); }, 1500);
+    return () => clearTimeout(t);
   }, []);
 
   // Animate camera when switching to single view mode
@@ -276,49 +358,56 @@ export default function StudioScreen() {
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
 
+    const capture = (suffix, label) => {
+      // Two RAFs ensures the latest tween frame has been rendered to the canvas.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const link = document.createElement('a');
+          link.download = `keycap-studio-${suffix}-${Date.now()}.png`;
+          link.href = canvas.toDataURL('image/png', 1.0);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showToast(label ? `PNG exported (${label})!` : 'PNG exported!');
+        });
+      });
+    };
+
     if (angleKey && EXPORT_ANGLES[angleKey]) {
-      // Move camera to standard angle, wait for render, then capture
+      // Move camera to standard angle, then wait for the CameraAnimator to
+      // converge before capturing. CameraAnimator sets isAnimating=false
+      // when distPos < 0.01. Poll every 16ms; bail after 2s as a safety net.
       const angle = EXPORT_ANGLES[angleKey];
       cameraStateRef.current.pos = angle.pos;
       cameraStateRef.current.target = angle.target;
       cameraStateRef.current.isAnimating = true;
 
-      // Wait for camera to settle and render
-      setTimeout(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const link = document.createElement('a');
-            link.download = `keycap-studio-${angleKey}-${Date.now()}.png`;
-            link.href = canvas.toDataURL('image/png', 1.0);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            showToast(`PNG exported (${angle.name})!`);
-          });
-        });
-      }, 300); // Allow camera animation to complete
+      const start = performance.now();
+      const waitForSettle = () => {
+        if (!cameraStateRef.current.isAnimating) {
+          capture(angleKey, angle.name);
+          return;
+        }
+        if (performance.now() - start > 2000) {
+          // Safety bail-out: capture whatever we've got
+          capture(angleKey, angle.name);
+          return;
+        }
+        setTimeout(waitForSettle, 16);
+      };
+      // Give the animator one frame to flip isAnimating from false → true
+      // (it only does that on the next useFrame tick after we set pos)
+      setTimeout(waitForSettle, 32);
     } else {
-      // Export current view
-      const link = document.createElement('a');
-      link.download = `keycap-studio-${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png', 1.0);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast('PNG exported!');
+      // Export current view immediately
+      capture('current', null);
     }
   };
 
   const handleExportSVG = () => {
     try {
       const state = useStore.getState();
-      let mappedFF = 'SIXTY';
-      const ff = state.selectedFormFactor;
-      if (ff === '75%') mappedFF = 'SEVENTY_FIVE';
-      else if (ff === 'TKL' || ff === '80%') mappedFF = 'TKL_80';
-      else if (ff === '100%') mappedFF = 'FULL_100';
-      else if (ff === '65%') mappedFF = 'SIXTY_FIVE';
-      const layout = getLayoutForFormFactor(mappedFF) || [];
+      const layout = getLayoutForFormFactor(formFactorToLayoutKey(state.selectedFormFactor)) || [];
       const KEY_UNIT_MM = 19.05;
 
       const svgKeys = layout.map(key => {
@@ -426,13 +515,7 @@ export default function StudioScreen() {
 
   const getCurrentLayout = () => {
     const state = useStore.getState();
-    let mappedFF = 'SIXTY';
-    const ff = state.selectedFormFactor;
-    if (ff === '75%') mappedFF = 'SEVENTY_FIVE';
-    else if (ff === 'TKL' || ff === '80%') mappedFF = 'TKL_80';
-    else if (ff === '100%') mappedFF = 'FULL_100';
-    else if (ff === '65%') mappedFF = 'SIXTY_FIVE';
-    return getLayoutForFormFactor(mappedFF) || [];
+    return getLayoutForFormFactor(formFactorToLayoutKey(state.selectedFormFactor)) || [];
   };
 
   const handleRunPreflight = () => {

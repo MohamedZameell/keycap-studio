@@ -149,3 +149,20 @@ export const LAYOUT_TEMPLATES = {
 export function getLayoutForFormFactor(formFactorString) {
   return LAYOUT_TEMPLATES[formFactorString] || LAYOUT_TEMPLATES['SIXTY'];
 }
+
+// Single source of truth for form-factor display strings → LAYOUT_TEMPLATES keys.
+// Centralized to avoid the inconsistent fallbacks that used to live in 4 call sites.
+const FORM_FACTOR_KEY_MAP = {
+  '60%': 'SIXTY',
+  '65%': 'SIXTY_FIVE',
+  '75%': 'SEVENTY_FIVE',
+  'TKL': 'TKL_80',
+  '80%': 'TKL_80',
+  '100%': 'FULL_100',
+};
+
+// Returns a LAYOUT_TEMPLATES key for any form-factor display string.
+// Unknown form factors (e.g. '40%', '70%', '96%', 'Alice') fall back to SIXTY consistently.
+export function formFactorToLayoutKey(ff) {
+  return FORM_FACTOR_KEY_MAP[ff] || 'SIXTY';
+}

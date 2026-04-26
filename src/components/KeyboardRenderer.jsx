@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useStore } from '../store';
 import Keycap, { PROFILE_SPECS, normalizeProfile } from './Keycap';
 import KeyboardChassis from './KeyboardChassis';
-import { getLayoutForFormFactor } from '../data/layouts';
+import { getLayoutForFormFactor, formFactorToLayoutKey } from '../data/layouts';
 import { Text } from '@react-three/drei';
 
 const KEY_UNIT = 1.05;
@@ -22,13 +22,7 @@ export default function KeyboardRenderer({ onKeyClick, pressedKeys = new Set(), 
   
   const layout = useMemo(() => {
     try {
-      let mappedFF = 'SIXTY';
-      if (formFactor === '75%') mappedFF = 'SEVENTY_FIVE';
-      else if (formFactor === 'TKL' || formFactor === '80%') mappedFF = 'TKL_80';
-      else if (formFactor === '100%') mappedFF = 'FULL_100';
-      else if (formFactor === '65%') mappedFF = 'SIXTY_FIVE';
-
-      const res = getLayoutForFormFactor(mappedFF) || getLayoutForFormFactor('SIXTY');
+      const res = getLayoutForFormFactor(formFactorToLayoutKey(formFactor));
       return res && res.length ? res : [];
     } catch (e) {
       console.error(e);
@@ -116,6 +110,18 @@ export default function KeyboardRenderer({ onKeyClick, pressedKeys = new Set(), 
   const canvasRef = useRef(null);
   const textureRef = useRef(null);
   const [sharedImageTexture, setSharedImageTexture] = useState(null);
+
+  // Dispose Three.js texture and drop the canvas + cached HTMLImageElements when
+  // the renderer unmounts (e.g. user navigates away from Studio). Without this,
+  // re-entering Studio creates fresh ones each time and memory grows per visit.
+  useEffect(() => () => {
+    if (textureRef.current?.dispose) {
+      try { textureRef.current.dispose(); } catch (e) { /* ignore */ }
+    }
+    textureRef.current = null;
+    canvasRef.current = null;
+    cachedImagesRef.current = [];
+  }, []);
 
   const compositeKey = useMemo(() => {
     if (imageMode !== 'wrap') return '';
