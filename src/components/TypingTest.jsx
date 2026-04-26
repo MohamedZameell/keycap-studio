@@ -25,9 +25,12 @@ export default function TypingTest({ onClose }) {
   const [correctWords, setCorrectWords] = useState(0);
   const [totalTyped, setTotalTyped] = useState(0);
   const [wpm, setWpm] = useState(0);
-  const [accuracy, setAccuracy] = useState(100);
   const [wordList, setWordList] = useState('common');
   const inputRef = useRef(null);
+
+  // Accuracy is derived — avoids stale-closure bug where a fast batch of keypresses
+  // would set it from outdated correctWords/totalTyped values.
+  const accuracy = totalTyped > 0 ? Math.round((correctWords / totalTyped) * 100) : 100;
 
   // Timer
   useEffect(() => {
@@ -63,7 +66,6 @@ export default function TypingTest({ onClose }) {
 
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
-      // Check word
       const currentWord = words[currentIndex];
       const isCorrect = input.trim() === currentWord;
 
@@ -71,12 +73,10 @@ export default function TypingTest({ onClose }) {
         setCorrectWords(c => c + 1);
       }
       setTotalTyped(t => t + 1);
-      setAccuracy(Math.round(((correctWords + (isCorrect ? 1 : 0)) / (totalTyped + 1)) * 100));
-
       setCurrentIndex(i => i + 1);
       setInput('');
     }
-  }, [started, finished, words, currentIndex, input, correctWords, totalTyped]);
+  }, [started, finished, words, currentIndex, input]);
 
   const reset = () => {
     setWords(generateWords(60, wordList));
@@ -89,7 +89,6 @@ export default function TypingTest({ onClose }) {
     setCorrectWords(0);
     setTotalTyped(0);
     setWpm(0);
-    setAccuracy(100);
     inputRef.current?.focus();
   };
 

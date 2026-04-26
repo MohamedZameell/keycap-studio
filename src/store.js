@@ -1,5 +1,12 @@
 import { create } from 'zustand'
 
+// Revoke a blob: URL safely. No-op for non-blob URLs (data:, http://, null).
+const revokeBlob = (url) => {
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    try { URL.revokeObjectURL(url) } catch (e) { /* ignore */ }
+  }
+}
+
 export const useStore = create((set) => ({
   // SCREEN STATE
   screen: 'entry',
@@ -94,17 +101,24 @@ export const useStore = create((set) => ({
   clearPerKeyDesigns: () => set({ perKeyDesigns: {} }),
 
   setKeyboardImageMode: (mode) => set({ keyboardImageMode: mode }),
-  setKeyboardImageUrl: (url) => set({ keyboardImageUrl: url }),
+  setKeyboardImageUrl: (url) => set((state) => {
+    if (state.keyboardImageUrl !== url) revokeBlob(state.keyboardImageUrl)
+    return { keyboardImageUrl: url }
+  }),
   setKeyboardImageOffsetX: (x) => set({ keyboardImageOffsetX: x }),
   setKeyboardImageOffsetY: (y) => set({ keyboardImageOffsetY: y }),
   setKeyboardImageScale: (s) => set({ keyboardImageScale: s }),
 
   // Multi-image setters
-  setImageUrl: (id, url) => set((state) => ({
-    keyboardImages: state.keyboardImages.map(img =>
-      img.id === id ? { ...img, url, enabled: url ? true : img.enabled } : img
-    )
-  })),
+  setImageUrl: (id, url) => set((state) => {
+    const prev = state.keyboardImages.find(img => img.id === id)
+    if (prev && prev.url !== url) revokeBlob(prev.url)
+    return {
+      keyboardImages: state.keyboardImages.map(img =>
+        img.id === id ? { ...img, url, enabled: url ? true : img.enabled } : img
+      )
+    }
+  }),
   setImageScale: (id, scale) => set((state) => ({
     keyboardImages: state.keyboardImages.map(img =>
       img.id === id ? { ...img, scale } : img
@@ -125,19 +139,26 @@ export const useStore = create((set) => ({
       img.id === id ? { ...img, enabled } : img
     )
   })),
-  clearImage: (id) => set((state) => ({
-    keyboardImages: state.keyboardImages.map(img =>
-      img.id === id ? { ...img, url: null, enabled: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1 } : img
-    )
-  })),
-  clearAllImages: () => set({
-    keyboardImages: [
-      { id: 1, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
-      { id: 2, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
-      { id: 3, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
-      { id: 4, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
-      { id: 5, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
-    ]
+  clearImage: (id) => set((state) => {
+    const prev = state.keyboardImages.find(img => img.id === id)
+    if (prev) revokeBlob(prev.url)
+    return {
+      keyboardImages: state.keyboardImages.map(img =>
+        img.id === id ? { ...img, url: null, enabled: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1 } : img
+      )
+    }
+  }),
+  clearAllImages: () => set((state) => {
+    state.keyboardImages.forEach(img => revokeBlob(img.url))
+    return {
+      keyboardImages: [
+        { id: 1, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+        { id: 2, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+        { id: 3, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+        { id: 4, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+        { id: 5, url: null, scale: 1, offsetX: 0, offsetY: 0, opacity: 1, enabled: false },
+      ]
+    }
   }),
 
   setIsExporting: (isExporting) => set({ isExporting }),
