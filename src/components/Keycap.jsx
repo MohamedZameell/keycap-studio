@@ -1,9 +1,18 @@
 import React, { useRef, useMemo, useState, useEffect, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { useShallow } from 'zustand/react/shallow';
 import * as THREE from 'three';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 import { getKeyColors } from '../data/colorways';
+
+// ============================================================
+// SHARED RESOURCES — reused across every keycap instance
+// ============================================================
+const STEM_GEO_VERT = new THREE.BoxGeometry(0.07, 0.12, 0.22);
+const STEM_GEO_HORZ = new THREE.BoxGeometry(0.22, 0.12, 0.07);
+const STEM_MAT = new THREE.MeshStandardMaterial({ color: '#0a0a0a', roughness: 0.8 });
+const EMPTY_DESIGN = Object.freeze({});
 
 // ============================================================
 // TEXTURE CACHE - shared across all keycaps for performance
@@ -401,27 +410,36 @@ async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont, ke
 // ============================================================
 // Main Keycap component
 // ============================================================
-function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPressed, isPerformanceMode, singleKeyMode = false, onClick, profile = 'cherry' }) {
+function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset = [0, 0], uvScale = [1, 1], isSelected, isPressed, isPerformanceMode, singleKeyMode = false, onClick, profile = 'cherry', sharedImageTexture = null }) {
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
 
-  const globalColor = useStore(s => s.globalColor);
-  const globalLegendColor = useStore(s => s.globalLegendColor);
-  const globalLegendText = useStore(s => s.globalLegendText);
-  const globalFont = useStore(s => s.globalFont);
-  const globalLegendPosition = useStore(s => s.globalLegendPosition);
-  const materialPreset = useStore(s => s.materialPreset);
-  const soundEnabled = useStore(s => s.soundEnabled);
-  const imageMode = useStore(s => s.keyboardImageMode);
-  const imageUrl = useStore(s => s.keyboardImageUrl);
-  const imageOffsetX = useStore(s => s.keyboardImageOffsetX) || 0;
-  const imageOffsetY = useStore(s => s.keyboardImageOffsetY) || 0;
-  const imageScale = useStore(s => s.keyboardImageScale) || 1;
-  const keyboardImages = useStore(s => s.keyboardImages);
-  const selectedColorway = useStore(s => s.selectedColorway);
+  // Single shallow subscription for all global props — re-renders only when any of them changes.
+  // Replaces 10 separate useStore selectors that would each fire across every keycap on any store change.
+  const {
+    globalColor,
+    globalLegendColor,
+    globalLegendText,
+    globalFont,
+    globalLegendPosition,
+    materialPreset,
+    soundEnabled,
+    imageMode,
+    selectedColorway,
+  } = useStore(useShallow(s => ({
+    globalColor: s.globalColor,
+    globalLegendColor: s.globalLegendColor,
+    globalLegendText: s.globalLegendText,
+    globalFont: s.globalFont,
+    globalLegendPosition: s.globalLegendPosition,
+    materialPreset: s.materialPreset,
+    soundEnabled: s.soundEnabled,
+    imageMode: s.keyboardImageMode,
+    selectedColorway: s.selectedColorway,
+  })));
 
-  const perKeyDesigns = useStore(s => s.perKeyDesigns);
-  const pkDesign = perKeyDesigns[keyId] || {};
+  // Per-key design — scoped to THIS keyId so editing one key doesn't re-render every other key.
+  const pkDesign = useStore(s => s.perKeyDesigns[keyId] || EMPTY_DESIGN);
 
   // Get colors - priority: per-key > colorway > global
   const colorwayColors = useMemo(() => {
@@ -439,41 +457,21 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
   const displayText = legendText && legendText.trim() !== '' ? legendText : label;
   const isSingleView = (x === undefined && y === undefined);
 
-  // Adjusted UV based on pan/zoom
-  const adjustedUvOffset = useMemo(() => [
-    uvOffset[0] / imageScale - imageOffsetX * 0.5,
-    uvOffset[1] / imageScale - imageOffsetY * 0.5
-  ], [uvOffset, imageScale, imageOffsetX, imageOffsetY]);
-
-  const adjustedUvScale = useMemo(() => [
-    uvScale[0] / imageScale,
-    uvScale[1] / imageScale
-  ], [uvScale, imageScale]);
-
-  // UV bounds for this keycap in TEXTURE space
-  // THREE.js: V=0 is BOTTOM of texture, V=1 is TOP
-  // Image with flipY: V=0 is bottom of image, V=1 is top of image
-  // We want: keycap back (+Z) shows top of image region, keycap front (-Z) shows bottom
+  // Static UV bounds — based on key position only (pan/zoom is on the shared canvas)
   const uvBounds = useMemo(() => {
     if (imageMode !== 'wrap') return null;
-
-    const uMin = adjustedUvOffset[0];
-    const uMax = adjustedUvOffset[0] + adjustedUvScale[0];
-    // For the keycap: back is at high V (top of image region), front at low V
-    const vMin = 1 - adjustedUvOffset[1] - adjustedUvScale[1]; // Back edge (top of region)
-    const vMax = 1 - adjustedUvOffset[1]; // Front edge (bottom of region)
-
-    // Drape should be proportional to keycap's image region, not fixed
-    // This prevents stretching - sides show ~40% of keycap's image height
+    const uMin = uvOffset[0];
+    const uMax = uvOffset[0] + uvScale[0];
+    const vMin = 1 - uvOffset[1] - uvScale[1];
+    const vMax = 1 - uvOffset[1];
     const keycapImageHeight = vMax - vMin;
     const keycapImageWidth = uMax - uMin;
-    const drapeV = keycapImageHeight * 0.4; // Vertical drape for front/back sides
-    const drapeU = keycapImageWidth * 0.4;  // Horizontal drape for left/right sides
-
+    const drapeV = keycapImageHeight * 0.4;
+    const drapeU = keycapImageWidth * 0.4;
     return { uMin, uMax, vMin, vMax, drapeV, drapeU };
-  }, [imageMode, adjustedUvOffset, adjustedUvScale]);
+  }, [imageMode, uvOffset, uvScale]);
 
-  // Geometries - cached for performance (only non-wrap mode can share)
+  // Geometries — stable, never rebuild on pan/zoom
   const geoKey = imageMode === 'wrap' ? null : `${w}-${h}-${profile}`;
   const bodyGeo = useMemo(() => {
     if (geoKey) {
@@ -488,120 +486,8 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     return createTopFaceGeometry(w, h, profile, uvBounds);
   }, [w, h, profile, uvBounds, geoKey]);
 
-  // Multi-image texture - composite all enabled images
-  const [imageTexture, setImageTexture] = useState(null);
-
-  // Get enabled images for dependency tracking
-  const enabledImages = useMemo(() =>
-    keyboardImages.filter(img => img.enabled && img.url),
-    [keyboardImages]
-  );
-
-  // Create a dependency key that changes when any image property changes
-  const imagesKey = useMemo(() =>
-    enabledImages.map(img => `${img.id}-${img.url}-${img.scale}-${img.offsetX}-${img.offsetY}-${img.opacity}`).join('|'),
-    [enabledImages]
-  );
-
-  useEffect(() => {
-    if (imageMode !== 'wrap') {
-      setImageTexture(null);
-      return;
-    }
-
-    // Check for legacy single image OR multi-images
-    const hasLegacyImage = imageUrl && enabledImages.length === 0;
-    const hasMultiImages = enabledImages.length > 0;
-
-    if (!hasLegacyImage && !hasMultiImages) {
-      setImageTexture(null);
-      return;
-    }
-
-    let cancelled = false;
-    const loader = new THREE.TextureLoader();
-
-    if (hasLegacyImage) {
-      // Legacy single image mode
-      loader.load(imageUrl, (tex) => {
-        if (cancelled) return;
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-        tex.colorSpace = THREE.SRGBColorSpace;
-        setImageTexture(tex);
-      }, undefined, () => { if (!cancelled) setImageTexture(null); });
-    } else {
-      // Multi-image mode - load all and composite
-      const loadPromises = enabledImages.map(img =>
-        new Promise((resolve) => {
-          loader.load(img.url, (tex) => {
-            resolve({ tex, opacity: img.opacity, scale: img.scale, offsetX: img.offsetX, offsetY: img.offsetY });
-          }, undefined, () => resolve(null));
-        })
-      );
-
-      Promise.all(loadPromises).then(results => {
-        if (cancelled) {
-          // Clean up loaded textures if cancelled
-          results.forEach(r => r?.tex?.dispose());
-          return;
-        }
-        const validResults = results.filter(r => r !== null && r.tex?.image);
-        if (validResults.length === 0) {
-          setImageTexture(null);
-          return;
-        }
-
-        try {
-          // Composite images on canvas
-          const canvas = document.createElement('canvas');
-          const size = 2048; // High res for quality
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-
-          // Draw each image layer
-          validResults.forEach(({ tex, opacity, scale, offsetX, offsetY }) => {
-            if (!tex?.image) return;
-            ctx.globalAlpha = opacity ?? 1;
-            const img = tex.image;
-            // Calculate position and size based on scale/offset
-            const drawW = size * (scale ?? 1);
-            const drawH = size * (scale ?? 1);
-            const drawX = (size - drawW) / 2 + (offsetX ?? 0) * size * 0.5;
-            const drawY = (size - drawH) / 2 + (offsetY ?? 0) * size * 0.5;
-            ctx.drawImage(img, drawX, drawY, drawW, drawH);
-          });
-
-          const compositeTex = new THREE.CanvasTexture(canvas);
-          compositeTex.wrapS = THREE.RepeatWrapping;
-          compositeTex.wrapT = THREE.RepeatWrapping;
-          compositeTex.colorSpace = THREE.SRGBColorSpace;
-
-          setImageTexture(prev => {
-            // Dispose previous texture safely
-            if (prev && typeof prev.dispose === 'function') {
-              try { prev.dispose(); } catch (e) {}
-            }
-            return compositeTex;
-          });
-        } catch (err) {
-          console.error('Error compositing images:', err);
-        } finally {
-          // Clean up individual textures after compositing
-          validResults.forEach(({ tex }) => {
-            if (tex && typeof tex.dispose === 'function') {
-              try { tex.dispose(); } catch (e) {}
-            }
-          });
-        }
-      }).catch(err => {
-        console.error('Error loading images:', err);
-      });
-    }
-
-    return () => { cancelled = true; };
-  }, [imageUrl, imageMode, enabledImages, imagesKey]);
+  // Use shared image texture from KeyboardRenderer (computed once, not per-keycap)
+  const imageTexture = sharedImageTexture;
 
   // Solid color texture - use simple sync version for speed
   const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${w}-${h}`;
@@ -714,18 +600,10 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     return new THREE.PlaneGeometry(tw * 0.95, td * 0.95);
   }, [showLegendOverlay, profile, w, h]);
 
-  // Material props
+  // Material props — only `isABS` and `sideColor` are used by the meshes below.
+  // Removed dead topMatProps/sideMatProps that built meshPhysicalMaterial fields never passed anywhere.
   const isABS = materialPreset === 'abs';
   const sideColor = darkenColor(color, 0.82);
-  const topMatProps = useMemo(() => ({
-    roughness: isABS ? 0.38 : 0.82, metalness: 0, clearcoat: isABS ? 0.15 : 0,
-    clearcoatRoughness: isABS ? 0.6 : 1, reflectivity: isABS ? 0.15 : 0.05,
-    envMapIntensity: isABS ? 0.2 : 0.1, side: THREE.DoubleSide,
-  }), [isABS]);
-  const sideMatProps = useMemo(() => ({
-    roughness: isABS ? 0.42 : 0.85, metalness: 0, clearcoat: 0, clearcoatRoughness: 1,
-    reflectivity: isABS ? 0.08 : 0.03, envMapIntensity: isABS ? 0.12 : 0.06, side: THREE.DoubleSide,
-  }), [isABS]);
 
   // Only animate when needed (single key mode, pressed, or hovered)
   const needsAnimation = singleKeyMode || isPressed || hovered;
@@ -758,27 +636,60 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             </mesh>
           )}
 
-          {/* Body - sides */}
+          {/* Body - sides (always keycap color) */}
           <mesh geometry={bodyGeo} castShadow receiveShadow>
             <meshStandardMaterial
-              key={`side-${keyId}-${imageMode}-${!!imageTexture}`}
-              color={imageMode === 'wrap' && imageTexture ? "#ffffff" : sideColor}
-              map={imageMode === 'wrap' ? activeTexture : null}
+              color={sideColor}
               roughness={isABS ? 0.5 : 0.9}
               metalness={0}
               side={THREE.DoubleSide}
             />
           </mesh>
 
-          {/* Top face */}
+          {/* Body - image overlay (transparent where image doesn't cover) */}
+          {imageMode === 'wrap' && imageTexture && (
+            <mesh geometry={bodyGeo}>
+              <meshStandardMaterial
+                map={imageTexture}
+                color="#ffffff"
+                transparent
+                depthWrite={false}
+                polygonOffset
+                polygonOffsetFactor={-1}
+                polygonOffsetUnits={-1}
+                roughness={isABS ? 0.5 : 0.9}
+                metalness={0}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          )}
+
+          {/* Top face (always keycap color + legend in non-wrap mode) */}
           <mesh geometry={topGeo} castShadow receiveShadow>
             <meshStandardMaterial
-              color={activeTexture ? "#ffffff" : color}
-              map={activeTexture}
+              color={color}
+              map={imageMode !== 'wrap' ? activeTexture : null}
               roughness={isABS ? 0.45 : 0.85}
               metalness={0}
             />
           </mesh>
+
+          {/* Top face - image overlay (transparent where image doesn't cover) */}
+          {imageMode === 'wrap' && imageTexture && (
+            <mesh geometry={topGeo}>
+              <meshStandardMaterial
+                map={imageTexture}
+                color="#ffffff"
+                transparent
+                depthWrite={false}
+                polygonOffset
+                polygonOffsetFactor={-1}
+                polygonOffsetUnits={-1}
+                roughness={isABS ? 0.45 : 0.85}
+                metalness={0}
+              />
+            </mesh>
+          )}
 
           {/* Legend overlay for image mode */}
           {showLegendOverlay && legendOverlay && legendPlaneGeo && (() => {
@@ -807,10 +718,10 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             );
           })()}
 
-          {/* Stem */}
+          {/* Stem — geometry + material shared module-wide to avoid per-key allocations */}
           <group position={[0, -0.15, 0]}>
-            <mesh castShadow><boxGeometry args={[0.07, 0.12, 0.22]} /><meshStandardMaterial color="#0a0a0a" roughness={0.8} /></mesh>
-            <mesh castShadow><boxGeometry args={[0.22, 0.12, 0.07]} /><meshStandardMaterial color="#0a0a0a" roughness={0.8} /></mesh>
+            <mesh castShadow geometry={STEM_GEO_VERT} material={STEM_MAT} />
+            <mesh castShadow geometry={STEM_GEO_HORZ} material={STEM_MAT} />
           </group>
         </group>
       </group>
@@ -820,7 +731,6 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
 
 // Memoize to prevent unnecessary re-renders
 export default memo(Keycap, (prevProps, nextProps) => {
-  // Only re-render if these props change
   return (
     prevProps.keyId === nextProps.keyId &&
     prevProps.label === nextProps.label &&
@@ -830,6 +740,7 @@ export default memo(Keycap, (prevProps, nextProps) => {
     prevProps.h === nextProps.h &&
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.isPressed === nextProps.isPressed &&
-    prevProps.profile === nextProps.profile
+    prevProps.profile === nextProps.profile &&
+    prevProps.sharedImageTexture === nextProps.sharedImageTexture
   );
 });

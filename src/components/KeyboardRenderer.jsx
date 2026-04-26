@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import * as THREE from 'three';
 import { useStore } from '../store';
 import Keycap, { PROFILE_SPECS, normalizeProfile } from './Keycap';
 import KeyboardChassis from './KeyboardChassis';
@@ -59,6 +60,126 @@ export default function KeyboardRenderer({ onKeyClick, pressedKeys = new Set(), 
 
   const isPerformanceMode = layout.length > 80;
 
+  // === Shared image texture (ONE texture for all keycaps) ===
+  // Pan/zoom is applied on the canvas, so transparent areas naturally appear
+  const imageMode = useStore(s => s.keyboardImageMode);
+  const imageUrl = useStore(s => s.keyboardImageUrl);
+  const keyboardImages = useStore(s => s.keyboardImages);
+  const globalOffsetX = useStore(s => s.keyboardImageOffsetX) || 0;
+  const globalOffsetY = useStore(s => s.keyboardImageOffsetY) || 0;
+  const globalScale = useStore(s => s.keyboardImageScale) || 1;
+
+  const enabledImages = useMemo(() =>
+    keyboardImages.filter(img => img.enabled && img.url),
+    [keyboardImages]
+  );
+
+  // Step 1: Load images when URLs change (async, cached)
+  const cachedImagesRef = useRef([]);
+  const [imagesLoaded, setImagesLoaded] = useState(0); // counter to trigger recomposite
+
+  const imageUrlsKey = useMemo(() => {
+    if (imageMode !== 'wrap') return '';
+    if (imageUrl && enabledImages.length === 0) return `legacy:${imageUrl}`;
+    return enabledImages.map(img => img.url).join('|');
+  }, [imageMode, imageUrl, enabledImages]);
+
+  useEffect(() => {
+    if (!imageUrlsKey) {
+      cachedImagesRef.current = [];
+      setImagesLoaded(0);
+      return;
+    }
+    let cancelled = false;
+    const isLegacy = imageUrlsKey.startsWith('legacy:');
+    const urls = isLegacy
+      ? [{ id: 'legacy', url: imageUrl }]
+      : enabledImages.map(img => ({ id: img.id, url: img.url }));
+
+    Promise.all(urls.map(({ id, url }) =>
+      new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve({ id, img });
+        img.onerror = () => resolve(null);
+        img.src = url;
+      })
+    )).then(results => {
+      if (cancelled) return;
+      cachedImagesRef.current = results.filter(Boolean);
+      setImagesLoaded(n => n + 1);
+    });
+    return () => { cancelled = true; };
+  }, [imageUrlsKey]);
+
+  // Step 2: Composite canvas (sync, fast — just drawImage from cached elements)
+  const canvasRef = useRef(null);
+  const textureRef = useRef(null);
+  const [sharedImageTexture, setSharedImageTexture] = useState(null);
+
+  const compositeKey = useMemo(() => {
+    if (imageMode !== 'wrap') return '';
+    const layerProps = enabledImages.map(img =>
+      `${img.id}-${img.scale}-${img.offsetX}-${img.offsetY}-${img.opacity}`
+    ).join('|');
+    return `${globalOffsetX}-${globalOffsetY}-${globalScale}-${layerProps}-${imagesLoaded}`;
+  }, [imageMode, globalOffsetX, globalOffsetY, globalScale, enabledImages, imagesLoaded]);
+
+  useEffect(() => {
+    if (imageMode !== 'wrap' || cachedImagesRef.current.length === 0) {
+      if (sharedImageTexture) setSharedImageTexture(null);
+      return;
+    }
+
+    const size = 2048;
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
+      canvasRef.current.width = size;
+      canvasRef.current.height = size;
+    }
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+
+    const isLegacy = imageUrl && enabledImages.length === 0;
+
+    if (isLegacy) {
+      const cached = cachedImagesRef.current[0];
+      if (!cached) return;
+      const s = globalScale;
+      const drawW = size * s;
+      const drawH = size * s;
+      const drawX = (size - drawW) / 2 + globalOffsetX * size * 0.5;
+      const drawY = (size - drawH) / 2 + globalOffsetY * size * 0.5;
+      ctx.drawImage(cached.img, drawX, drawY, drawW, drawH);
+    } else {
+      enabledImages.forEach(layer => {
+        const cached = cachedImagesRef.current.find(c => c.id === layer.id);
+        if (!cached) return;
+        ctx.globalAlpha = layer.opacity ?? 1;
+        const s = layer.scale ?? 1;
+        const drawW = size * s;
+        const drawH = size * s;
+        const drawX = (size - drawW) / 2 + (layer.offsetX ?? 0) * size * 0.5;
+        const drawY = (size - drawH) / 2 + (layer.offsetY ?? 0) * size * 0.5;
+        ctx.drawImage(cached.img, drawX, drawY, drawW, drawH);
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    if (!textureRef.current) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      textureRef.current = tex;
+      setSharedImageTexture(tex);
+    } else {
+      textureRef.current.needsUpdate = true;
+      if (!sharedImageTexture) setSharedImageTexture(textureRef.current);
+    }
+  }, [compositeKey]);
+
   if (!layout || layout.length === 0) {
     return (
       <group position={[0, 0, 0]}>
@@ -107,6 +228,7 @@ export default function KeyboardRenderer({ onKeyClick, pressedKeys = new Set(), 
             isPerformanceMode={isPerformanceMode}
             onClick={() => onKeyClick ? onKeyClick(key.id) : setSelectedKey(key.id)}
             profile={selectedProfile}
+            sharedImageTexture={sharedImageTexture}
           />
         );
       })}
