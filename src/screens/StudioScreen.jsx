@@ -574,14 +574,24 @@ export default function StudioScreen() {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { showToast('File too large (max 5MB)'); return; }
     const url = URL.createObjectURL(file);
+
+    // Revoke the previous preview URL (local state) before replacing it.
+    if (uploadedImageUrl?.startsWith('blob:')) {
+      try { URL.revokeObjectURL(uploadedImageUrl) } catch (e) {}
+    }
     setUploadedImageUrl(url);
 
-    // Per-key mode: set image on the selected key
+    // Per-key mode: set image on the selected key.
+    // Revoke the previous per-key image URL since setPerKeyDesign just merges fields.
     if (store.keyboardImageMode === 'perkey' && store.selectedKey) {
+      const prev = store.perKeyDesigns?.[store.selectedKey]?.imageUrl;
+      if (prev?.startsWith('blob:') && prev !== url) {
+        try { URL.revokeObjectURL(prev) } catch (e) {}
+      }
       store.setPerKeyDesign(store.selectedKey, { imageUrl: url });
       showToast(`Image set for key: ${store.selectedKey}`);
     } else {
-      // Tile/wrap mode: set global image
+      // Tile/wrap mode: setKeyboardImageUrl revokes the previous URL itself.
       store.setKeyboardImageUrl(url);
     }
   };

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { useStore } from '../store';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import { getLayoutForFormFactor } from '../data/layouts';
@@ -51,14 +51,15 @@ export default function TypingTestScreen() {
   const [correctWords, setCorrectWords] = useState(0);
   const [totalTyped, setTotalTyped] = useState(0);
   const [wpm, setWpm] = useState(0);
-  const [accuracy, setAccuracy] = useState(100);
   const [pressedKeys, setPressedKeys] = useState(new Set());
   const [testDuration, setTestDuration] = useState(60);
-  const inputRef = useRef(null);
+
+  // Accuracy is derived — no state, no stale-closure risk on rapid keypresses.
+  const accuracy = totalTyped > 0 ? Math.round((correctWords / totalTyped) * 100) : 100;
 
   // Map form factor to layout key
-const ffMap = { '60%': 'SIXTY', '65%': 'SIXTY_FIVE', '75%': 'SEVENTY_FIVE', 'TKL': 'TKL_80', '80%': 'TKL_80', '100%': 'FULL_100' };
-const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENTY_FIVE');
+  const ffMap = { '60%': 'SIXTY', '65%': 'SIXTY_FIVE', '75%': 'SEVENTY_FIVE', 'TKL': 'TKL_80', '80%': 'TKL_80', '100%': 'FULL_100' };
+  const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENTY_FIVE');
 
   // Timer
   useEffect(() => {
@@ -83,48 +84,66 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
     return () => clearInterval(interval);
   }, [started, finished, startTime, correctWords, testDuration]);
 
-  // Key press handler
+  // All typing is driven by window keydown — no hidden input element to lose focus on.
+  // Functional setters keep everything consistent under rapid input.
   const handleKeyDown = useCallback((e) => {
     if (finished) return;
+    // Don't intercept when an actual form input is focused (e.g. duration buttons aren't inputs but be safe)
+    if (e.target?.tagName === 'INPUT' || e.target?.tagName === 'TEXTAREA') return;
 
-    // Find the key in the layout by its label
+    // Visual press indicator
     const label = KEY_TO_LABEL[e.key] ?? KEY_TO_LABEL[e.key.toLowerCase()];
     const keyId = label !== undefined ? findKeyByLabel(layout, label) : null;
-
     if (keyId) {
-      setPressedKeys(prev => new Set([...prev, keyId]));
-      setTimeout(() => {
-        setPressedKeys(prev => {
-          const next = new Set(prev);
-          next.delete(keyId);
-          return next;
-        });
-      }, 150);
+      setPressedKeys(prev => {
+        if (prev.has(keyId)) return prev;
+        const next = new Set(prev);
+        next.add(keyId);
+        return next;
+      });
     }
 
-    if (!started && e.key.length === 1) {
+    // Start the timer on first useful keystroke
+    if (!started && (e.key.length === 1 || e.key === ' ' || e.key === 'Backspace')) {
       setStarted(true);
       setStartTime(Date.now());
     }
 
+    // Submit current word
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
-      const currentWord = words[currentIndex];
-      const isCorrect = input.trim() === currentWord;
-
-      if (isCorrect) setCorrectWords(c => c + 1);
-      setTotalTyped(t => t + 1);
-      setAccuracy(Math.round(((correctWords + (isCorrect ? 1 : 0)) / (totalTyped + 1)) * 100));
-      setCurrentIndex(i => i + 1);
-      setInput('');
+      setInput(currInput => {
+        setCurrentIndex(currIdx => {
+          const word = words[currIdx];
+          const isCorrect = currInput.trim() === word;
+          if (isCorrect) setCorrectWords(c => c + 1);
+          setTotalTyped(t => t + 1);
+          return currIdx + 1;
+        });
+        return '';
+      });
+      return;
     }
-  }, [started, finished, words, currentIndex, input, correctWords, totalTyped, layout]);
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      setInput(s => s.slice(0, -1));
+      return;
+    }
+
+    // Printable character
+    if (e.key.length === 1) {
+      e.preventDefault();
+      setInput(s => s + e.key);
+    }
+  }, [finished, started, words, layout]);
 
   const handleKeyUp = useCallback((e) => {
     const label = KEY_TO_LABEL[e.key] ?? KEY_TO_LABEL[e.key.toLowerCase()];
     const keyId = label !== undefined ? findKeyByLabel(layout, label) : null;
     if (keyId) {
       setPressedKeys(prev => {
+        if (!prev.has(keyId)) return prev;
         const next = new Set(prev);
         next.delete(keyId);
         return next;
@@ -143,14 +162,10 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
     setCorrectWords(0);
     setTotalTyped(0);
     setWpm(0);
-    setAccuracy(100);
     setPressedKeys(new Set());
-    inputRef.current?.focus();
   };
 
   useEffect(() => {
-    inputRef.current?.focus();
-    // Add global key listeners
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
@@ -229,7 +244,6 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
               pressedKeys={pressedKeys}
               showPressAnimation={true}
             />
-            <Environment preset="studio" />
           </Suspense>
           <OrbitControls
             enablePan={false}
@@ -290,14 +304,6 @@ const layout = getLayoutForFormFactor(ffMap[store.selectedFormFactor] || 'SEVENT
               <div style={styles.wordsContainer}>
                 {words.map((word, idx) => renderWord(word, idx))}
               </div>
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                style={styles.hiddenInput}
-                autoFocus
-              />
               {!started && (
                 <div style={styles.hint}>Start typing to begin...</div>
               )}
