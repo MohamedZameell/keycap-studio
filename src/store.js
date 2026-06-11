@@ -9,7 +9,9 @@ const revokeBlob = (url) => {
 
 export const useStore = create((set) => ({
   // SCREEN STATE
-  screen: 'entry',
+  // Adopt the URL's screen on first load so deep links (/studio, /lab, ...)
+  // survive ScreenSyncer's store->URL sync (incl. StrictMode double-effects).
+  screen: ({ '/selector': 'selector', '/studio': 'studio', '/gallery': 'gallery', '/about': 'about', '/support': 'support', '/typing-test': 'typing-test', '/lab': 'lab' })[window.location.pathname] || 'entry',
 
   // KEYBOARD CONFIG
   selectionPath: null,
