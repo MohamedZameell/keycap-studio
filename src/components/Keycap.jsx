@@ -5,6 +5,22 @@ import * as THREE from 'three';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 import { getKeyColors } from '../data/colorways';
+import { getLegendGlyph, GLYPH_METRICS } from '../data/keysimLegends';
+
+// ============================================================
+// LEGENDS FONT (keysim icon font: pre-composed GMK key legends)
+// Textures drawn before the font arrives use the text fallback;
+// components re-key their texture cache entry once it loads.
+// ============================================================
+let legendsFontLoaded = false;
+const legendsFontPromise = (() => {
+  try {
+    const ff = new FontFace('legends', `url(${import.meta.env.BASE_URL}fonts/legends.woff)`);
+    return ff.load().then((f) => { document.fonts.add(f); legendsFontLoaded = true; }).catch(() => {});
+  } catch (e) {
+    return Promise.resolve();
+  }
+})();
 
 // ============================================================
 // SHARED RESOURCES — reused across every keycap instance
@@ -350,8 +366,8 @@ async function buildKeycapTexture({ color, legend, legendColor, legendFont, lege
 }
 
 function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1) {
-  // Smaller canvas = faster rendering (128 instead of 512)
-  const baseSize = 128;
+  // 256/u: enough for crisp legend glyphs, still cheap to rasterize
+  const baseSize = 256;
   const canvasWidth = Math.round(baseSize * keyWidth);
   const canvasHeight = Math.round(baseSize * keyHeight);
 
@@ -363,16 +379,39 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
-    const cx = canvasWidth / 2;
-    const cy = canvasHeight / 2;
-    const baseFont = canvasHeight * 0.35;
-    const fontSize = legend.length > 5 ? baseFont * 0.5 :
-                     legend.length > 3 ? baseFont * 0.65 :
-                     legend.length > 1 ? baseFont * 0.85 : baseFont;
+    // GMK glyph path: pre-composed legend from the keysim icon font, drawn
+    // at keysim's metrics (absolute per-1u — wide keys keep the same size
+    // and top-left anchor like real GMK). Only when the user hasn't picked
+    // a custom font or a non-default position.
+    const isDefaultPos = !legendPosition || legendPosition === 'top-left' || legendPosition === 'top-center';
+    const isDefaultFont = !font || font === 'Inter' || font === 'legends';
+    const glyph = (isDefaultPos && isDefaultFont && legendsFontLoaded) ? getLegendGlyph(legend.trim()) : null;
+
     ctx.fillStyle = legendColor || '#ffffff';
-    ctx.font = `bold ${Math.round(fontSize)}px sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(legend, cx, cy);
+    if (glyph) {
+      ctx.font = `${Math.round(baseSize * GLYPH_METRICS.fontSize)}px legends`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(glyph, Math.round(baseSize * GLYPH_METRICS.x), Math.round(baseSize * GLYPH_METRICS.baseline));
+    } else {
+      // Plain text fallback (custom legend text / custom font / unmapped label)
+      const posMap = {
+        'center': [canvasWidth / 2, canvasHeight / 2],
+        'top-center': [canvasWidth / 2, canvasHeight * 0.31],
+        'top-left': [canvasWidth * 0.22, canvasHeight * 0.28],
+        'top-right': [canvasWidth * 0.78, canvasHeight * 0.28],
+        'bottom-left': [canvasWidth * 0.22, canvasHeight * 0.76],
+        'bottom-right': [canvasWidth * 0.78, canvasHeight * 0.76],
+      };
+      const [tx, ty] = posMap[legendPosition] || posMap['center'];
+      const baseFont = canvasHeight * 0.35;
+      const fontSize = legend.length > 5 ? baseFont * 0.5 :
+                       legend.length > 3 ? baseFont * 0.65 :
+                       legend.length > 1 ? baseFont * 0.85 : baseFont;
+      ctx.font = `bold ${Math.round(fontSize)}px "${font || 'Inter'}", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(legend, tx, ty);
+    }
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -489,8 +528,19 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
   // Use shared image texture from KeyboardRenderer (computed once, not per-keycap)
   const imageTexture = sharedImageTexture;
 
+  // Re-key textures once the legends font arrives so glyph legends replace
+  // the text-fallback ones drawn during the first frames.
+  const [legendFontV, setLegendFontV] = useState(legendsFontLoaded ? 1 : 0);
+  useEffect(() => {
+    if (!legendsFontLoaded) {
+      let on = true;
+      legendsFontPromise.then(() => { if (on) setLegendFontV(1); });
+      return () => { on = false; };
+    }
+  }, []);
+
   // Solid color texture - use simple sync version for speed
-  const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${w}-${h}`;
+  const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${font}-${legendFontV}-${w}-${h}`;
   const solidTexture = useMemo(() => {
     if (imageMode === 'wrap') return null;
     return getCachedTexture(textureKey, () =>
