@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 import { getKeyColors } from '../data/colorways';
 import { getLegendGlyph, GLYPH_METRICS } from '../data/keysimLegends';
+import { KEY_UNIT } from '../data/layouts';
 
 // ============================================================
 // LEGENDS FONT (keysim icon font: pre-composed GMK key legends)
@@ -76,7 +77,8 @@ function darkenColor(hex, factor) {
 // KEYCAP PROFILE SPECIFICATIONS
 // ============================================================
 const PROFILE_SPECS = {
-  cherry: { maxHeight: 9.4, dishType: 'cylindrical', dishDepth: 0.6, topWidth: 14.0, topDepth: 13.0, baseWidth: 17.5, baseDepth: 17.5, chamfer: 0.7, uniform: false, rowHeights: [1.000, 1.000, 0.904, 0.787, 0.904, 0.904], rowTilts: [0.122, 0.122, 0.087, 0, -0.105, -0.105] },
+  // cherry base 18.1mm = GMK footprint -> 0.05u gap at 19.05mm pitch (keysim GUTTER)
+  cherry: { maxHeight: 9.4, dishType: 'cylindrical', dishDepth: 0.6, topWidth: 14.0, topDepth: 13.0, baseWidth: 18.1, baseDepth: 18.1, chamfer: 0.7, uniform: false, rowHeights: [1.000, 1.000, 0.904, 0.787, 0.904, 0.904], rowTilts: [0.122, 0.122, 0.087, 0, -0.105, -0.105] },
   oem: { maxHeight: 11.9, dishType: 'cylindrical', dishDepth: 0.8, topWidth: 13.5, topDepth: 12.5, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.6, uniform: false, rowHeights: [1.000, 1.000, 0.924, 0.807, 0.924, 0.924], rowTilts: [0.140, 0.140, 0.100, 0, -0.120, -0.120] },
   sa: { maxHeight: 16.5, dishType: 'spherical', dishDepth: 2.5, topWidth: 12.5, topDepth: 12.5, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.971, 0.941, 0.941, 0.941], rowTilts: [0.150, 0.150, 0.100, 0, -0.100, -0.100] },
   dsa: { maxHeight: 7.6, dishType: 'spherical', dishDepth: 1.0, topWidth: 13.0, topDepth: 13.0, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.8, uniform: true, rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000], rowTilts: [0, 0, 0, 0, 0, 0] },
@@ -722,8 +724,8 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     }
   });
 
-  const px = x !== undefined ? x * 1.05 : 0;
-  const pz = y !== undefined ? y * 1.05 : 0;
+  const px = x !== undefined ? x * KEY_UNIT : 0;
+  const pz = y !== undefined ? y * KEY_UNIT : 0;
 
   return (
     <group position={[px, 0, pz]} rotation={[rowTilt || 0, 0, 0]}
