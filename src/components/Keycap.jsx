@@ -312,52 +312,96 @@ function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBo
 }
 
 // ============================================================
-// Build solid color keycap texture with legend
+// Painted shading — keysim's texture.js technique (illustration,
+// not photoreal): the premium look is baked into the canvas, the
+// 3D lighting only adds gentle variation on top.
+// Canvas orientation on the top face: y=0 = back edge of the key,
+// y=height = front edge (toward typist), x = key left -> right.
 // ============================================================
-async function buildKeycapTexture({ color, legend, legendColor, legendFont, legendPosition, keyWidth = 1, keyHeight = 1 }) {
-  const fontFamily = legendFont || 'Inter';
-  // Skip font loading - use fallback if not ready (faster)
+function paintKeycapShading(ctx, canvasWidth, canvasHeight, pxPerU, convexTop) {
+  // Sculpt gradient. Keysim paints this at 0.2/0.15 over a flat top;
+  // our geometry has a real dish that real lights already shade, so go
+  // half-strength — the paint and the lighting sum to the same read.
+  let sculpt;
+  if (convexTop) {
+    // Spacebar: convex front-back curve — dark back rolling to lit front
+    sculpt = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+    sculpt.addColorStop(0, 'rgba(0,0,0,0.08)');
+    sculpt.addColorStop(0.5, 'rgba(128,128,128,0)');
+    sculpt.addColorStop(1, 'rgba(255,255,255,0.08)');
+  } else {
+    // Cylindrical dish curves left-right: lit left wall of the dish
+    // falling to shadow on the right
+    sculpt = ctx.createLinearGradient(0, 0, canvasWidth, 0);
+    sculpt.addColorStop(0, 'rgba(255,255,255,0.10)');
+    sculpt.addColorStop(0.4, 'rgba(255,255,255,0)');
+    sculpt.addColorStop(0.6, 'rgba(0,0,0,0)');
+    sculpt.addColorStop(1, 'rgba(0,0,0,0.08)');
+  }
+  ctx.fillStyle = sculpt;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // Smaller canvas = faster (256 instead of 512)
-  const baseSize = 256;
-  const canvasWidth = Math.round(baseSize * keyWidth);
-  const canvasHeight = Math.round(baseSize * keyHeight);
+  // Edge shines: painted specular for the rounded edges our geometry
+  // doesn't have. Full keysim strength — nothing else provides this.
+  const shineOpacity = 0.4;
 
+  // Front lip (bottom 3% of canvas), fading in/out along its length
+  const front = ctx.createLinearGradient(0, 0, canvasWidth, 0);
+  front.addColorStop(0, 'rgba(255,255,255,0)');
+  front.addColorStop(0.03, 'rgba(255,255,255,0)');
+  front.addColorStop(0.07, `rgba(255,255,255,${0.6 * shineOpacity})`);
+  front.addColorStop(0.8, `rgba(255,255,255,${0.6 * shineOpacity})`);
+  front.addColorStop(0.95, 'rgba(255,255,255,0)');
+  ctx.fillStyle = front;
+  ctx.fillRect(0, canvasHeight * 0.97, canvasWidth, canvasHeight * 0.03);
+
+  // Right edge (fixed 0.04u wide regardless of key width), brightest
+  // toward the front-right corner
+  const side = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+  side.addColorStop(0, 'rgba(255,255,255,0)');
+  side.addColorStop(0.03, 'rgba(255,255,255,0)');
+  side.addColorStop(0.15, `rgba(255,255,255,${0.5 * shineOpacity})`);
+  side.addColorStop(0.5, `rgba(255,255,255,${0.7 * shineOpacity})`);
+  side.addColorStop(0.85, `rgba(255,255,255,${1.1 * shineOpacity})`);
+  side.addColorStop(0.9, `rgba(255,255,255,${0.7 * shineOpacity})`);
+  side.addColorStop(0.95, 'rgba(255,255,255,0)');
+  side.addColorStop(1, 'rgba(255,255,255,0)');
+  const stripX = canvasWidth - pxPerU * 0.04;
+  ctx.fillStyle = side;
+  ctx.fillRect(stripX, 0, canvasWidth - stripX, canvasHeight);
+}
+
+// ============================================================
+// Side-wall texture: base color + vertical light ramp (lit at the
+// top lip, falling into shadow at the plate) + faint molded-plastic
+// grain (keysim uses a tiled noise aoMap at 0.4 for the same read).
+// All four walls map the full canvas; real lights differentiate them.
+// ============================================================
+function buildKeycapSideTexture(color) {
+  const s = 128;
   const canvas = document.createElement('canvas');
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
+  canvas.width = s;
+  canvas.height = s;
   const ctx = canvas.getContext('2d');
-
   ctx.fillStyle = color || '#7c6bb0';
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  ctx.fillRect(0, 0, s, s);
 
-  const cx = canvasWidth / 2;
-  const cy = canvasHeight / 2;
-  const grad = ctx.createRadialGradient(cx, cy * 0.7, 20, cx, cy * 0.78, canvasHeight * 0.43);
-  grad.addColorStop(0, 'rgba(255,255,255,0.10)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  const ramp = ctx.createLinearGradient(0, 0, 0, s);
+  ramp.addColorStop(0, 'rgba(255,255,255,0.10)');
+  ramp.addColorStop(0.18, 'rgba(255,255,255,0)');
+  ramp.addColorStop(0.55, 'rgba(0,0,0,0.05)');
+  ramp.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = ramp;
+  ctx.fillRect(0, 0, s, s);
 
-  if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
-    const posMap = {
-      'center': [cx, cy],
-      'top-center': [cx, canvasHeight * 0.31],
-      'top-left': [canvasWidth * 0.22, canvasHeight * 0.25],
-      'top-right': [canvasWidth * 0.78, canvasHeight * 0.25],
-      'bottom-left': [canvasWidth * 0.22, canvasHeight * 0.76],
-      'bottom-right': [canvasWidth * 0.78, canvasHeight * 0.76]
-    };
-    const [tx, ty] = posMap[legendPosition] || posMap['center'];
-    const baseFont = canvasHeight * 0.31;
-    const fontSize = legend.length > 5 ? baseFont * 0.5 :
-                     legend.length > 3 ? baseFont * 0.65 :
-                     legend.length > 1 ? baseFont * 0.85 : baseFont;
-    ctx.fillStyle = legendColor || '#ffffff';
-    ctx.font = `bold ${Math.round(fontSize)}px "${fontFamily}", sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
-    ctx.fillText(legend, tx, ty);
+  // Deterministic grain (seeded per color) so cache rebuilds don't shimmer
+  let seed = 2166136261;
+  for (let i = 0; i < (color || '').length; i++) seed = (seed ^ color.charCodeAt(i)) * 16777619 >>> 0;
+  const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 300; i++) {
+    const x = rand() * s, y = rand() * s, lite = rand() > 0.5;
+    ctx.fillStyle = lite ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.025)';
+    ctx.fillRect(x, y, 1 + rand(), 1 + rand());
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -377,6 +421,10 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = color || '#7c6bb0';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // Spacebar (only unlabeled wide key) is convex; everything else concave
+  const convexTop = (!legend || !legend.trim()) && keyWidth >= 2;
+  paintKeycapShading(ctx, canvasWidth, canvasHeight, baseSize, convexTop);
 
   if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
     // GMK glyph path: pre-composed legend from the keysim icon font, drawn
@@ -548,6 +596,12 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     );
   }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h, textureKey]);
 
+  // Painted side-wall texture — per-key solid path only (wrap mode drapes the image)
+  const sideTexture = useMemo(() => {
+    if (imageMode === 'wrap') return null;
+    return getCachedTexture(`side-${color}`, () => buildKeycapSideTexture(color));
+  }, [color, imageMode]);
+
   // Per-key image
   const perKeyImage = pkDesign?.imageUrl;
   const [perKeyTexture, setPerKeyTexture] = useState(null);
@@ -686,10 +740,11 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             </mesh>
           )}
 
-          {/* Body - sides (always keycap color) */}
+          {/* Body - sides: painted wall texture in solid mode, flat color under image wrap */}
           <mesh geometry={bodyGeo} castShadow receiveShadow>
             <meshStandardMaterial
-              color={sideColor}
+              color={sideTexture ? '#ffffff' : sideColor}
+              map={sideTexture}
               roughness={isABS ? 0.5 : 0.9}
               metalness={0}
               side={THREE.DoubleSide}
@@ -714,10 +769,12 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             </mesh>
           )}
 
-          {/* Top face (always keycap color + legend in non-wrap mode) */}
+          {/* Top face. The canvas map already carries the exact key color —
+              material color must stay white or three multiplies them (key
+              renders color² and painted highlights get tinted). */}
           <mesh geometry={topGeo} castShadow receiveShadow>
             <meshStandardMaterial
-              color={color}
+              color={imageMode !== 'wrap' && activeTexture ? '#ffffff' : color}
               map={imageMode !== 'wrap' ? activeTexture : null}
               roughness={isABS ? 0.45 : 0.85}
               metalness={0}
