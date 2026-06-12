@@ -238,7 +238,9 @@ export const COLORWAY_LIST = [...Object.keys(POPULAR), ...EXTRA_IDS];
 
 // Convert colorway to our format { baseColor, baseLegend, modColor, modLegend, accentColor, accentLegend }
 export const colorwayToTheme = (colorway) => {
-  const c = typeof colorway === 'string' ? getColorway(colorway) : colorway;
+  // Lazy-tier COLORWAYS[id] is undefined until warmupExtraColorways() lands —
+  // fall back like getColorway does instead of crashing render-time maps.
+  const c = (typeof colorway === 'string' ? getColorway(colorway) : colorway) || POPULAR.olivia;
   return {
     id: c.id,
     label: c.label,

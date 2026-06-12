@@ -113,7 +113,7 @@ export default function LabScreen() {
           <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
           <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
           <KeyboardRenderer onKeyClick={() => {}} />
-          <ContactShadows position={[0, -0.8, 0]} opacity={0.55} scale={40} blur={3} far={8} />
+          <ContactShadows position={[0, -0.53, 0]} opacity={0.55} scale={40} blur={3} far={8} />
           <LabCamera bg={bg} />
         </Suspense>
       </Canvas>

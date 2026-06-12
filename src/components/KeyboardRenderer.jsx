@@ -3,10 +3,8 @@ import * as THREE from 'three';
 import { useStore } from '../store';
 import Keycap, { PROFILE_SPECS, normalizeProfile } from './Keycap';
 import KeyboardChassis from './KeyboardChassis';
-import { getLayoutForFormFactor, formFactorToLayoutKey } from '../data/layouts';
+import { getLayoutForFormFactor, formFactorToLayoutKey, KEY_UNIT } from '../data/layouts';
 import { Text } from '@react-three/drei';
-
-const KEY_UNIT = 1.05;
 
 export default function KeyboardRenderer({ onKeyClick, pressedKeys = new Set(), layout: externalLayout }) {
   const formFactor = useStore(s => s.selectedFormFactor);

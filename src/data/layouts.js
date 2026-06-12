@@ -138,6 +138,11 @@ function build65Percent() {
   return keys;
 }
 
+// Scene units per 1u of key spacing. Caps are modeled at 1/19.05 scale
+// (1 scene unit = 19.05mm), so a pitch of exactly 1.0 = the real 19.05mm —
+// gap between caps comes from baseWidth alone (GMK ≈ 0.05u), not the pitch.
+export const KEY_UNIT = 1.0;
+
 export const LAYOUT_TEMPLATES = {
   'FULL_100': buildFull100(),
   'TKL_80': buildTKL(),

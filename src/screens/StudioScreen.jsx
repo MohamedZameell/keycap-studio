@@ -870,7 +870,7 @@ export default function StudioScreen() {
                       return (
                         <button key={id}
                           onClick={() => store.setSelectedColorway(id)}
-                          title={c.label}
+                          title={theme.label}
                           style={{
                             aspectRatio: '1',
                             background: `linear-gradient(135deg, ${theme.baseColor} 60%, ${theme.modColor} 60%)`,
@@ -1665,7 +1665,7 @@ export default function StudioScreen() {
                   </group>
                 )}
 
-                <ContactShadows position={[0, viewMode === 'full' ? -0.8 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
+                <ContactShadows position={[0, viewMode === 'full' ? -0.53 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
 
                 <StudioOrbitControls orbitRef={orbitRef} cameraStateRef={cameraStateRef} viewMode={viewMode} enabled={!imageDragMode} />
               </Suspense>

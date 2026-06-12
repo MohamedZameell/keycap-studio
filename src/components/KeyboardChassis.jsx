@@ -1,9 +1,8 @@
-import React from 'react';
-import { RoundedBox } from '@react-three/drei';
+import React, { useMemo } from 'react';
+import * as THREE from 'three';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../store';
-
-const KEY_UNIT = 1.05;
+import { KEY_UNIT } from '../data/layouts';
 
 // Material params per case finish (STYLE tab options)
 const FINISHES = {
@@ -12,12 +11,27 @@ const FINISHES = {
   glossy:  { roughness: 0.22, metalness: 0.15 },
 };
 
-function shade(hex, factor) {
-  const c = hex && hex.startsWith('#') && hex.length >= 7 ? hex : '#08080c';
-  const r = Math.min(255, Math.round(parseInt(c.slice(1, 3), 16) * factor));
-  const g = Math.min(255, Math.round(parseInt(c.slice(3, 5), 16) * factor));
-  const b = Math.min(255, Math.round(parseInt(c.slice(5, 7), 16) * factor));
-  return `rgb(${r},${g},${b})`;
+// Tray dimensions (scene units). Caps sit recessed inside the rim like a
+// real high-profile case: rim top just under the cap bases, dark plate
+// visible in the moat between the outer caps and the rim wall.
+const MOAT = 0.07;          // dark gap between outer caps and rim wall
+const WALL_T = 0.42;        // rim wall thickness
+const RIM_TOP_Y = -0.05;    // cap bases are y=0, pressed dip is -0.04
+const CASE_BOTTOM_Y = -0.52;
+const BEVEL = 0.05;
+
+function roundedRectShape(hw, hd, r) {
+  const s = new THREE.Shape();
+  s.moveTo(-hw + r, -hd);
+  s.lineTo(hw - r, -hd);
+  s.quadraticCurveTo(hw, -hd, hw, -hd + r);
+  s.lineTo(hw, hd - r);
+  s.quadraticCurveTo(hw, hd, hw - r, hd);
+  s.lineTo(-hw + r, hd);
+  s.quadraticCurveTo(-hw, hd, -hw, hd - r);
+  s.lineTo(-hw, -hd + r);
+  s.quadraticCurveTo(-hw, -hd, -hw + r, -hd);
+  return s;
 }
 
 export default function KeyboardChassis({ totalW, totalH }) {
@@ -27,56 +41,60 @@ export default function KeyboardChassis({ totalW, totalH }) {
     caseFinish: s.caseFinish,
   })));
 
-  const padX = 1.2;
-  const padZ = 1.0;
-  const plateW = totalW * KEY_UNIT + padX;
-  const plateZ = totalH * KEY_UNIT + padZ;
-
   const fin = FINISHES[caseFinish] || FINISHES.matte;
-  const radius = caseStyle === 'angular' ? 0.02 : 0.10;
+  const cornerR = caseStyle === 'angular' ? 0.06 : 0.22;
+
+  const innerW = (totalW * KEY_UNIT) / 2 + MOAT;
+  const innerD = (totalH * KEY_UNIT) / 2 + MOAT;
+  const outerW = innerW + WALL_T;
+  const outerD = innerD + WALL_T;
+
+  // Rim: rounded rect with a rounded hole, extruded upward with a beveled
+  // lip (the bevel is the rim's light-catching edge — replaces the old
+  // hardcoded accent strip).
+  const rimGeo = useMemo(() => {
+    const shape = roundedRectShape(outerW, outerD, cornerR);
+    shape.holes.push(roundedRectShape(innerW, innerD, 0.06));
+    const depth = (RIM_TOP_Y - CASE_BOTTOM_Y) - 2 * BEVEL;
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth,
+      bevelEnabled: true,
+      bevelThickness: BEVEL,
+      bevelSize: BEVEL * 0.8,
+      bevelSegments: 2,
+      curveSegments: 8,
+    });
+    geo.rotateX(-Math.PI / 2); // extrude up: shape in XZ, +Y is the rim top
+    geo.translate(0, CASE_BOTTOM_Y + BEVEL, 0);
+    return geo;
+  }, [outerW, innerW, outerD, innerD, cornerR]);
 
   return (
     <group>
-      {/* PART 1 — Bottom case (main body) */}
-      <RoundedBox
-        args={[plateW, 0.28, plateZ]}
-        radius={radius}
-        smoothness={4}
-        position={[0, -0.38, 0]}
-        castShadow
-        receiveShadow
-      >
+      {/* Case rim (tray walls) */}
+      <mesh geometry={rimGeo} castShadow receiveShadow>
         <meshStandardMaterial
           color={caseColor || '#08080c'}
           roughness={fin.roughness}
           metalness={fin.metalness}
         />
-      </RoundedBox>
+      </mesh>
 
-      {/* PART 2 — Switch plate (dark surface in the gaps between keys,
-          a separate part on real boards — stays dark under any case color) */}
-      <RoundedBox
-        args={[plateW - 0.3, 0.05, plateZ - 0.3]}
-        radius={0.04}
-        smoothness={4}
-        position={[0, -0.18, 0]}
-        receiveShadow
-      >
+      {/* Case floor — closes the tray silhouette from low angles */}
+      <mesh position={[0, CASE_BOTTOM_Y + 0.03, 0]} castShadow receiveShadow>
+        <boxGeometry args={[outerW * 2 - 0.08, 0.06, outerD * 2 - 0.08]} />
         <meshStandardMaterial
-          color="#111116"
-          roughness={0.55}
-          metalness={0.2}
-        />
-      </RoundedBox>
-
-      {/* PART 3 — Front edge chamfer line, derived from the case color */}
-      <mesh position={[0, -0.33, plateZ / 2 - 0.05]}>
-        <boxGeometry args={[plateW - 0.4, 0.04, 0.06]} />
-        <meshStandardMaterial
-          color={shade(caseColor, 0.8)}
+          color={caseColor || '#08080c'}
           roughness={fin.roughness}
           metalness={fin.metalness}
         />
+      </mesh>
+
+      {/* Switch plate — the dark surface visible between caps and in the
+          moat; tucks under the rim's inner wall */}
+      <mesh position={[0, -0.18, 0]} receiveShadow>
+        <boxGeometry args={[innerW * 2 + 0.15, 0.05, innerD * 2 + 0.15]} />
+        <meshStandardMaterial color="#111116" roughness={0.55} metalness={0.2} />
       </mesh>
     </group>
   );
