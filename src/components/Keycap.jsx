@@ -95,10 +95,226 @@ const normalizeProfile = (p) => (p || 'cherry').toLowerCase();
 export { PROFILE_SPECS, normalizeProfile };
 
 // ============================================================
+// ROUNDED CAP GEOMETRY (Path B part 2)
+// Real rounded corners + a true quarter-round fillet from the walls
+// into the top plate — replaces the sharp box for the solid-color
+// path. Image-wrap mode keeps the box builders below (their drape
+// UV layout is baked into flat quads and wrap is a separate look).
+//
+// UV contract preserved from the box builders:
+// - walls: u = perimeter fraction, v = 0 base -> 1 top (side ramp
+//   texture is white at v=1)
+// - top: u,v span the WHOLE top INCLUDING the fillet ring with the
+//   same V flip as before — so the painted shine strips land ON the
+//   rounded edge and legend metrics keep their anchor.
+// All normals are analytic (wall tilt, fillet arc, dish derivative):
+// no computeVertexNormals, no UV-seam shading splits.
+// ============================================================
+const CAP_FILLET_MM = 1.3;   // top-edge fillet radius
+const CAP_BASE_R_MM = 1.2;   // corner radius at the base
+const CAP_TOP_R_MM = 2.4;    // corner radius at the top plate
+const CAP_CORNER_SEGS = 5;   // outline samples per corner arc
+const CAP_FILLET_SEGS = 4;   // rings along the fillet arc
+const CAP_PLATE_T = [0.08, 0.3, 0.6, 0.85]; // plate ring insets (first = old chamfer-strip width)
+
+// Rounded-rect outline in XZ with outward 2D normals. Constant point
+// count for any radius so rings stitch 1:1.
+function roundedOutline(hw, hd, r, segs) {
+  const rr = Math.max(0.0005, Math.min(r, hw - 0.0005, hd - 0.0005));
+  const cx = hw - rr, cz = hd - rr;
+  const corners = [
+    [cx, cz, 0], [-cx, cz, Math.PI / 2], [-cx, -cz, Math.PI], [cx, -cz, Math.PI * 1.5],
+  ];
+  const pts = [];
+  for (const [ox, oz, a0] of corners) {
+    for (let k = 0; k <= segs; k++) {
+      const th = a0 + (k / segs) * (Math.PI / 2);
+      pts.push({ x: ox + rr * Math.cos(th), z: oz + rr * Math.sin(th), nx: Math.cos(th), nz: Math.sin(th) });
+    }
+  }
+  return pts;
+}
+
+// Shared per-perimeter-point frame: base point, wall-top point, wall
+// tilt angle and the fillet arc center — body and top builders both
+// consume it so their boundary rings coincide exactly.
+function buildCapFrame(widthU, heightU, profile) {
+  const spec = PROFILE_SPECS[normalizeProfile(profile)] || PROFILE_SPECS.cherry;
+  const scale = 1 / 19.05;
+  const W = spec.baseWidth * widthU * scale;
+  const D = spec.baseDepth * heightU * scale;
+  const tw = spec.topWidth * widthU * scale;
+  const td = spec.topDepth * heightU * scale;
+  const H = spec.maxHeight * scale;
+  const f = CAP_FILLET_MM * scale;
+  const base = roundedOutline(W / 2, D / 2, CAP_BASE_R_MM * scale, CAP_CORNER_SEGS);
+  // Wall outline extrapolated to y=H sits a fillet-radius outside the
+  // top plate, so after the fillet inset the plate lands at topWidth.
+  const ext = roundedOutline(tw / 2 + f, td / 2 + f, (CAP_TOP_R_MM + CAP_FILLET_MM) * scale, CAP_CORNER_SEGS);
+  const pts = base.map((b, i) => {
+    const e = ext[i];
+    const tx = e.x - b.x, tz = e.z - b.z;
+    const taper = -(tx * e.nx + tz * e.nz); // wall lean (inward, >0)
+    const alpha = Math.atan2(taper, H);     // wall tilt from vertical plane
+    const ca = Math.cos(alpha), sa = Math.sin(alpha);
+    // Fillet is tangent to the tilted wall: arc spans alpha -> PI/2,
+    // ends horizontal at y=H. Wall stops where the arc begins.
+    const yTop = H - f * (1 - sa);
+    const s = yTop / H;
+    const wx = b.x + tx * s, wz = b.z + tz * s;
+    return {
+      bx: b.x, bz: b.z, nx: e.nx, nz: e.nz, alpha, ca, sa, yTop, wx, wz,
+      ax: wx - f * ca * e.nx, az: wz - f * ca * e.nz, ay: yTop - f * sa, // arc center
+    };
+  });
+  return { spec, scale, H, f, NP: pts.length, pts };
+}
+
+// Fraction of the top texture canvas (per side) that lies on the fillet
+// ring. Legends are drawn inset by this so they anchor to the flat plate
+// like they did when the canvas spanned only topWidth (shine strips stay
+// full-canvas — they belong ON the fillet).
+const topInsetCache = new Map();
+function getTopInset(profile, w, h) {
+  const key = `${profile}-${w}-${h}`;
+  if (topInsetCache.has(key)) return topInsetCache.get(key);
+  const F = buildCapFrame(w, h, profile);
+  let mx = 0, mz = 0;
+  for (const p of F.pts) { mx = Math.max(mx, Math.abs(p.wx)); mz = Math.max(mz, Math.abs(p.wz)); }
+  const tw2 = F.spec.topWidth * w * F.scale / 2;
+  const td2 = F.spec.topDepth * h * F.scale / 2;
+  const inset = { ix: Math.max(0, (mx - tw2) / (2 * mx)), iy: Math.max(0, (mz - td2) / (2 * mz)) };
+  topInsetCache.set(key, inset);
+  return inset;
+}
+
+function createRoundedBodyGeometry(widthU, heightU, profile) {
+  const F = buildCapFrame(widthU, heightU, profile);
+  const { NP, pts } = F;
+  const positions = [], normals = [], uvs = [], indices = [];
+  const push = (x, y, z, nx, ny, nz, u, v) => {
+    positions.push(x, y, z); normals.push(nx, ny, nz); uvs.push(u, v);
+    return positions.length / 3 - 1;
+  };
+
+  // Closed base (hidden inside the case, keeps the silhouette solid)
+  const c0 = push(0, 0, 0, 0, -1, 0, 0.5, 0.5);
+  const baseRing = pts.map(p => push(p.bx, 0, p.bz, 0, -1, 0, 0.5, 0.5));
+  for (let i = 0; i < NP; i++) indices.push(c0, baseRing[i], baseRing[(i + 1) % NP]);
+
+  // Wall: two rings, seam vertex duplicated for the u wrap
+  const bot = [], top = [];
+  for (let i = 0; i <= NP; i++) {
+    const p = pts[i % NP];
+    const u = i / NP;
+    const nx = p.ca * p.nx, ny = p.sa, nz = p.ca * p.nz;
+    bot.push(push(p.bx, 0, p.bz, nx, ny, nz, u, 0));
+    top.push(push(p.wx, p.yTop, p.wz, nx, ny, nz, u, 1));
+  }
+  for (let i = 0; i < NP; i++) {
+    indices.push(bot[i], top[i], top[i + 1], bot[i], top[i + 1], bot[i + 1]);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+function createRoundedTopGeometry(widthU, heightU, profile) {
+  const F = buildCapFrame(widthU, heightU, profile);
+  const { spec, scale, H, f, NP, pts } = F;
+  const dishDepth = spec.dishDepth * scale;
+  const spherical = spec.dishType === 'spherical';
+
+  // UV box = bounding box of the fillet's outer ring (the whole top)
+  let mx = 0, mz = 0;
+  for (const p of pts) { mx = Math.max(mx, Math.abs(p.wx)); mz = Math.max(mz, Math.abs(p.wz)); }
+  const setUV = (x, z) => [(x + mx) / (2 * mx), 1 - (z + mz) / (2 * mz)];
+
+  // Plate bounds (fillet inner ring) drive the dish span
+  let pbx = 0, pbz = 0;
+  for (const p of pts) { pbx = Math.max(pbx, Math.abs(p.ax)); pbz = Math.max(pbz, Math.abs(p.az)); }
+  const dish = (x, z) => {
+    const u = Math.min(1, Math.max(0, (x + pbx) / (2 * pbx)));
+    const v = Math.min(1, Math.max(0, (z + pbz) / (2 * pbz)));
+    const su = Math.sin(Math.PI * u), sv = Math.sin(Math.PI * v);
+    const depth = spherical ? dishDepth * su * sv : dishDepth * su;
+    // analytic partials for the normal
+    const du = Math.PI / (2 * pbx) * Math.cos(Math.PI * u) * (spherical ? sv : 1) * dishDepth;
+    const dv = spherical ? Math.PI / (2 * pbz) * Math.cos(Math.PI * v) * su * dishDepth : 0;
+    return { y: H - depth, dx: du, dz: dv }; // y(x,z); note y' = +d(depth)/dx
+  };
+
+  const positions = [], normals = [], uvs = [], indices = [];
+  const push = (x, y, z, nx, ny, nz) => {
+    const [u, v] = setUV(x, z);
+    positions.push(x, y, z); normals.push(nx, ny, nz); uvs.push(u, v);
+    return positions.length / 3 - 1;
+  };
+  const quadRow = (ringA, ringB) => {
+    for (let i = 0; i < NP; i++) {
+      indices.push(ringA[i], ringB[i], ringB[i + 1], ringA[i], ringB[i + 1], ringA[i + 1]);
+    }
+  };
+
+  // Fillet rings: arc from the wall tangent (alpha) to horizontal
+  let prev = null;
+  for (let k = 0; k <= CAP_FILLET_SEGS; k++) {
+    const ring = [];
+    for (let i = 0; i <= NP; i++) {
+      const p = pts[i % NP];
+      const th = p.alpha + (k / CAP_FILLET_SEGS) * (Math.PI / 2 - p.alpha);
+      const ct = Math.cos(th), st = Math.sin(th);
+      ring.push(push(p.ax + f * ct * p.nx, p.ay + f * st, p.az + f * ct * p.nz, ct * p.nx, st, ct * p.nz));
+    }
+    if (prev) quadRow(prev, ring);
+    prev = ring;
+  }
+
+  // Plate rings shrink toward the center; first one is a chamfer-width
+  // step in from the fillet so the dish "drops" off the flat rim like
+  // the old slanted chamfer strips did.
+  for (const t of CAP_PLATE_T) {
+    const ring = [];
+    for (let i = 0; i <= NP; i++) {
+      const p = pts[i % NP];
+      const x = p.ax * (1 - t), z = p.az * (1 - t);
+      const d = dish(x, z);
+      const inv = 1 / Math.hypot(d.dx, 1, d.dz);
+      ring.push(push(x, d.y, z, d.dx * inv, inv, d.dz * inv));
+    }
+    quadRow(prev, ring);
+    prev = ring;
+  }
+
+  // Center fan closes the dish
+  const dc = dish(0, 0);
+  const center = push(0, dc.y, 0, 0, 1, 0);
+  for (let i = 0; i < NP; i++) indices.push(prev[i], center, prev[i + 1]);
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+// ============================================================
 // Keycap body geometry with GLOBAL UV coordinates for image wrap
 // uvBounds: { uMin, uMax, vMin, vMax, drape } in texture space
 // ============================================================
 function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null) {
+  // Solid-color path gets the rounded cap; wrap mode needs the box
+  // builder's drape UV layout.
+  if (!uvBounds) return createRoundedBodyGeometry(widthU, heightU, profile);
+  return createBodyGeometryBox(widthU, heightU, profile, uvBounds);
+}
+
+function createBodyGeometryBox(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null) {
   const normalizedProfile = normalizeProfile(profile);
   const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
@@ -199,6 +415,11 @@ function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBound
 // uvBounds: { uMin, uMax, vMin, vMax } in texture space
 // ============================================================
 function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null) {
+  if (!uvBounds) return createRoundedTopGeometry(widthU, heightU, profile);
+  return createTopFaceGeometryBox(widthU, heightU, profile, uvBounds);
+}
+
+function createTopFaceGeometryBox(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null) {
   const normalizedProfile = normalizeProfile(profile);
   const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
@@ -411,7 +632,7 @@ function buildKeycapSideTexture(color) {
   return tex;
 }
 
-function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1) {
+function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1, inset = null) {
   // 256/u: enough for crisp legend glyphs, still cheap to rasterize
   const baseSize = 256;
   const canvasWidth = Math.round(baseSize * keyWidth);
@@ -429,6 +650,13 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
   paintKeycapShading(ctx, canvasWidth, canvasHeight, baseSize, convexTop);
 
   if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
+    // Rounded geometry: the canvas spans fillet + plate; draw the legend
+    // in plate space so it doesn't ride the rounded edge.
+    ctx.save();
+    if (inset) {
+      ctx.translate(inset.ix * canvasWidth, inset.iy * canvasHeight);
+      ctx.scale(1 - 2 * inset.ix, 1 - 2 * inset.iy);
+    }
     // GMK glyph path: pre-composed legend from the keysim icon font, drawn
     // at keysim's metrics (absolute per-1u — wide keys keep the same size
     // and top-left anchor like real GMK). Only when the user hasn't picked
@@ -462,6 +690,7 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(legend, tx, ty);
     }
+    ctx.restore();
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -594,14 +823,15 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     }
   }, []);
 
-  // Solid color texture - use simple sync version for speed
-  const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${font}-${legendFontV}-${w}-${h}`;
+  // Solid color texture - use simple sync version for speed.
+  // profile is in the key because the legend inset (fillet fraction) depends on it.
+  const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${font}-${legendFontV}-${w}-${h}-${profile}`;
   const solidTexture = useMemo(() => {
     if (imageMode === 'wrap') return null;
     return getCachedTexture(textureKey, () =>
-      buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h)
+      buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h, getTopInset(profile, w, h))
     );
-  }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h, textureKey]);
+  }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h, profile, textureKey]);
 
   // Painted side-wall texture — per-key solid path only (wrap mode drapes the image)
   const sideTexture = useMemo(() => {
