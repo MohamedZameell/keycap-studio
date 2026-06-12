@@ -9,15 +9,24 @@ import { buildHeroScene, HERO_PRESETS } from './heroStage';
 // frameloop is paused while this is open (GPU goes to the tracer).
 
 const RESOLUTIONS = [
-  { label: '1080p', w: 1920, h: 1080, tiles: 2 },
-  { label: '1440p', w: 2560, h: 1440, tiles: 3 },
-  { label: '4K', w: 3840, h: 2160, tiles: 4 },
+  { label: 'HD', long: 1920, tiles: 2 },
+  { label: 'QHD', long: 2560, tiles: 3 },
+  { label: '4K', long: 3840, tiles: 4 },
+];
+const ASPECTS = [
+  { label: '16:9', r: 16 / 9 },
+  { label: '1:1', r: 1 },
+  { label: '4:5', r: 4 / 5 },
 ];
 const QUALITIES = [
   { label: 'Fast', samples: 120 },
   { label: 'Balanced', samples: 250 },
   { label: 'High', samples: 500 },
 ];
+// long edge stays at the tier size regardless of orientation
+const dims = (res, aspect) => aspect.r >= 1
+  ? { w: res.long, h: 2 * Math.round(res.long / aspect.r / 2) }
+  : { w: 2 * Math.round(res.long * aspect.r / 2), h: res.long };
 
 const ui = {
   overlay: {
@@ -57,6 +66,7 @@ export default function HeroRenderModal({ onClose }) {
 
   const [phase, setPhase] = useState('config'); // config|prep|render|denoise|done|error
   const [resIdx, setResIdx] = useState(0);
+  const [aspIdx, setAspIdx] = useState(0);
   const [qualIdx, setQualIdx] = useState(1);
   const [angle, setAngle] = useState('hero');
   const [samples, setSamples] = useState(0);
@@ -93,6 +103,8 @@ export default function HeroRenderModal({ onClose }) {
     const s = sessionRef.current;
     const runId = s.runId;
     const res = RESOLUTIONS[resIdx];
+    const { w: renderW, h: renderH } = dims(res, ASPECTS[aspIdx]);
+    s.dims = { w: renderW, h: renderH };
     const target = QUALITIES[qualIdx].samples;
     setSamples(0); setEta(null); setDenoised(false); setShowRaw(false);
     setPhase('prep');
@@ -103,14 +115,16 @@ export default function HeroRenderModal({ onClose }) {
     try {
       const canvas = canvasRef.current;
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.0;
+      // AgX: lifted blacks, soft highlight rolloff — the film-like grade of
+      // the reference renders (ACES clipped the saturated colorways)
+      renderer.toneMapping = THREE.AgXToneMapping;
+      renderer.toneMappingExposure = 1.15;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.setPixelRatio(1);
-      renderer.setSize(res.w, res.h, false);
+      renderer.setSize(renderW, renderH, false);
       s.renderer = renderer;
 
-      const stage = buildHeroScene(heroBridge.scene, { aspect: res.w / res.h, angle });
+      const stage = buildHeroScene(heroBridge.scene, { aspect: renderW / renderH, angle });
       s.stage = stage;
 
       const pt = new WebGLPathTracer(renderer);
@@ -152,14 +166,14 @@ export default function HeroRenderModal({ onClose }) {
     try {
       const { Denoiser } = await import('denoiser');
       if (runId !== sessionRef.current.runId) return;
-      const res = RESOLUTIONS[resIdx];
       const dn = new Denoiser();
       sessionRef.current.dn = dn;
       // weights ship with the app (public/tzas); lib requires an absolute URL
       dn.weightsUrl = new URL(`${import.meta.env.BASE_URL || '/'}tzas`, window.location.origin).href;
       dn.quality = 'balanced';
       const out = denoiseRef.current;
-      out.width = res.w; out.height = res.h;
+      const { w: outW, h: outH } = sessionRef.current.dims || { w: canvasRef.current.width, h: canvasRef.current.height };
+      out.width = outW; out.height = outH;
       dn.setCanvas(out);
       dn.setInputImage('color', canvasRef.current);
       await dn.execute();
@@ -238,6 +252,10 @@ export default function HeroRenderModal({ onClose }) {
               <span style={ui.label}>Resolution</span>
               {RESOLUTIONS.map((r, i) => (
                 <button key={r.label} style={ui.chip(i === resIdx)} onClick={() => setResIdx(i)}>{r.label}</button>
+              ))}
+              <span style={{ ...ui.label, marginLeft: 12 }}>Aspect</span>
+              {ASPECTS.map((a, i) => (
+                <button key={a.label} style={ui.chip(i === aspIdx)} onClick={() => setAspIdx(i)}>{a.label}</button>
               ))}
               <span style={{ ...ui.label, marginLeft: 12 }}>Quality</span>
               {QUALITIES.map((q, i) => (
