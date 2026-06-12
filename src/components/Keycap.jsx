@@ -246,9 +246,17 @@ function getTopInset(profile, w, h) {
   return inset;
 }
 
-function createRoundedBodyGeometry(widthU, heightU, profile) {
+function createRoundedBodyGeometry(widthU, heightU, profile, convexTop = false) {
   const F = buildCapFrame(widthU, heightU, profile);
   const { NP, pts } = F;
+  // Convex caps arch the wall-top ring so it meets the bulged fillet
+  // (same field as the top builder: full-span sine over the outer ring).
+  let mzW = 0;
+  for (const p of pts) mzW = Math.max(mzW, Math.abs(p.wz));
+  const cd = SPACEBAR_CONVEX_MM * F.scale;
+  const bulgeY = (z) => convexTop
+    ? cd * Math.sin(Math.PI * Math.min(1, Math.max(0, (z + mzW) / (2 * mzW))))
+    : 0;
   const positions = [], normals = [], uvs = [], indices = [];
   const push = (x, y, z, nx, ny, nz, u, v) => {
     positions.push(x, y, z); normals.push(nx, ny, nz); uvs.push(u, v);
@@ -267,7 +275,7 @@ function createRoundedBodyGeometry(widthU, heightU, profile) {
     const u = i / NP;
     const nx = p.ca * p.nx, ny = p.sa, nz = p.ca * p.nz;
     bot.push(push(p.bx, 0, p.bz, nx, ny, nz, u, 0));
-    top.push(push(p.wx, p.yTop, p.wz, nx, ny, nz, u, 1));
+    top.push(push(p.wx, p.yTop + bulgeY(p.wz), p.wz, nx, ny, nz, u, 1));
   }
   for (let i = 0; i < NP; i++) {
     indices.push(bot[i], top[i], top[i + 1], bot[i], top[i + 1], bot[i + 1]);
@@ -296,15 +304,27 @@ function createRoundedTopGeometry(widthU, heightU, profile, convexTop = false) {
   // Plate bounds (fillet inner ring) drive the dish span
   let pbx = 0, pbz = 0;
   for (const p of pts) { pbx = Math.max(pbx, Math.abs(p.ax)); pbz = Math.max(pbz, Math.abs(p.az)); }
+  // Convex (spacebar) bulge: one front-to-back arch spanning the FULL top
+  // (fillet outer ring included) so the curve rolls over the front/back
+  // edges like a real spacebar instead of pillowing inside the fillet rim.
+  // Vertical offset g(z) + analytic shear dg for the normals — applied to
+  // plate AND fillet rings (and the wall-top ring in the body builder).
+  const bulge = (z) => {
+    if (!convexTop) return { g: 0, dg: 0 };
+    const v = Math.min(1, Math.max(0, (z + mz) / (2 * mz)));
+    return {
+      g: convexDepth * Math.sin(Math.PI * v),
+      dg: convexDepth * (Math.PI / (2 * mz)) * Math.cos(Math.PI * v),
+    };
+  };
   const dish = (x, z) => {
+    if (convexTop) {
+      const b = bulge(z);
+      return { y: H + b.g, dx: 0, dz: -b.dg };
+    }
     const u = Math.min(1, Math.max(0, (x + pbx) / (2 * pbx)));
     const v = Math.min(1, Math.max(0, (z + pbz) / (2 * pbz)));
     const su = Math.sin(Math.PI * u), sv = Math.sin(Math.PI * v);
-    if (convexTop) {
-      // Spacebar: bulges UP, curving over front-to-back (x-independent)
-      const dv = -Math.PI / (2 * pbz) * Math.cos(Math.PI * v) * convexDepth;
-      return { y: H + convexDepth * sv, dx: 0, dz: dv };
-    }
     const depth = spherical ? dishDepth * su * sv : dishDepth * su;
     // analytic partials for the normal
     const du = Math.PI / (2 * pbx) * Math.cos(Math.PI * u) * (spherical ? sv : 1) * dishDepth;
@@ -332,7 +352,11 @@ function createRoundedTopGeometry(widthU, heightU, profile, convexTop = false) {
       const p = pts[i % NP];
       const th = p.alpha + (k / CAP_FILLET_SEGS) * (Math.PI / 2 - p.alpha);
       const ct = Math.cos(th), st = Math.sin(th);
-      ring.push(push(p.ax + f * ct * p.nx, p.ay + f * st, p.az + f * ct * p.nz, ct * p.nx, st, ct * p.nz));
+      const fz = p.az + f * ct * p.nz;
+      const b = bulge(fz);
+      const nz2 = ct * p.nz - st * b.dg;
+      const inv = 1 / Math.hypot(ct * p.nx, st, nz2);
+      ring.push(push(p.ax + f * ct * p.nx, p.ay + f * st + b.g, fz, ct * p.nx * inv, st * inv, nz2 * inv));
     }
     if (prev) quadRow(prev, ring);
     prev = ring;
@@ -371,10 +395,10 @@ function createRoundedTopGeometry(widthU, heightU, profile, convexTop = false) {
 // Keycap body geometry with GLOBAL UV coordinates for image wrap
 // uvBounds: { uMin, uMax, vMin, vMax, drape } in texture space
 // ============================================================
-function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null) {
+function createBodyGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null, convexTop = false) {
   // Solid-color path gets the rounded cap; wrap mode needs the box
   // builder's drape UV layout.
-  if (!uvBounds) return createRoundedBodyGeometry(widthU, heightU, profile);
+  if (!uvBounds) return createRoundedBodyGeometry(widthU, heightU, profile, convexTop);
   return createBodyGeometryBox(widthU, heightU, profile, uvBounds);
 }
 
@@ -862,14 +886,14 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
 
   // Geometries — stable, never rebuild on pan/zoom
   const geoKey = imageMode === 'wrap' ? null : `${w}-${h}-${profile}`;
-  const bodyGeo = useMemo(() => {
-    if (geoKey) {
-      return getCachedGeometry(`body-${geoKey}`, () => createBodyGeometry(w, h, profile, null));
-    }
-    return createBodyGeometry(w, h, profile, uvBounds);
-  }, [w, h, profile, uvBounds, geoKey]);
   // Spacebar (only unlabeled wide key) gets real convex geometry
   const convexTop = (!displayText || !displayText.trim()) && w >= 2;
+  const bodyGeo = useMemo(() => {
+    if (geoKey) {
+      return getCachedGeometry(`body-${geoKey}-${convexTop ? 'x' : 'c'}`, () => createBodyGeometry(w, h, profile, null, convexTop));
+    }
+    return createBodyGeometry(w, h, profile, uvBounds);
+  }, [w, h, profile, uvBounds, geoKey, convexTop]);
   const topGeo = useMemo(() => {
     if (geoKey) {
       return getCachedGeometry(`top-${geoKey}-${convexTop ? 'x' : 'c'}`, () => createTopFaceGeometry(w, h, profile, null, convexTop));
