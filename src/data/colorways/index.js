@@ -10,6 +10,8 @@
 //   (or just after Studio mount) to pre-fetch all of them in parallel.
 //   By the time the user clicks one, it's in the in-memory cache.
 
+import { labelToKeyCode } from '../keysimLegends';
+
 // === EAGER: Popular tier (27) ===
 import olivia from './colorway_olivia.json';
 import _8008 from './colorway_8008.json';
@@ -196,19 +198,34 @@ export const getKeyType = (label) => {
   if (!label) return 'mod'; // spacebar
   if (ACCENT_LABELS.includes(label)) return 'accent';
   if (MOD_LABELS.includes(label)) return 'mod';
-  if (label.startsWith('F') && !isNaN(label.slice(1))) return 'mod'; // F1-F12
+  if (label.length > 1 && label.startsWith('F') && !isNaN(label.slice(1))) return 'mod'; // F1-F12 (not the alpha 'F': isNaN('') is false)
   return 'base';
 };
 
-// Get colors for a specific key based on colorway
+// Get colors for a specific key based on colorway.
+// Zone resolution order (matches keysim):
+//   1. colorway.override[keycode] — explicit per-key zone ('accent', 'accent2'..'accent8', 'mods', 'base')
+//   2. label-based type: 'mod' keys use the 'mods' swatch, alphas use 'base'
+//   3. Esc-as-accent only for colorways that ship no override map (3 of 72) —
+//      colorways WITH overrides place their own accents, don't force Esc.
 export const getKeyColors = (colorway, label) => {
   const c = typeof colorway === 'string' ? getColorway(colorway) : colorway;
   if (!c || !c.swatches) {
     return { background: '#7c6bb0', legend: '#ffffff' };
   }
 
-  const keyType = getKeyType(label);
-  const swatch = c.swatches[keyType] || c.swatches.base;
+  const hasOverrides = c.override && Object.keys(c.override).length > 0;
+  const kc = labelToKeyCode(label);
+  let zone = hasOverrides && kc ? c.override[kc] : undefined;
+  if (!zone) {
+    const keyType = getKeyType(label);
+    if (keyType === 'accent') {
+      zone = hasOverrides ? 'mods' : 'accent';
+    } else {
+      zone = keyType === 'mod' ? 'mods' : 'base';
+    }
+  }
+  const swatch = c.swatches[zone] || c.swatches.base;
 
   return {
     background: swatch.background,

@@ -22,11 +22,16 @@ const LABEL_TO_KC = {
   'F1': 'KC_F1', 'F2': 'KC_F2', 'F3': 'KC_F3', 'F4': 'KC_F4', 'F5': 'KC_F5',
   'F6': 'KC_F6', 'F7': 'KC_F7', 'F8': 'KC_F8', 'F9': 'KC_F9', 'F10': 'KC_F10',
   'F11': 'KC_F11', 'F12': 'KC_F12',
+  '': 'KC_SPC', 'Space': 'KC_SPC',
 };
 for (let i = 0; i < 26; i++) {
   const ch = String.fromCharCode(65 + i);
   LABEL_TO_KC[ch] = `KC_${ch}`;
 }
+
+// Keysim keycode for a display label, or null. Colorway `override` maps
+// (zone per keycode, e.g. bento's KC_ENT -> accent) key off these codes.
+export const labelToKeyCode = (label) => LABEL_TO_KC[label] || null;
 
 // Drawing metrics from keysim texture.js at pxPerU=128, expressed per-1u:
 // fontSize = fontsize*1.25 = 100/128, x = offsetX = 20/128,
