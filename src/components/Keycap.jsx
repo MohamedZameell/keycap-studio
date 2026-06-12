@@ -149,7 +149,7 @@ const PROFILE_SPECS = {
 };
 
 const normalizeProfile = (p) => (p || 'cherry').toLowerCase();
-export { PROFILE_SPECS, normalizeProfile };
+export { PROFILE_SPECS, normalizeProfile, buildKeycapTextureFallback, getTopInset };
 
 // ============================================================
 // ROUNDED CAP GEOMETRY (Path B part 2)
@@ -167,11 +167,11 @@ export { PROFILE_SPECS, normalizeProfile };
 // All normals are analytic (wall tilt, fillet arc, dish derivative):
 // no computeVertexNormals, no UV-seam shading splits.
 // ============================================================
-const CAP_FILLET_MM = 1.3;   // top-edge fillet radius
-const CAP_BASE_R_MM = 1.2;   // corner radius at the base
-const CAP_TOP_R_MM = 2.4;    // corner radius at the top plate
-const CAP_CORNER_SEGS = 6;   // outline samples per corner arc
-const CAP_FILLET_SEGS = 5;   // rings along the fillet arc
+const CAP_FILLET_MM = 1.8;   // top-edge fillet radius
+const CAP_BASE_R_MM = 1.6;   // corner radius at the base
+const CAP_TOP_R_MM = 3.2;    // corner radius at the top plate
+const CAP_CORNER_SEGS = 8;   // outline samples per corner arc
+const CAP_FILLET_SEGS = 7;   // rings along the fillet arc
 const CAP_PLATE_T = [0.08, 0.3, 0.6, 0.85]; // plate ring insets (first = old chamfer-strip width)
 const SPACEBAR_CONVEX_MM = 0.6; // front-back bulge of convex (spacebar) tops
 
@@ -721,7 +721,7 @@ function buildKeycapSideTexture(color) {
   return tex;
 }
 
-function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1, inset = null) {
+function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1, inset = null, shaded = true) {
   // 256/u: enough for crisp legend glyphs, still cheap to rasterize
   const baseSize = 256;
   const canvasWidth = Math.round(baseSize * keyWidth);
@@ -734,9 +734,13 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
   ctx.fillStyle = color || '#7c6bb0';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // Spacebar (only unlabeled wide key) is convex; everything else concave
-  const convexTop = (!legend || !legend.trim()) && keyWidth >= 2;
-  paintKeycapShading(ctx, canvasWidth, canvasHeight, baseSize, convexTop);
+  // Spacebar (only unlabeled wide key) is convex; everything else concave.
+  // `shaded=false` skips the painted 2.5D highlights — the hero path
+  // tracer lights the real geometry, and baked strips read as decals there.
+  if (shaded) {
+    const convexTop = (!legend || !legend.trim()) && keyWidth >= 2;
+    paintKeycapShading(ctx, canvasWidth, canvasHeight, baseSize, convexTop);
+  }
 
   if (legend && legend.trim() && legendPosition !== 'hidden' && legendPosition !== 'none' && legendPosition !== 'front') {
     // Rounded geometry: the canvas spans fillet + plate; draw the legend
@@ -920,15 +924,21 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
   const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${font}-${legendFontV}-${w}-${h}-${profile}`;
   const solidTexture = useMemo(() => {
     if (imageMode === 'wrap') return null;
-    return getCachedTexture(textureKey, () =>
+    const tex = getCachedTexture(textureKey, () =>
       buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h, getTopInset(profile, w, h))
     );
+    // hero render rebuilds this texture unshaded (real GI replaces the
+    // painted highlights) — stash the recipe on the shared texture
+    tex.userData.heroRebuild = { color, legend: displayText, legendColor, font, legendPosition, w, h, profile };
+    return tex;
   }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h, profile, textureKey]);
 
   // Painted side-wall texture — per-key solid path only (wrap mode drapes the image)
   const sideTexture = useMemo(() => {
     if (imageMode === 'wrap') return null;
-    return getCachedTexture(`side-${color}`, () => buildKeycapSideTexture(color));
+    const tex = getCachedTexture(`side-${color}`, () => buildKeycapSideTexture(color));
+    tex.userData.heroSideColor = color;
+    return tex;
   }, [color, imageMode]);
 
   // Per-key image

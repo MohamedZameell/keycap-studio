@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GradientEquirectTexture, ShapedAreaLight, PhysicalCamera } from 'three-gpu-pathtracer';
+import { buildKeycapTextureFallback, getTopInset } from '../components/Keycap';
 
 // Builds the path-traceable hero scene from the live viewport scene.
 // Staging recipe (matches the reference render): floating board centered
@@ -15,14 +16,50 @@ import { GradientEquirectTexture, ShapedAreaLight, PhysicalCamera } from 'three-
 // tracer snapshots them into its own BVH/atlas on setScene, and texture
 // repeat transforms (molded-grain normal map) carry through per material.
 
-// el kept under the lens half-angle (16.5deg) for hero/front so the
-// backdrop wall fills the top of frame like the reference.
+// fill < 1 leaves negative space around the board — the reference shots
+// are calm product photos, not full-bleed crops.
 export const HERO_PRESETS = {
-  hero: { label: '¾ Hero', az: -0.42, el: 0.34, fill: 0.78, fStop: 4.5 },
-  front: { label: 'Front Low', az: 0, el: 0.2, fill: 0.8, fStop: 5 },
-  top: { label: 'Top Down', az: -0.12, el: 1.22, fill: 0.66, fStop: 8 },
+  hero: { label: '¾ Hero', az: -0.5, el: 0.38, fill: 0.62, fStop: 3.5 },
+  front: { label: 'Front Low', az: 0, el: 0.2, fill: 0.7, fStop: 5 },
+  top: { label: 'Top Down', az: -0.12, el: 1.22, fill: 0.62, fStop: 8 },
   close: { label: 'Close-up', az: -0.55, el: 0.3, fill: 1.6, fStop: 2.2 },
 };
+
+// Average cap-top color, sampled from the live canvas textures (tops are
+// MeshPhysicalMaterial with the key color painted into the map). Drives
+// the tonal-harmony backdrop: same hue family, far less saturated — like
+// cream caps on a warm greige sweep in the reference renders.
+function sampleBoardColor(meshes) {
+  let r = 0, g = 0, b = 0, n = 0;
+  for (const mesh of meshes) {
+    const mat = mesh.material;
+    if (!mat.isMeshPhysicalMaterial) continue; // cap tops only
+    const img = mat.map && mat.map.image;
+    if (img && img.getContext) {
+      try {
+        const px = img.getContext('2d').getImageData(img.width >> 1, img.height >> 1, 1, 1).data;
+        r += px[0]; g += px[1]; b += px[2]; n++;
+        continue;
+      } catch (e) { /* tainted/gl canvas — fall through */ }
+    }
+    if (mat.color) { r += mat.color.r * 255; g += mat.color.g * 255; b += mat.color.b * 255; n++; }
+  }
+  if (!n) return new THREE.Color(0x8d95ba);
+  return new THREE.Color().setRGB(r / n / 255, g / n / 255, b / n / 255, THREE.SRGBColorSpace);
+}
+
+function harmonizedBackdrop(capColor) {
+  const hsl = { h: 0, s: 0, l: 0 };
+  capColor.getHSL(hsl);
+  // near-grey caps keep a hint of warmth instead of going clinical
+  const h = hsl.s < 0.06 ? 0.075 : hsl.h;
+  const s = hsl.s < 0.06 ? 0.06 : Math.min(0.22, hsl.s * 0.3);
+  return {
+    sweep: new THREE.Color().setHSL(h, s, 0.6),
+    gradTop: new THREE.Color().setHSL(h, s * 0.85, 0.8),
+    gradBottom: new THREE.Color().setHSL(h, s, 0.45),
+  };
+}
 
 // Seamless studio cyclorama: flat floor -> quarter-round cove -> vertical
 // back wall, like a real product-photo sweep. The softbox's falloff across
@@ -60,6 +97,45 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
   const board = new THREE.Group();
   scene.add(board);
 
+  // Hero variants of the cap materials. The live textures bake painted
+  // 2.5D highlights (sculpt ramp + edge shines) that the raster viewport
+  // needs — under the path tracer real light does that work and the baked
+  // strips read as decals. Tops are rebuilt unshaded from the recipe
+  // stashed on each texture; side walls drop the painted ramp for flat
+  // color; PBT roughness comes down to satin so the softbox can draw
+  // gradients across the caps like the reference renders.
+  const ownedTextures = [], ownedMaterials = [];
+  const matCache = new Map(), texCache = new Map();
+  const heroize = (mat) => {
+    if (matCache.has(mat)) return matCache.get(mat);
+    let out = mat;
+    const rebuild = mat.map?.userData?.heroRebuild;
+    const sideColor = mat.map?.userData?.heroSideColor;
+    if (mat.isMeshPhysicalMaterial && rebuild) {
+      out = mat.clone();
+      if (!texCache.has(mat.map)) {
+        const t = buildKeycapTextureFallback(
+          rebuild.color, rebuild.legend, rebuild.legendColor, rebuild.font,
+          rebuild.legendPosition, rebuild.w, rebuild.h,
+          getTopInset(rebuild.profile, rebuild.w, rebuild.h), false
+        );
+        texCache.set(mat.map, t);
+        ownedTextures.push(t);
+      }
+      out.map = texCache.get(mat.map);
+      if (out.roughness > 0.8) out.roughness = 0.62; // PBT: flat -> satin
+      ownedMaterials.push(out);
+    } else if (mat.isMeshStandardMaterial && sideColor) {
+      out = mat.clone();
+      out.map = null;
+      out.color = new THREE.Color(sideColor);
+      if (out.roughness > 0.7) out.roughness = 0.62;
+      ownedMaterials.push(out);
+    }
+    matCache.set(mat, out);
+    return out;
+  };
+
   sourceScene.updateMatrixWorld(true);
   sourceScene.traverse(src => {
     if (!src.isMesh || !src.visible || !src.geometry) return;
@@ -68,7 +144,7 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
     if (!mat.isMeshStandardMaterial && !mat.isMeshPhysicalMaterial) return;
     if (mat.transparent || mat.side === THREE.BackSide) return;
     for (let o = src.parent; o; o = o.parent) { if (o.visible === false) return; }
-    const mesh = new THREE.Mesh(src.geometry, mat);
+    const mesh = new THREE.Mesh(src.geometry, heroize(mat));
     mesh.matrixAutoUpdate = false;
     mesh.matrix.copy(src.matrixWorld);
     board.add(mesh);
@@ -81,10 +157,15 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
   const size = bbox.getSize(new THREE.Vector3());
   board.position.set(-center.x, -bbox.min.y, -center.z);
 
-  // Gradient sweep: lights AND backgrounds the shot
+  // Backdrop tones derived from the actual caps — board and world share
+  // a color family like the reference renders
+  const pal = harmonizedBackdrop(sampleBoardColor(board.children));
+
+  // Gradient sweep: lights AND backgrounds the shot (mostly hidden behind
+  // the cyclorama, but it feeds the ambient)
   const grad = new GradientEquirectTexture();
-  grad.topColor.set(0xcdd2e4);
-  grad.bottomColor.set(0x747c9e);
+  grad.topColor.copy(pal.gradTop);
+  grad.bottomColor.copy(pal.gradBottom);
   grad.exponent = 3;
   grad.update();
   scene.environment = grad;
@@ -92,23 +173,26 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
   scene.environmentIntensity = 0.55;
   scene.backgroundIntensity = 0.85;
 
-  // Softbox key, upper-left (area light + MIS = the reference softbox)
-  const key = new ShapedAreaLight(new THREE.Color(0xfff5ec), 7.5, size.x * 0.7, size.x * 0.5);
-  key.position.set(-size.x * 0.55, size.x * 0.62, size.z * 0.9);
+  // Softbox key: high, left and slightly BEHIND the board so the soft
+  // shadow throws long toward the camera side, grounding the shot
+  const key = new ShapedAreaLight(new THREE.Color(0xfff5ec), 7.5, size.x * 1.0, size.x * 0.75);
+  key.position.set(-size.x * 0.6, size.x * 0.85, -size.z * 0.4);
   key.lookAt(0, 0, 0);
   scene.add(key);
 
   // Cool fill, right, weak — lifts the shadowed walls a touch
-  const fill = new ShapedAreaLight(new THREE.Color(0xdfe8ff), 1.2, size.x * 0.45, size.x * 0.35);
-  fill.position.set(size.x * 0.7, size.x * 0.35, size.z * 0.5);
+  const fill = new ShapedAreaLight(new THREE.Color(0xdfe8ff), 0.8, size.x * 0.45, size.x * 0.35);
+  fill.position.set(size.x * 0.7, size.x * 0.35, size.z * 0.6);
   fill.lookAt(0, 0, 0);
   scene.add(fill);
 
   // Cyclorama sweep behind/below the floating board. (The path tracer's
   // `matte` flag is NOT a shadow catcher in v0.0.24 — it just punches a
   // transparent hole — so the backdrop is real geometry instead.)
-  const floatGap = Math.max(0.35, size.x * 0.035);
-  const sweepMat = new THREE.MeshStandardMaterial({ color: 0x8d95ba, roughness: 0.96, metalness: 0 });
+  // barely floating — the ref boards rest just off the sweep, anchored by
+  // the long soft shadow rather than a gap
+  const floatGap = Math.max(0.12, size.x * 0.012);
+  const sweepMat = new THREE.MeshStandardMaterial({ color: pal.sweep, roughness: 0.96, metalness: 0 });
   const sweep = new THREE.Mesh(
     buildSweepGeometry(size.x * 8, size.x * 2.2, size.x * 0.9, size.x * 1.6),
     sweepMat
@@ -143,7 +227,10 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
       grad.dispose();
       sweep.geometry.dispose();
       sweepMat.dispose();
-      // board geometries/materials are shared with the live scene — not ours
+      // board geometries + untouched materials are shared with the live
+      // scene; only the hero variants are ours
+      ownedTextures.forEach(t => t.dispose());
+      ownedMaterials.forEach(m => m.dispose());
     },
   };
 }
