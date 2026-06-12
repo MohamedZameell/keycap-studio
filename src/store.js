@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { loadCustomColorways, commitCustomColorways } from './data/customColorways'
 
 // Revoke a blob: URL safely. No-op for non-blob URLs (data:, http://, null).
 const revokeBlob = (url) => {
@@ -25,6 +26,11 @@ export const useStore = create((set) => ({
   // DESIGN STATE
   selectedKey: null,
   selectedColorway: null, // GMK colorway id - when set, overrides globalColor
+
+  // COLORWAY EDITOR (M2)
+  customColorways: loadCustomColorways(), // id -> colorway JSON (same shape as presets)
+  colorwayDraft: null,  // colorway object being edited; non-null = editor open, board previews it live
+  editorZone: null,     // armed paint zone ('base'|'mods'|'accent'|'accentN'|'auto') — key clicks paint overrides while set
   globalColor: '#6c63ff',
   globalLegendColor: '#ffffff',
   globalLegendText: '',
@@ -74,6 +80,65 @@ export const useStore = create((set) => ({
 
   setSelectedKey: (keyId) => set({ selectedKey: keyId }),
   setSelectedColorway: (id) => set({ selectedColorway: id }),
+
+  // Colorway editor actions. Draft updates always produce a NEW draft object
+  // so Keycap's useShallow subscription sees the identity change and repaints.
+  startColorwayEdit: (draft) => set({ colorwayDraft: draft, editorZone: null }),
+  cancelColorwayEdit: () => set({ colorwayDraft: null, editorZone: null }),
+  setEditorZone: (zone) => set({ editorZone: zone }),
+  setDraftLabel: (label) => set((state) => state.colorwayDraft
+    ? { colorwayDraft: { ...state.colorwayDraft, label } } : {}),
+  setDraftSwatch: (zone, field, value) => set((state) => {
+    const d = state.colorwayDraft;
+    if (!d) return {};
+    const prev = d.swatches[zone] || { background: '#cccccc', color: '#363434' };
+    return { colorwayDraft: { ...d, swatches: { ...d.swatches, [zone]: { ...prev, [field]: value } } } };
+  }),
+  addDraftZone: (zone, swatch) => set((state) => {
+    const d = state.colorwayDraft;
+    if (!d || d.swatches[zone]) return {};
+    return { colorwayDraft: { ...d, swatches: { ...d.swatches, [zone]: swatch } } };
+  }),
+  removeDraftZone: (zone) => set((state) => {
+    const d = state.colorwayDraft;
+    if (!d || !d.swatches[zone]) return {};
+    const swatches = { ...d.swatches };
+    delete swatches[zone];
+    // Strip overrides pointing at the removed zone so keys fall back cleanly.
+    const override = {};
+    for (const [kc, z] of Object.entries(d.override || {})) {
+      if (z !== zone) override[kc] = z;
+    }
+    return {
+      colorwayDraft: { ...d, swatches, override },
+      editorZone: state.editorZone === zone ? null : state.editorZone,
+    };
+  }),
+  // zone === null clears the override (key falls back to label-based zoning)
+  setDraftOverride: (keycode, zone) => set((state) => {
+    const d = state.colorwayDraft;
+    if (!d || !keycode) return {};
+    const override = { ...(d.override || {}) };
+    if (zone === null) delete override[keycode];
+    else override[keycode] = zone;
+    return { colorwayDraft: { ...d, override } };
+  }),
+  saveColorwayDraft: () => set((state) => {
+    const d = state.colorwayDraft;
+    if (!d) return {};
+    const customColorways = { ...state.customColorways, [d.id]: d };
+    commitCustomColorways(customColorways);
+    return { customColorways, colorwayDraft: null, editorZone: null, selectedColorway: d.id };
+  }),
+  deleteCustomColorway: (id) => set((state) => {
+    const customColorways = { ...state.customColorways };
+    delete customColorways[id];
+    commitCustomColorways(customColorways);
+    return {
+      customColorways,
+      selectedColorway: state.selectedColorway === id ? null : state.selectedColorway,
+    };
+  }),
   setGlobalColor: (color) => set({ globalColor: color }),
   setGlobalLegendColor: (color) => set({ globalLegendColor: color }),
   setGlobalLegendText: (text) => set({ globalLegendText: text }),

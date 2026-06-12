@@ -11,6 +11,7 @@
 //   By the time the user clicks one, it's in the in-memory cache.
 
 import { labelToKeyCode } from '../keysimLegends';
+import { getCustomColorway } from '../customColorways';
 
 // === EAGER: Popular tier (27) ===
 import olivia from './colorway_olivia.json';
@@ -177,6 +178,8 @@ export const COLORWAYS = new Proxy({}, {
 export const getColorway = (id) => {
   if (Object.prototype.hasOwnProperty.call(POPULAR, id)) return POPULAR[id];
   if (extraCache[id]) return extraCache[id];
+  const custom = getCustomColorway(id);
+  if (custom) return custom;
   return POPULAR.olivia;
 };
 
