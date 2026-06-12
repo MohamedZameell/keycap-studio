@@ -61,8 +61,10 @@ export default function KeyboardChassis({ totalW, totalH }) {
       bevelEnabled: true,
       bevelThickness: BEVEL,
       bevelSize: BEVEL * 0.8,
-      bevelSegments: 2,
-      curveSegments: 8,
+      // env reflections expose bevel faceting — keep these high enough
+      // that the lip highlight sweeps smoothly
+      bevelSegments: 5,
+      curveSegments: 16,
     });
     geo.rotateX(-Math.PI / 2); // extrude up: shape in XZ, +Y is the rim top
     geo.translate(0, CASE_BOTTOM_Y + BEVEL, 0);

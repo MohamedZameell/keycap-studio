@@ -14,7 +14,7 @@ import { makeDraftFrom, isCustomColorwayId, CORE_ZONES, EXTRA_ZONES } from '../d
 import { labelToKeyCode } from '../data/keysimLegends';
 import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
-import RealismPipeline from '../components/RealismPipeline';
+import RealismPipeline, { GroundShadow } from '../components/RealismPipeline';
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
@@ -1852,7 +1852,7 @@ export default function StudioScreen() {
                 outputColorSpace: THREE.SRGBColorSpace,
               }}
               dpr={[1, 2]}
-              shadows={{ type: THREE.PCFShadowMap }}
+              shadows={{ type: THREE.PCFSoftShadowMap }}
               camera={{
                 position: viewMode === 'full' ? [0, 8, 12] : [0, 1.0, 3.2],
                 fov: viewMode === 'full' ? 50 : 38,
@@ -1865,9 +1865,15 @@ export default function StudioScreen() {
             >
               <Suspense fallback={null}>
                 {/* STUDIO LIGHTING */}
-                {/* ambient lowered 0.4 -> 0.2: RealismPipeline's env IBL supplies the rest */}
-                <ambientLight intensity={0.2} color="#ffffff" />
-                <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
+                {/* ambient low: RealismPipeline's studio env IBL supplies the base level */}
+                <ambientLight intensity={0.12} color="#ffffff" />
+                {/* shadow camera widened to cover the full board (default ±5 clips it) */}
+                <directionalLight
+                  position={[6, 10, 6]} intensity={1.45} castShadow
+                  shadow-mapSize={[2048, 2048]} shadow-normalBias={0.02}
+                  shadow-camera-left={-11} shadow-camera-right={11}
+                  shadow-camera-top={8} shadow-camera-bottom={-8}
+                />
                 <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
                 <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
                 <RealismPipeline />
@@ -1914,7 +1920,8 @@ export default function StudioScreen() {
                   </group>
                 )}
 
-                <ContactShadows position={[0, viewMode === 'full' ? -0.53 : -0.75, 0]} opacity={0.55} scale={40} blur={3} far={8} />
+                {viewMode === 'full' && <GroundShadow />}
+                <ContactShadows position={[0, viewMode === 'full' ? -0.53 : -0.75, 0]} opacity={viewMode === 'full' ? 0.3 : 0.55} scale={40} blur={3} far={8} />
 
                 <StudioOrbitControls orbitRef={orbitRef} cameraStateRef={cameraStateRef} viewMode={viewMode} enabled={!imageDragMode} />
               </Suspense>

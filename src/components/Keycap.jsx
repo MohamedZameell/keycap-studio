@@ -32,6 +32,61 @@ const STEM_MAT = new THREE.MeshStandardMaterial({ color: '#0a0a0a', roughness: 0
 const EMPTY_DESIGN = Object.freeze({});
 
 // ============================================================
+// Micro-surface normal map — injection-molded plastic grain that
+// breaks up specular highlights (the #1 "too clean to be real" tell
+// on flat-shaded PBR plastic). Seeded tiling value-noise heightfield
+// -> Sobel normals. Built once, shared by every cap material.
+// ============================================================
+function buildPlasticNormalTexture(repeat = 2) {
+  const s = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = s; canvas.height = s;
+  const ctx = canvas.getContext('2d');
+  let seed = 1234567;
+  const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  let hf = new Float32Array(s * s);
+  for (let i = 0; i < hf.length; i++) hf[i] = rand();
+  // box-blur with wrap-around so the texture tiles seamlessly
+  const blur = (src) => {
+    const out = new Float32Array(s * s);
+    for (let y = 0; y < s; y++) {
+      for (let x = 0; x < s; x++) {
+        let sum = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) sum += src[((y + dy + s) % s) * s + ((x + dx + s) % s)];
+        }
+        out[y * s + x] = sum / 9;
+      }
+    }
+    return out;
+  };
+  hf = blur(blur(hf));
+  const img = ctx.createImageData(s, s);
+  for (let y = 0; y < s; y++) {
+    for (let x = 0; x < s; x++) {
+      const gx = hf[y * s + ((x + 1) % s)] - hf[y * s + ((x - 1 + s) % s)];
+      const gy = hf[((y + 1) % s) * s + x] - hf[((y - 1 + s) % s) * s + x];
+      const i4 = (y * s + x) * 4;
+      img.data[i4] = 128 - gx * 900;
+      img.data[i4 + 1] = 128 - gy * 900;
+      img.data[i4 + 2] = 255;
+      img.data[i4 + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeat, repeat);
+  return tex;
+}
+const PLASTIC_NORMAL_TEX = buildPlasticNormalTexture(2);
+// PBT = visibly textured, ABS = near-smooth (lacquer look comes from clearcoat)
+const NSCALE_PBT_TOP = new THREE.Vector2(0.3, 0.3);
+const NSCALE_ABS_TOP = new THREE.Vector2(0.07, 0.07);
+const NSCALE_PBT_SIDE = new THREE.Vector2(0.35, 0.35);
+const NSCALE_ABS_SIDE = new THREE.Vector2(0.15, 0.15);
+
+// ============================================================
 // TEXTURE CACHE - shared across all keycaps for performance
 // ============================================================
 const textureCache = new Map();
@@ -77,8 +132,10 @@ function darkenColor(hex, factor) {
 // KEYCAP PROFILE SPECIFICATIONS
 // ============================================================
 const PROFILE_SPECS = {
-  // cherry base 18.1mm = GMK footprint -> 0.05u gap at 19.05mm pitch (keysim GUTTER)
-  cherry: { maxHeight: 9.4, dishType: 'cylindrical', dishDepth: 0.6, topWidth: 14.0, topDepth: 13.0, baseWidth: 18.1, baseDepth: 18.1, chamfer: 0.7, uniform: false, rowHeights: [1.000, 1.000, 0.904, 0.787, 0.904, 0.904], rowTilts: [0.122, 0.122, 0.087, 0, -0.105, -0.105] },
+  // cherry base 18.1mm = GMK footprint -> 0.05u gap at 19.05mm pitch (keysim GUTTER).
+  // top 13.2/12.6: references/KeycapModels cross-sections measure a 12.3mm top
+  // on an 18mm base (2.85mm taper/side) — 14.0 was reading slab-like.
+  cherry: { maxHeight: 9.4, dishType: 'cylindrical', dishDepth: 0.6, topWidth: 13.2, topDepth: 12.6, baseWidth: 18.1, baseDepth: 18.1, chamfer: 0.7, uniform: false, rowHeights: [1.000, 1.000, 0.904, 0.787, 0.904, 0.904], rowTilts: [0.122, 0.122, 0.087, 0, -0.105, -0.105] },
   oem: { maxHeight: 11.9, dishType: 'cylindrical', dishDepth: 0.8, topWidth: 13.5, topDepth: 12.5, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.6, uniform: false, rowHeights: [1.000, 1.000, 0.924, 0.807, 0.924, 0.924], rowTilts: [0.140, 0.140, 0.100, 0, -0.120, -0.120] },
   sa: { maxHeight: 16.5, dishType: 'spherical', dishDepth: 2.5, topWidth: 12.5, topDepth: 12.5, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.971, 0.941, 0.941, 0.941], rowTilts: [0.150, 0.150, 0.100, 0, -0.100, -0.100] },
   dsa: { maxHeight: 7.6, dishType: 'spherical', dishDepth: 1.0, topWidth: 13.0, topDepth: 13.0, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.8, uniform: true, rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000], rowTilts: [0, 0, 0, 0, 0, 0] },
@@ -113,9 +170,10 @@ export { PROFILE_SPECS, normalizeProfile };
 const CAP_FILLET_MM = 1.3;   // top-edge fillet radius
 const CAP_BASE_R_MM = 1.2;   // corner radius at the base
 const CAP_TOP_R_MM = 2.4;    // corner radius at the top plate
-const CAP_CORNER_SEGS = 5;   // outline samples per corner arc
-const CAP_FILLET_SEGS = 4;   // rings along the fillet arc
+const CAP_CORNER_SEGS = 6;   // outline samples per corner arc
+const CAP_FILLET_SEGS = 5;   // rings along the fillet arc
 const CAP_PLATE_T = [0.08, 0.3, 0.6, 0.85]; // plate ring insets (first = old chamfer-strip width)
+const SPACEBAR_CONVEX_MM = 0.6; // front-back bulge of convex (spacebar) tops
 
 // Rounded-rect outline in XZ with outward 2D normals. Constant point
 // count for any radius so rings stitch 1:1.
@@ -223,11 +281,12 @@ function createRoundedBodyGeometry(widthU, heightU, profile) {
   return geometry;
 }
 
-function createRoundedTopGeometry(widthU, heightU, profile) {
+function createRoundedTopGeometry(widthU, heightU, profile, convexTop = false) {
   const F = buildCapFrame(widthU, heightU, profile);
   const { spec, scale, H, f, NP, pts } = F;
   const dishDepth = spec.dishDepth * scale;
   const spherical = spec.dishType === 'spherical';
+  const convexDepth = SPACEBAR_CONVEX_MM * scale;
 
   // UV box = bounding box of the fillet's outer ring (the whole top)
   let mx = 0, mz = 0;
@@ -241,6 +300,11 @@ function createRoundedTopGeometry(widthU, heightU, profile) {
     const u = Math.min(1, Math.max(0, (x + pbx) / (2 * pbx)));
     const v = Math.min(1, Math.max(0, (z + pbz) / (2 * pbz)));
     const su = Math.sin(Math.PI * u), sv = Math.sin(Math.PI * v);
+    if (convexTop) {
+      // Spacebar: bulges UP, curving over front-to-back (x-independent)
+      const dv = -Math.PI / (2 * pbz) * Math.cos(Math.PI * v) * convexDepth;
+      return { y: H + convexDepth * sv, dx: 0, dz: dv };
+    }
     const depth = spherical ? dishDepth * su * sv : dishDepth * su;
     // analytic partials for the normal
     const du = Math.PI / (2 * pbx) * Math.cos(Math.PI * u) * (spherical ? sv : 1) * dishDepth;
@@ -414,8 +478,8 @@ function createBodyGeometryBox(widthU = 1, heightU = 1, profile = 'cherry', uvBo
 // Keycap top face geometry with GLOBAL UV coordinates
 // uvBounds: { uMin, uMax, vMin, vMax } in texture space
 // ============================================================
-function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null) {
-  if (!uvBounds) return createRoundedTopGeometry(widthU, heightU, profile);
+function createTopFaceGeometry(widthU = 1, heightU = 1, profile = 'cherry', uvBounds = null, convexTop = false) {
+  if (!uvBounds) return createRoundedTopGeometry(widthU, heightU, profile, convexTop);
   return createTopFaceGeometryBox(widthU, heightU, profile, uvBounds);
 }
 
@@ -629,6 +693,7 @@ function buildKeycapSideTexture(color) {
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8; // walls are seen at glancing angles almost always
   return tex;
 }
 
@@ -694,6 +759,7 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8; // keeps legends crisp at the 3/4 product angle
   return tex;
 }
 
@@ -802,12 +868,14 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     }
     return createBodyGeometry(w, h, profile, uvBounds);
   }, [w, h, profile, uvBounds, geoKey]);
+  // Spacebar (only unlabeled wide key) gets real convex geometry
+  const convexTop = (!displayText || !displayText.trim()) && w >= 2;
   const topGeo = useMemo(() => {
     if (geoKey) {
-      return getCachedGeometry(`top-${geoKey}`, () => createTopFaceGeometry(w, h, profile, null));
+      return getCachedGeometry(`top-${geoKey}-${convexTop ? 'x' : 'c'}`, () => createTopFaceGeometry(w, h, profile, null, convexTop));
     }
     return createTopFaceGeometry(w, h, profile, uvBounds);
-  }, [w, h, profile, uvBounds, geoKey]);
+  }, [w, h, profile, uvBounds, geoKey, convexTop]);
 
   // Use shared image texture from KeyboardRenderer (computed once, not per-keycap)
   const imageTexture = sharedImageTexture;
@@ -984,6 +1052,8 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
               map={sideTexture}
               roughness={isABS ? 0.42 : 0.78}
               metalness={0}
+              normalMap={PLASTIC_NORMAL_TEX}
+              normalScale={isABS ? NSCALE_ABS_SIDE : NSCALE_PBT_SIDE}
               side={THREE.DoubleSide}
             />
           </mesh>
@@ -1008,13 +1078,19 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
 
           {/* Top face. The canvas map already carries the exact key color —
               material color must stay white or three multiplies them (key
-              renders color² and painted highlights get tinted). */}
+              renders color² and painted highlights get tinted).
+              Physical material: clearcoat gives ABS its lacquered double-shot
+              look; PBT instead gets visible molded grain via normalScale. */}
           <mesh geometry={topGeo} castShadow receiveShadow>
-            <meshStandardMaterial
+            <meshPhysicalMaterial
               color={imageMode !== 'wrap' && activeTexture ? '#ffffff' : color}
               map={imageMode !== 'wrap' ? activeTexture : null}
               roughness={isABS ? 0.45 : 0.93}
               metalness={0}
+              normalMap={PLASTIC_NORMAL_TEX}
+              normalScale={isABS ? NSCALE_ABS_TOP : NSCALE_PBT_TOP}
+              clearcoat={isABS ? 0.4 : 0}
+              clearcoatRoughness={0.5}
             />
           </mesh>
 
