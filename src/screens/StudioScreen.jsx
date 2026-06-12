@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useCallback, lazy } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../store';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
@@ -15,6 +15,9 @@ import { labelToKeyCode } from '../data/keysimLegends';
 import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import RealismPipeline, { GroundShadow } from '../components/RealismPipeline';
+import { HeroBridge } from '../hero/heroBridge';
+// Path tracer + denoiser live in this lazy chunk — only fetched on first use
+const HeroRenderModal = lazy(() => import('../hero/HeroRenderModal'));
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
@@ -384,6 +387,7 @@ export default function StudioScreen() {
   const store = useStore(useShallow(STUDIO_STORE_SELECTOR));
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('DESIGN');
+  const [heroOpen, setHeroOpen] = useState(false);
   const [viewMode, setViewMode] = useState('full');
   const [targetScope, setTargetScope] = useState('all');
   const [toastVisible, setToastVisible] = useState(false);
@@ -1628,6 +1632,26 @@ export default function StudioScreen() {
             {/* ===== EXPORT TAB ===== */}
             {activeTab === 'EXPORT' && (
               <div style={styles.section}>
+                {/* Hero Render — path-traced studio shot */}
+                <button
+                  onClick={() => viewMode === 'full' && setHeroOpen(true)}
+                  disabled={viewMode !== 'full'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                    background: 'linear-gradient(135deg, #6c63ff22 0%, #2a1a5a 100%)',
+                    border: '1px solid #8b7fff', borderRadius: 8, cursor: viewMode === 'full' ? 'pointer' : 'not-allowed',
+                    opacity: viewMode === 'full' ? 1 : 0.5, marginBottom: 16, width: '100%', textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#d0bcff'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; }}
+                >
+                  <span style={{ fontSize: 24 }}>✨</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#d0bcff' }}>Hero Render</div>
+                    <div style={{ fontSize: 11, color: '#8a84a8' }}>Path-traced studio shot — real GI, softbox, DOF{viewMode !== 'full' ? ' (full board view only)' : ''}</div>
+                  </div>
+                </button>
+
                 {/* Pre-flight Check Button */}
                 <button
                   onClick={handleRunPreflight}
@@ -1864,6 +1888,7 @@ export default function StudioScreen() {
               }}
             >
               <Suspense fallback={null}>
+                <HeroBridge />
                 {/* STUDIO LIGHTING */}
                 {/* ambient low: RealismPipeline's studio env IBL supplies the base level */}
                 <ambientLight intensity={0.12} color="#ffffff" />
@@ -1929,6 +1954,12 @@ export default function StudioScreen() {
           </ErrorBoundary>
 
           <LEDPreviewWidget />
+
+          {heroOpen && (
+            <Suspense fallback={null}>
+              <HeroRenderModal onClose={() => setHeroOpen(false)} />
+            </Suspense>
+          )}
 
           {/* Image drag mode toggle */}
           {store.keyboardImageMode === 'wrap' && viewMode === 'full' && (
