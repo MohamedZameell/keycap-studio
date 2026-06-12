@@ -9,7 +9,9 @@ import * as THREE from 'three';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useAuth } from '../hooks/useAuth';
 import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
-import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways } from '../data/colorways';
+import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway } from '../data/colorways';
+import { makeDraftFrom, isCustomColorwayId, CORE_ZONES, EXTRA_ZONES } from '../data/customColorways';
+import { labelToKeyCode } from '../data/keysimLegends';
 import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
 import Keycap from '../components/Keycap';
@@ -168,6 +170,11 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   keyboardImageScale: s.keyboardImageScale,
   keyboardImages: s.keyboardImages,
   isExporting: s.isExporting,
+  // Colorway editor (M2): subscribe to a BOOLEAN, not the draft object —
+  // the draft changes identity on every color-drag tick and would re-render
+  // this whole screen. ColorwayEditorPanel subscribes to the draft itself.
+  colorwayEditing: !!s.colorwayDraft,
+  customColorways: s.customColorways,
   // ---- setters (stable refs, never trigger re-render under shallow) ----
   setScreen: s.setScreen,
   setSelectionPath: s.setSelectionPath,
@@ -207,7 +214,170 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   clearImage: s.clearImage,
   clearAllImages: s.clearAllImages,
   setIsExporting: s.setIsExporting,
+  startColorwayEdit: s.startColorwayEdit,
+  deleteCustomColorway: s.deleteCustomColorway,
 });
+
+// ===== COLORWAY EDITOR (M2) =====
+// Swapped into the DESIGN tab while a draft is open. Own store subscription so
+// per-tick color-drag updates re-render only this panel + the affected keycaps,
+// never the whole StudioScreen (see STUDIO_STORE_SELECTOR note above).
+const EDITOR_SELECTOR = (s) => ({
+  draft: s.colorwayDraft,
+  editorZone: s.editorZone,
+  setEditorZone: s.setEditorZone,
+  setDraftLabel: s.setDraftLabel,
+  setDraftSwatch: s.setDraftSwatch,
+  addDraftZone: s.addDraftZone,
+  removeDraftZone: s.removeDraftZone,
+  saveColorwayDraft: s.saveColorwayDraft,
+  cancelColorwayEdit: s.cancelColorwayEdit,
+});
+
+const ZONE_DISPLAY = { base: 'ALPHAS', mods: 'MODS', accent: 'ACCENT' };
+const zoneName = (z) => ZONE_DISPLAY[z] || z.toUpperCase();
+
+const editorSmallBtn = {
+  padding: '4px 8px', fontSize: 9, fontFamily: 'JetBrains Mono, monospace',
+  background: 'var(--surface-container)', border: '1px solid var(--outline-variant)',
+  borderRadius: 2, color: 'var(--on-surface-variant)', cursor: 'pointer', whiteSpace: 'nowrap',
+};
+const editorColorInput = {
+  width: 26, height: 26, padding: 0, border: '1px solid rgba(149,142,160,0.3)',
+  borderRadius: 2, background: 'transparent', cursor: 'pointer',
+};
+const editorSwatchCaption = {
+  fontFamily: 'JetBrains Mono, monospace', fontSize: 7, color: '#958ea0',
+  display: 'block', textAlign: 'center', marginTop: 2,
+};
+
+function ColorwayEditorPanel() {
+  const {
+    draft, editorZone, setEditorZone, setDraftLabel, setDraftSwatch,
+    addDraftZone, removeDraftZone, saveColorwayDraft, cancelColorwayEdit,
+  } = useStore(useShallow(EDITOR_SELECTOR));
+  if (!draft) return null;
+
+  const zones = [...CORE_ZONES, ...EXTRA_ZONES.filter(z => draft.swatches[z])];
+  const nextExtra = EXTRA_ZONES.find(z => !draft.swatches[z]);
+  const overrideCounts = {};
+  for (const z of Object.values(draft.override || {})) {
+    overrideCounts[z] = (overrideCounts[z] || 0) + 1;
+  }
+
+  return (
+    <div style={styles.section}>
+      <div style={{ ...styles.sectionLabel, marginBottom: 0 }}>Colorway Editor</div>
+
+      <input
+        value={draft.label}
+        onChange={e => setDraftLabel(e.target.value)}
+        placeholder="Colorway name"
+        style={{
+          width: '100%', boxSizing: 'border-box', padding: '10px 12px',
+          background: '#2a2a2c', border: '1px solid rgba(149,142,160,0.2)', borderRadius: 2,
+          color: '#e6e1e9', fontFamily: 'Space Grotesk, sans-serif', fontSize: 13,
+        }}
+      />
+
+      <div>
+        <div style={styles.sectionLabel}>Zones</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {zones.map(zone => {
+            const sw = draft.swatches[zone];
+            const armed = editorZone === zone;
+            const count = overrideCounts[zone] || 0;
+            return (
+              <div key={zone} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+                background: armed ? 'rgba(208,188,255,0.12)' : '#252527',
+                border: `1px solid ${armed ? '#d0bcff' : 'rgba(149,142,160,0.15)'}`,
+                borderRadius: 2,
+              }}>
+                <button
+                  onClick={() => setEditorZone(armed ? null : zone)}
+                  title="Arm this zone, then click keys on the board to paint them"
+                  style={{
+                    ...editorSmallBtn,
+                    background: armed ? '#d0bcff' : editorSmallBtn.background,
+                    color: armed ? '#3c0091' : editorSmallBtn.color,
+                    fontWeight: armed ? 700 : 400,
+                  }}
+                >{armed ? 'PAINTING' : 'PAINT'}</button>
+                <span style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#cbc3d7' }}>
+                  {zoneName(zone)}
+                  {count > 0 && <span style={{ opacity: 0.5 }}> · {count} key{count > 1 ? 's' : ''}</span>}
+                </span>
+                <label title="Cap color">
+                  <input type="color" value={sw.background} onChange={e => setDraftSwatch(zone, 'background', e.target.value)} style={editorColorInput} />
+                  <span style={editorSwatchCaption}>CAP</span>
+                </label>
+                <label title="Legend color">
+                  <input type="color" value={sw.color} onChange={e => setDraftSwatch(zone, 'color', e.target.value)} style={editorColorInput} />
+                  <span style={editorSwatchCaption}>LEG</span>
+                </label>
+                {EXTRA_ZONES.includes(zone) ? (
+                  <button onClick={() => removeDraftZone(zone)} title="Remove zone (its keys fall back to automatic)" style={editorSmallBtn}>✕</button>
+                ) : (
+                  <span style={{ width: 25 }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        {nextExtra && (
+          <button
+            onClick={() => addDraftZone(nextExtra, { ...draft.swatches.accent })}
+            style={editorSmallBtn}
+          >+ ACCENT ZONE</button>
+        )}
+        <button
+          onClick={() => setEditorZone(editorZone === 'erase' ? null : 'erase')}
+          title="Click keys on the board to clear their zone override"
+          style={{
+            ...editorSmallBtn,
+            background: editorZone === 'erase' ? '#d0bcff' : editorSmallBtn.background,
+            color: editorZone === 'erase' ? '#3c0091' : editorSmallBtn.color,
+            fontWeight: editorZone === 'erase' ? 700 : 400,
+          }}
+        >{editorZone === 'erase' ? 'ERASING' : 'ERASER'}</button>
+      </div>
+
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#958ea0', lineHeight: 1.5 }}>
+        {editorZone === 'erase'
+          ? 'Click keys on the board to clear their override — they fall back to automatic zoning.'
+          : editorZone
+            ? `Click keys on the board to paint them ${zoneName(editorZone)}.`
+            : 'Set zone colors above, or hit PAINT and click keys on the board to assign them per-key.'}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => {
+            if (!draft.label.trim()) setDraftLabel('My Colorway'); // zustand set is sync — lands before save
+            saveColorwayDraft();
+          }}
+          style={{
+            flex: 1, fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 13,
+            padding: '10px 0', borderRadius: 2, background: '#d0bcff', color: '#3c0091',
+            border: 'none', cursor: 'pointer',
+          }}
+        >SAVE COLORWAY</button>
+        <button
+          onClick={cancelColorwayEdit}
+          style={{
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 11, padding: '10px 16px',
+            borderRadius: 2, border: '1px solid rgba(149,142,160,0.2)',
+            background: 'transparent', color: '#cbc3d7', cursor: 'pointer',
+          }}
+        >CANCEL</button>
+      </div>
+    </div>
+  );
+}
 
 export default function StudioScreen() {
   const store = useStore(useShallow(STUDIO_STORE_SELECTOR));
@@ -252,9 +422,19 @@ export default function StudioScreen() {
   }, [store.selectedFormFactor]);
 
   const handleKeyFocus = useCallback((keyId) => {
+    // Colorway editor paint mode: with a zone brush armed, clicking a key
+    // assigns that zone as a per-key override (eraser clears it) instead of
+    // selecting the key. Read via getState() — no extra subscriptions here.
+    const { colorwayDraft, editorZone, setDraftOverride } = useStore.getState();
+    if (colorwayDraft && editorZone) {
+      const key = layoutData().layout.find(k => k.id === keyId);
+      const kc = key ? labelToKeyCode(key.label) : null; // '' (spacebar) maps to KC_SPC
+      if (kc) setDraftOverride(kc, editorZone === 'erase' ? null : editorZone);
+      return;
+    }
     // Just select the key in full view - no camera movement
     store.setSelectedKey(keyId);
-  }, [store]);
+  }, [store, layoutData]);
 
   const resetCamera = useCallback(() => {
     cameraStateRef.current.pos = [...defaultCamPos];
@@ -837,8 +1017,11 @@ export default function StudioScreen() {
           </div>
 
           <div style={styles.panelContent}>
+            {/* ===== DESIGN TAB — colorway editor mode ===== */}
+            {activeTab === 'DESIGN' && store.colorwayEditing && <ColorwayEditorPanel />}
+
             {/* ===== DESIGN TAB ===== */}
-            {activeTab === 'DESIGN' && (
+            {activeTab === 'DESIGN' && !store.colorwayEditing && (
               <div style={styles.section}>
                 <div style={styles.pillToggleContainer}>
                   <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>ALL KEYS</button>
@@ -894,6 +1077,69 @@ export default function StudioScreen() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* MY COLORWAYS (M2 editor) */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={styles.sectionLabel}>
+                    My Colorways <span style={{ opacity: 0.5, fontWeight: 400 }}>({Object.keys(store.customColorways).length})</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, padding: '4px 0' }}>
+                    {Object.values(store.customColorways).map(c => {
+                      const theme = colorwayToTheme(c);
+                      const isActive = store.selectedColorway === c.id;
+                      return (
+                        <button key={c.id}
+                          onClick={() => store.setSelectedColorway(c.id)}
+                          title={theme.label}
+                          style={{
+                            aspectRatio: '1',
+                            background: `linear-gradient(135deg, ${theme.baseColor} 60%, ${theme.modColor} 60%)`,
+                            border: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                            borderRadius: 2,
+                            cursor: 'pointer',
+                            transition: 'border 0.15s, transform 0.1s',
+                            position: 'relative',
+                            boxShadow: isActive ? '0 0 8px var(--primary)' : 'none'
+                          }}
+                          onMouseEnter={e => { if (!isActive) { e.currentTarget.style.border = '2px solid rgba(255,255,255,0.4)'; e.currentTarget.style.transform = 'scale(1.1)'; }}}
+                          onMouseLeave={e => { if (!isActive) { e.currentTarget.style.border = '2px solid transparent'; e.currentTarget.style.transform = 'scale(1)'; }}}
+                        >
+                          <div style={{
+                            position: 'absolute', bottom: 2, right: 2,
+                            width: 5, height: 5, borderRadius: '50%',
+                            background: theme.accentColor,
+                            border: '1px solid rgba(0,0,0,0.3)'
+                          }} />
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => store.startColorwayEdit(makeDraftFrom(store.selectedColorway ? getColorway(store.selectedColorway) : null, { forceNew: true }))}
+                      title={store.selectedColorway ? 'New colorway starting from the selected one' : 'New colorway'}
+                      style={{
+                        aspectRatio: '1', background: 'transparent',
+                        border: '2px dashed rgba(149,142,160,0.4)', borderRadius: 2,
+                        color: '#958ea0', fontSize: 16, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#d0bcff'; e.currentTarget.style.color = '#d0bcff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(149,142,160,0.4)'; e.currentTarget.style.color = '#958ea0'; }}
+                    >+</button>
+                  </div>
+                  {isCustomColorwayId(store.selectedColorway) && store.customColorways[store.selectedColorway] && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                      {[
+                        { label: 'EDIT', fn: () => store.startColorwayEdit(makeDraftFrom(store.customColorways[store.selectedColorway])) },
+                        { label: 'DUPLICATE', fn: () => store.startColorwayEdit(makeDraftFrom(store.customColorways[store.selectedColorway], { forceNew: true })) },
+                        { label: 'DELETE', fn: () => { if (window.confirm(`Delete "${store.customColorways[store.selectedColorway].label}"?`)) store.deleteCustomColorway(store.selectedColorway); } },
+                      ].map(a => (
+                        <button key={a.label} onClick={a.fn}
+                          style={{ padding: '3px 8px', fontSize: 9, fontFamily: 'JetBrains Mono, monospace', background: 'var(--surface-container)', border: '1px solid var(--outline-variant)', borderRadius: 2, color: 'var(--on-surface-variant)', cursor: 'pointer' }}
+                        >{a.label}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* THEMES */}

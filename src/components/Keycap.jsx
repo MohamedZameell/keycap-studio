@@ -515,6 +515,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     soundEnabled,
     imageMode,
     selectedColorway,
+    colorwayDraft,
   } = useStore(useShallow(s => ({
     globalColor: s.globalColor,
     globalLegendColor: s.globalLegendColor,
@@ -525,18 +526,22 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     soundEnabled: s.soundEnabled,
     imageMode: s.keyboardImageMode,
     selectedColorway: s.selectedColorway,
+    colorwayDraft: s.colorwayDraft,
   })));
 
   // Per-key design — scoped to THIS keyId so editing one key doesn't re-render every other key.
   const pkDesign = useStore(s => s.perKeyDesigns[keyId] || EMPTY_DESIGN);
 
-  // Get colors - priority: per-key > colorway > global
+  // Get colors - priority: per-key > colorway draft (editor live preview) > colorway > global
   const colorwayColors = useMemo(() => {
+    if (colorwayDraft) {
+      return getKeyColors(colorwayDraft, label);
+    }
     if (selectedColorway) {
       return getKeyColors(selectedColorway, label);
     }
     return null;
-  }, [selectedColorway, label]);
+  }, [colorwayDraft, selectedColorway, label]);
 
   const color = pkDesign.color || (colorwayColors?.background) || globalColor;
   const legendColor = pkDesign.legendColor || (colorwayColors?.legend) || globalLegendColor;
