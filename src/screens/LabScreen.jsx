@@ -104,7 +104,7 @@ export default function LabScreen() {
         }}
         dpr={[1, 2]}
         shadows={{ type: THREE.PCFShadowMap }}
-        camera={{ position: [0, 7, 11], fov: 50, near: 0.1, far: 1000 }}
+        camera={{ position: [0, 10.5, 11.5], fov: 50, near: 0.1, far: 1000 }} // matched to ref-1's elevation (Phase 5)
       >
         <Suspense fallback={null}>
           {/* Mirror of Studio full-view lighting so the lab reflects Studio reality */}

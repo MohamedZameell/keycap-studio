@@ -131,6 +131,8 @@ function build65Percent() {
 
   const row4_65 = [{label: 'Shift', w: 2.25}, 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', {label: 'Shift', w: 1.75}, '↑'];
   keys.push(...generateRow(row4_65, 3, 0, 3));
+  // standard 65% fills the slot right of ↑ — without it the field has a 1u hole
+  keys.push({id: 'End', label: 'End', row:3, col:13, x:15, y:3, w:1, h:1, isSpecial: true});
 
   const row5_65 = [{label: 'Ctrl', w: 1.25}, {label: 'Win', w: 1.25}, {label: 'Alt', w: 1.25}, {label: '', w: 6.25}, {label: 'Alt', w: 1}, {label: 'Fn', w: 1}, {label: 'Ctrl', w: 1}, '←', '↓', '→'];
   keys.push(...generateRow(row5_65, 4, 0, 4));
