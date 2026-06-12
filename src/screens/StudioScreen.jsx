@@ -14,6 +14,7 @@ import { makeDraftFrom, isCustomColorwayId, CORE_ZONES, EXTRA_ZONES } from '../d
 import { labelToKeyCode } from '../data/keysimLegends';
 import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
+import RealismPipeline from '../components/RealismPipeline';
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
@@ -1864,10 +1865,12 @@ export default function StudioScreen() {
             >
               <Suspense fallback={null}>
                 {/* STUDIO LIGHTING */}
-                <ambientLight intensity={0.4} color="#ffffff" />
+                {/* ambient lowered 0.4 -> 0.2: RealismPipeline's env IBL supplies the rest */}
+                <ambientLight intensity={0.2} color="#ffffff" />
                 <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
                 <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
                 <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
+                <RealismPipeline />
 
                 {/* Background handled by CSS gradient on canvas container */}
 

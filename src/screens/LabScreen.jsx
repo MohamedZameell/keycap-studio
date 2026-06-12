@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, ContactShadows } from '@react-three/drei';
 import KeyboardRenderer from '../components/KeyboardRenderer';
+import RealismPipeline from '../components/RealismPipeline';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useStore } from '../store';
 import { COLORWAYS } from '../data/colorways';
@@ -108,10 +109,12 @@ export default function LabScreen() {
       >
         <Suspense fallback={null}>
           {/* Mirror of Studio full-view lighting so the lab reflects Studio reality */}
-          <ambientLight intensity={0.4} color="#ffffff" />
+          {/* ambient lowered 0.4 -> 0.2: RealismPipeline's env IBL supplies the rest */}
+          <ambientLight intensity={0.2} color="#ffffff" />
           <directionalLight position={[6, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.001} />
           <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#c8d4ff" />
           <directionalLight position={[0, 3, -6]} intensity={0.3} color="#ffffff" />
+          <RealismPipeline />
           <KeyboardRenderer onKeyClick={() => {}} />
           <ContactShadows position={[0, -0.53, 0]} opacity={0.55} scale={40} blur={3} far={8} />
           <LabCamera bg={bg} />
