@@ -745,7 +745,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             <meshStandardMaterial
               color={sideTexture ? '#ffffff' : sideColor}
               map={sideTexture}
-              roughness={isABS ? 0.5 : 0.9}
+              roughness={isABS ? 0.42 : 0.78}
               metalness={0}
               side={THREE.DoubleSide}
             />
@@ -762,7 +762,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
                 polygonOffset
                 polygonOffsetFactor={-1}
                 polygonOffsetUnits={-1}
-                roughness={isABS ? 0.5 : 0.9}
+                roughness={isABS ? 0.42 : 0.78}
                 metalness={0}
                 side={THREE.DoubleSide}
               />
@@ -776,7 +776,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             <meshStandardMaterial
               color={imageMode !== 'wrap' && activeTexture ? '#ffffff' : color}
               map={imageMode !== 'wrap' ? activeTexture : null}
-              roughness={isABS ? 0.45 : 0.85}
+              roughness={isABS ? 0.45 : 0.93}
               metalness={0}
             />
           </mesh>
@@ -792,7 +792,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
                 polygonOffset
                 polygonOffsetFactor={-1}
                 polygonOffsetUnits={-1}
-                roughness={isABS ? 0.45 : 0.85}
+                roughness={isABS ? 0.45 : 0.93}
                 metalness={0}
               />
             </mesh>
