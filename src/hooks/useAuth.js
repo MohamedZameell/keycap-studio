@@ -8,6 +8,28 @@ import {
   getProfile,
   onAuthStateChange
 } from '../lib/supabase'
+import { useStore } from '../store'
+import { syncOnSignIn } from '../lib/colorwaySync'
+
+// Module-level so every useAuth consumer shares a single sync per signed-in
+// user — otherwise each mounted consumer would re-run the merge on sign-in.
+let _cwSyncedUserId = null
+let _cwSyncInFlight = false
+async function syncColorways(userId) {
+  if (!userId || _cwSyncInFlight || _cwSyncedUserId === userId) return
+  _cwSyncInFlight = true
+  try {
+    const { merged, synced } = await syncOnSignIn(useStore.getState().customColorways)
+    if (synced) {
+      useStore.getState().setCustomColorways(merged)
+      _cwSyncedUserId = userId
+    }
+  } catch {
+    // localStorage already holds every colorway — a sync miss is non-fatal.
+  } finally {
+    _cwSyncInFlight = false
+  }
+}
 
 export function useAuth() {
   const [user, setUser] = useState(null)
@@ -25,6 +47,7 @@ export function useAuth() {
       setUser(session?.user ?? null)
       if (session?.user) {
         getProfile(session.user.id).then(setProfile)
+        syncColorways(session.user.id) // pull/merge cloud colorways on a signed-in cold start
       }
       setLoading(false)
     })
@@ -35,8 +58,10 @@ export function useAuth() {
       if (session?.user) {
         const p = await getProfile(session.user.id)
         setProfile(p)
+        if (event === 'SIGNED_IN') syncColorways(session.user.id) // fresh sign-in → merge cloud colorways
       } else {
         setProfile(null)
+        _cwSyncedUserId = null // allow a re-sync on the next sign-in
       }
     })
 
