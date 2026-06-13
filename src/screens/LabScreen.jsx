@@ -62,12 +62,14 @@ export default function LabScreen() {
   const [bg, setBg] = useState(prefs.bg || DEFAULT_BG);
   const [onionOpacity, setOnionOpacity] = useState(prefs.onionOpacity ?? 0.5);
 
-  // Stage the scene to match example-1: 65% board, GMK Bento, light gray case.
+  // Stage the scene to match example-1: 65% board, GMK Red Samurai, light gray
+  // case, red hiragana sub-legends (the actual colorway in that reference shot).
   useEffect(() => {
     const st = useStore.getState();
     if (!st.selectedFormFactor) st.setSelectedFormFactor('65%');
-    if (COLORWAYS.bento && st.setSelectedColorway) st.setSelectedColorway('bento');
+    if (COLORWAYS.red_samurai && st.setSelectedColorway) st.setSelectedColorway('red_samurai');
     if (st.setCaseColor) st.setCaseColor('#b6b2aa');
+    if (st.setLegendSubStyle) st.setLegendSubStyle('hiragana');
   }, []);
 
   useEffect(() => { savePrefs({ mode, refIdx, bg, onionOpacity }); }, [mode, refIdx, bg, onionOpacity]);
