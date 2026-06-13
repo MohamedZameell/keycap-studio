@@ -183,6 +183,13 @@ export const getColorway = (id) => {
   return POPULAR.olivia;
 };
 
+// True only when a colorway's data is actually in memory. Popular tier always
+// is; the lazy 'More' tier resolves after warmupExtraColorways(). The picker
+// uses this to show a neutral skeleton instead of the olivia fallback while
+// extras stream in.
+export const isColorwayLoaded = (id) =>
+  Object.prototype.hasOwnProperty.call(POPULAR, id) || !!extraCache[id] || !!getCustomColorway(id);
+
 // Modifier key labels (keys that should use mods color)
 const MOD_LABELS = [
   'Backspace', 'Tab', 'Enter', 'Caps Lock', 'Shift', 'Ctrl', 'Control',

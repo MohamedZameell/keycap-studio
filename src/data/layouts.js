@@ -95,25 +95,31 @@ function buildFull100() {
 
 function build75Percent() {
   const keys = [];
+  // Top row: Esc + contiguous F1–F12 + a 3-wide nav cluster (Del/Home/PgUp).
   keys.push({id: 'Esc', label: 'Esc', row:0, col:0, x:0, y:0, w:1, h:1, isSpecial: true});
   keys.push(...generateRow(['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'], 0, 1, 0));
-  keys.push({id: 'Del', label: 'Del', row:0, col:13, x:13, y:0, w:1, h:1, isSpecial: true});
-  keys.push({id: 'Home', label: 'Home', row:0, col:14, x:14.25, y:0, w:1, h:1, isSpecial: true});
+  keys.push({id: 'Del',  label: 'Del',  row:0, col:13, x:13, y:0, w:1, h:1, isSpecial: true});
+  keys.push({id: 'Home', label: 'Home', row:0, col:14, x:14, y:0, w:1, h:1, isSpecial: true});
+  keys.push({id: 'PgUp', label: 'PgUp', row:0, col:15, x:15, y:0, w:1, h:1, isSpecial: true});
 
+  // Right nav column at x15 — no exploded 0.25u gap, matching the 65% board
+  // and keysim's 75% reference. Every row 0–5 fills x15 so the column never
+  // brackets an empty slot (the bug that left a 1u hole above PgUp before).
   keys.push(...generateRow(row1, 1, 0, 1));
-  keys.push({id: 'PgUp', label: 'PgUp', row:1, col:15, x:15.25, y:1, w:1, h:1, isSpecial: true});
+  keys.push({id: 'PgDn', label: 'PgDn', row:1, col:15, x:15, y:1, w:1, h:1, isSpecial: true});
 
   keys.push(...generateRow(row2, 2, 0, 2));
-  keys.push({id: 'PgDn', label: 'PgDn', row:2, col:15, x:15.25, y:2, w:1, h:1, isSpecial: true});
+  keys.push({id: 'End',  label: 'End',  row:2, col:15, x:15, y:2, w:1, h:1, isSpecial: true});
 
   keys.push(...generateRow(row3, 3, 0, 3));
-  keys.push({id: 'End', label: 'End', row:3, col:14, x:15.25, y:3, w:1, h:1, isSpecial: true});
+  keys.push({id: 'Ins',  label: 'Ins',  row:3, col:15, x:15, y:3, w:1, h:1, isSpecial: true});
 
   const row4_75 = [{label: 'Shift', w: 2.25}, 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', {label: 'Shift', w: 1.75}, '↑'];
-  keys.push(...generateRow(row4_75, 4, 0, 4));
+  keys.push(...generateRow(row4_75, 4, 0, 4));   // Shift…Shift ends at x14, ↑ at x14–15
+  keys.push({id: 'PrtSc', label: 'PrtSc', row:4, col:15, x:15, y:4, w:1, h:1, isSpecial: true});
 
   const row5_75 = [{label: 'Ctrl', w: 1.25}, {label: 'Win', w: 1.25}, {label: 'Alt', w: 1.25}, {label: '', w: 6.25}, {label: 'Alt', w: 1}, {label: 'Fn', w: 1}, {label: 'Ctrl', w: 1}, '←', '↓', '→'];
-  keys.push(...generateRow(row5_75, 5, 0, 5));
+  keys.push(...generateRow(row5_75, 5, 0, 5));    // arrows land at x13/14/15, under ↑
 
   return keys;
 }
