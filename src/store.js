@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { loadCustomColorways, commitCustomColorways } from './data/customColorways'
+import { upsertColorway, deleteRemoteColorway } from './lib/colorwaySync'
 
 // Revoke a blob: URL safely. No-op for non-blob URLs (data:, http://, null).
 const revokeBlob = (url) => {
@@ -127,18 +128,28 @@ export const useStore = create((set) => ({
   saveColorwayDraft: () => set((state) => {
     const d = state.colorwayDraft;
     if (!d) return {};
-    const customColorways = { ...state.customColorways, [d.id]: d };
+    // Stamp a save time so cross-device sync can resolve last-write-wins.
+    const saved = { ...d, updatedAt: Date.now() };
+    const customColorways = { ...state.customColorways, [saved.id]: saved };
     commitCustomColorways(customColorways);
-    return { customColorways, colorwayDraft: null, editorZone: null, selectedColorway: d.id };
+    upsertColorway(saved).catch(() => {}); // cloud mirror for signed-in users; no-op otherwise
+    return { customColorways, colorwayDraft: null, editorZone: null, selectedColorway: saved.id };
   }),
   deleteCustomColorway: (id) => set((state) => {
     const customColorways = { ...state.customColorways };
     delete customColorways[id];
     commitCustomColorways(customColorways);
+    deleteRemoteColorway(id).catch(() => {}); // cloud mirror; no-op when logged out/unconfigured
     return {
       customColorways,
       selectedColorway: state.selectedColorway === id ? null : state.selectedColorway,
     };
+  }),
+  // Replace the whole custom-colorway map (used by sign-in cloud sync). Persists
+  // to localStorage too so the merged set survives the next cold start.
+  setCustomColorways: (map) => set(() => {
+    commitCustomColorways(map);
+    return { customColorways: map };
   }),
   setGlobalColor: (color) => set({ globalColor: color }),
   setGlobalLegendColor: (color) => set({ globalLegendColor: color }),
