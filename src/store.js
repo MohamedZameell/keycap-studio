@@ -36,6 +36,7 @@ export const useStore = create((set) => ({
   globalLegendText: '',
   globalFont: 'Inter',
   globalLegendPosition: 'top-center',
+  legendSubStyle: '',         // secondary legend alphabet ('' | 'cyrillic' | 'greek' | …)
   backlitEnabled: false,
   backlitColor: '#00aaff',
   perKeyDesigns: {},
@@ -144,6 +145,7 @@ export const useStore = create((set) => ({
   setGlobalLegendText: (text) => set({ globalLegendText: text }),
   setGlobalFont: (font) => set({ globalFont: font }),
   setGlobalLegendPosition: (p) => set({ globalLegendPosition: p }),
+  setLegendSubStyle: (v) => set({ legendSubStyle: v }),
   setBacklitEnabled: (enabled) => set({ backlitEnabled: enabled }),
   setBacklitColor: (color) => set({ backlitColor: color }),
   setMaterialPreset: (p) => set({ materialPreset: p }),

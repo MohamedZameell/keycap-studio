@@ -9,8 +9,9 @@ import * as THREE from 'three';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useAuth } from '../hooks/useAuth';
 import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
-import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway } from '../data/colorways';
+import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway, isColorwayLoaded } from '../data/colorways';
 import { makeDraftFrom, isCustomColorwayId, CORE_ZONES, EXTRA_ZONES } from '../data/customColorways';
+import { SUB_STYLES } from '../data/keysimLegends';
 import { labelToKeyCode } from '../data/keysimLegends';
 import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
@@ -158,6 +159,7 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   globalLegendText: s.globalLegendText,
   globalFont: s.globalFont,
   globalLegendPosition: s.globalLegendPosition,
+  legendSubStyle: s.legendSubStyle,
   backlitEnabled: s.backlitEnabled,
   backlitColor: s.backlitColor,
   perKeyDesigns: s.perKeyDesigns,
@@ -195,6 +197,7 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   setGlobalLegendText: s.setGlobalLegendText,
   setGlobalFont: s.setGlobalFont,
   setGlobalLegendPosition: s.setGlobalLegendPosition,
+  setLegendSubStyle: s.setLegendSubStyle,
   setBacklitEnabled: s.setBacklitEnabled,
   setBacklitColor: s.setBacklitColor,
   setMaterialPreset: s.setMaterialPreset,
@@ -448,10 +451,12 @@ export default function StudioScreen() {
     setIsCameraFocused(false);
   }, []);
 
-  // Warm up the lazy 'More' tier of colorways shortly after Studio mounts.
-  // Idle delay so it doesn't compete with the initial 3D paint.
+  // Warm up the lazy 'More' tier of colorways just after Studio mounts.
+  // colorwaysWarmed flips when they resolve so the picker re-renders its tiles
+  // from skeletons to real swatches. Short defer keeps it off the first 3D paint.
+  const [colorwaysWarmed, setColorwaysWarmed] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => { warmupExtraColorways(); }, 1500);
+    const t = setTimeout(() => { warmupExtraColorways().then(() => setColorwaysWarmed(true)); }, 300);
     return () => clearTimeout(t);
   }, []);
 
@@ -1041,6 +1046,7 @@ export default function StudioScreen() {
                 <div style={{ marginBottom: 16 }}>
                   <div style={styles.sectionLabel}>
                     GMK Colorways <span style={{ opacity: 0.5, fontWeight: 400 }}>({COLORWAY_LIST.length})</span>
+                    {!colorwaysWarmed && <span style={{ opacity: 0.4, fontWeight: 400, marginLeft: 6 }}>loading…</span>}
                     {store.selectedColorway && (
                       <button
                         onClick={() => store.setSelectedColorway(null)}
@@ -1052,9 +1058,19 @@ export default function StudioScreen() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, maxHeight: 200, overflowY: 'auto', padding: '4px 0' }}>
                     {COLORWAY_LIST.slice(0, 48).map(id => {
-                      const c = COLORWAYS[id];
-                      const theme = colorwayToTheme(c);
+                      const loaded = isColorwayLoaded(id);
                       const isActive = store.selectedColorway === id;
+                      if (!loaded) {
+                        // Neutral skeleton until the lazy tier warms — avoids the olivia-palette flash.
+                        return (
+                          <div key={id} title="Loading…" style={{
+                            aspectRatio: '1', borderRadius: 2, border: '2px solid transparent',
+                            background: 'linear-gradient(135deg, var(--surface-container) 60%, var(--surface-container-high) 60%)',
+                            opacity: 0.45,
+                          }} />
+                        );
+                      }
+                      const theme = colorwayToTheme(COLORWAYS[id]);
                       return (
                         <button key={id}
                           onClick={() => store.setSelectedColorway(id)}
@@ -1370,6 +1386,22 @@ export default function StudioScreen() {
                       </button>
                     );
                   })}
+                </div>
+
+                <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Secondary Legend</div>
+                <select
+                  value={store.legendSubStyle || ''}
+                  onChange={e => store.setLegendSubStyle(e.target.value)}
+                  style={{
+                    width: '100%', padding: '8px 10px', background: '#1a1a2e',
+                    border: '1px solid #2a2a3a', borderRadius: 6, color: '#aaaacc',
+                    fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  {SUB_STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+                <div style={{ fontSize: 10, color: '#666680', marginTop: 6, lineHeight: 1.4 }}>
+                  Adds a small international sub-legend in the lower corner (Cherry-style profiles; SA profiles have none).
                 </div>
               </div>
             )}

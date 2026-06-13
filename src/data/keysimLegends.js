@@ -4,6 +4,17 @@
 // codepoint. The glyph's em box does the in-key positioning, which is why
 // keysim draws every key with one fillText call at fixed metrics.
 import cherry from './legends_cherry.json';
+import sa from './legends_sa.json';
+import subCyrillic from './legends_subs/cyrillic.json';
+import subGreek from './legends_subs/greek.json';
+import subHiragana from './legends_subs/hiragana.json';
+import subKatakana from './legends_subs/katakana.json';
+import subHangul from './legends_subs/hangul.json';
+import subArabic from './legends_subs/arabic.json';
+import subHebrew from './legends_subs/hebrew.json';
+import subChinese from './legends_subs/chinese.json';
+import subDevanagari from './legends_subs/devanagari.json';
+import subCzech from './legends_subs/czech.json';
 
 // Map our layout display labels -> keysim keycodes.
 const LABEL_TO_KC = {
@@ -15,6 +26,9 @@ const LABEL_TO_KC = {
   'Caps Lock': 'KC_CAPS', ';': 'KC_SCLN', "'": 'KC_QUOT', 'Enter': 'KC_ENT',
   'Shift': 'KC_LSFT', ',': 'KC_COMM', '.': 'KC_DOT', '/': 'KC_SLSH',
   'Ctrl': 'KC_LCTL', 'Win': 'KC_LGUI', 'Alt': 'KC_LALT', 'Menu': 'KC_APP',
+  // No GMK glyph for Fn (falls back to text), but it needs a stable keycode so
+  // the colorway editor can paint it like any other key.
+  'Fn': 'KC_FN', 'Super': 'KC_LGUI',
   '↑': 'KC_UP', '↓': 'KC_DOWN', '←': 'KC_LEFT', '→': 'KC_RGHT',
   'Del': 'KC_DEL', 'Delete': 'KC_DEL', 'Ins': 'KC_INS', 'Insert': 'KC_INS',
   'Home': 'KC_HOME', 'End': 'KC_END', 'PgUp': 'KC_PGUP', 'PgDn': 'KC_PGDN',
@@ -49,4 +63,56 @@ export function getLegendGlyph(label) {
   const kc = LABEL_TO_KC[label];
   const hex = kc && cherry.chars[kc];
   return hex ? String.fromCharCode(parseInt(hex, 16)) : null;
+}
+
+// ---- Primary legend sets by profile ----------------------------------------
+// keysim ships two: `cherry` (icon font, pre-composed glyphs, top-left) and
+// `sa` (plain text, centered, with stacked top/bottom symbols). Every profile
+// that isn't SA uses the cherry icon set. Each set object carries its own
+// `id` and `subsSupported` flag straight from the JSON.
+const LEGEND_SETS = { cherry, sa };
+export function getPrimaryLegendSet(profile) {
+  return (profile || '').toLowerCase() === 'sa' ? LEGEND_SETS.sa : LEGEND_SETS.cherry;
+}
+
+// SA legend for a display label: a plain string ("Q", "SHIFT") or a
+// { top, bottom } pair for stacked symbol/number keys. null when unmapped.
+export function getSaChar(label) {
+  const kc = LABEL_TO_KC[label];
+  return (kc && sa.chars[kc] != null) ? sa.chars[kc] : null;
+}
+
+// ---- Secondary (sub) legends: international alphabets -----------------------
+// Ported from keysim's subs configs. Each is keyed by the same KC codes and
+// carries the font stack it should render in (system fonts, like keysim).
+const SUBS = {
+  cyrillic: subCyrillic, greek: subGreek, hiragana: subHiragana,
+  katakana: subKatakana, hangul: subHangul, arabic: subArabic,
+  hebrew: subHebrew, chinese: subChinese, devanagari: subDevanagari, czech: subCzech,
+};
+
+// Options for the picker; value '' = no secondary legend.
+export const SUB_STYLES = [
+  { value: '', label: 'None' },
+  { value: 'cyrillic', label: 'Cyrillic' },
+  { value: 'greek', label: 'Greek' },
+  { value: 'hiragana', label: 'Hiragana' },
+  { value: 'katakana', label: 'Katakana' },
+  { value: 'hangul', label: 'Hangul' },
+  { value: 'arabic', label: 'Arabic' },
+  { value: 'hebrew', label: 'Hebrew' },
+  { value: 'chinese', label: 'Chinese' },
+  { value: 'devanagari', label: 'Devanagari' },
+  { value: 'czech', label: 'Czech' },
+];
+
+// Sub-legend descriptor for a label under a style, or null. `char` is a string
+// (or rarely a { top, bottom } pair); `fontFamily` is the stack to draw it in.
+export function getSubChar(style, label) {
+  const cfg = SUBS[style];
+  if (!cfg) return null;
+  const kc = LABEL_TO_KC[label];
+  const ch = kc && cfg.chars[kc];
+  if (!ch) return null;
+  return { char: ch, fontFamily: cfg.fontFamily, mult: cfg.fontSizeMultiplier || 1 };
 }
