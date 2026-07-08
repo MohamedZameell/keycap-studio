@@ -1,0 +1,1 @@
+var e=`mecha`,t=`Mecha`,n=``,r={base:{background:`#5F249F`,color:`#44D62C`},mods:{background:`#171718`,color:`#44D62C`},accent:{background:`#44D62C`,color:`#171718`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,label:t,manufacturer:``,swatches:r,override:i};export{a as default,e as id,t as label,n as manufacturer,i as override,r as swatches};

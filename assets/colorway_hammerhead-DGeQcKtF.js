@@ -1,0 +1,1 @@
+var e=`hammerhead`,t=`Hammerhead`,n=`Keylabs`,r={base:{background:`#202A44`,color:`#49c5b1`},mods:{background:`#384967`,color:`#49c5b1`},accent:{background:`#49c5b1`,color:`#384967`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,label:t,manufacturer:n,swatches:r,override:i};export{a as default,e as id,t as label,n as manufacturer,i as override,r as swatches};
