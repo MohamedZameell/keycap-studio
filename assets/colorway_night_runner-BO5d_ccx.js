@@ -1,0 +1,1 @@
+var e=`night_runner`,t=`Night Runner`,n=``,r={base:{background:`#27282d`,color:`#fcff04`},mods:{background:`#3a395f`,color:`#fcff04`},accent:{background:`#fcff04`,color:`#27282d`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,label:t,manufacturer:``,swatches:r,override:i};export{a as default,e as id,t as label,n as manufacturer,i as override,r as swatches};

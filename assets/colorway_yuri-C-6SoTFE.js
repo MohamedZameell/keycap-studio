@@ -1,0 +1,1 @@
+var e=`yuri`,t=``,n=`Yuri`,r={base:{background:`#b2c4d0`,color:`#ff4a2a`},mods:{background:`#323f52`,color:`#ff4a2a`},accent:{background:`#ff4a2a`,color:`#323f52`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,manufacturer:``,label:n,swatches:r,override:i};export{a as default,e as id,n as label,t as manufacturer,i as override,r as swatches};

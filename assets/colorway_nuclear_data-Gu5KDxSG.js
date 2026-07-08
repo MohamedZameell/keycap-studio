@@ -1,0 +1,1 @@
+var e=`nuclear_data`,t=`Nuclear Data`,n=``,r={base:{background:`#005d35`,color:`#e4dedd`},mods:{background:`#005d35`,color:`#e4dedd`},accent:{background:`#ff6800`,color:`#e4dedd`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,label:t,manufacturer:``,swatches:r,override:i};export{a as default,e as id,t as label,n as manufacturer,i as override,r as swatches};

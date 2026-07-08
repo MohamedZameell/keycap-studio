@@ -1,0 +1,1 @@
+var e=`kaiju`,t=`Kaiju`,n=``,r={base:{background:`#d8d2c3`,color:`#fa4616`},mods:{background:`#356554`,color:`#d8d2c3`},accent:{background:`#fa4616`,color:`#d8d2c3`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,label:t,manufacturer:``,swatches:r,override:i};export{a as default,e as id,t as label,n as manufacturer,i as override,r as swatches};

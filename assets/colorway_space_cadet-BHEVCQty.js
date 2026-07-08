@@ -1,0 +1,1 @@
+var e=`space_cadet`,t=`Space Cadet`,n=``,r={base:{background:`#63696a`,color:`#faf7f0`},mods:{background:`#0073a2`,color:`#faf7f0`},accent:{background:`#0073a2`,color:`#faf7f0`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,label:t,manufacturer:``,swatches:r,override:i};export{a as default,e as id,t as label,n as manufacturer,i as override,r as swatches};

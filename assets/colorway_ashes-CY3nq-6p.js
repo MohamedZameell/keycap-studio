@@ -1,0 +1,1 @@
+var e=`ashes`,t=`Ashes`,n=``,r={base:{background:`#575d64`,color:`#cdd4de`},mods:{background:`#cdd4de`,color:`#575d64`},accent:{background:`#171718`,color:`#cdd4de`}},i={KC_ENT:`accent`,KC_ESC:`accent`,KC_GESC:`accent`},a={id:e,label:t,manufacturer:``,swatches:r,override:i};export{a as default,e as id,t as label,n as manufacturer,i as override,r as swatches};
