@@ -135,6 +135,16 @@ export const useStore = create((set) => ({
     upsertColorway(saved).catch(() => {}); // cloud mirror for signed-in users; no-op otherwise
     return { customColorways, colorwayDraft: null, editorZone: null, selectedColorway: saved.id };
   }),
+  // Register a colorway arriving via a share URL. If the id already exists
+  // locally (self-share, re-open), keep the local copy — just select it.
+  // No cloud mirror here: it syncs on the next explicit save / sign-in merge.
+  importCustomColorway: (cw) => set((state) => {
+    if (!cw || !cw.id || !String(cw.id).startsWith('custom_')) return {};
+    if (state.customColorways[cw.id]) return { selectedColorway: cw.id };
+    const customColorways = { ...state.customColorways, [cw.id]: { ...cw, updatedAt: cw.updatedAt || Date.now() } };
+    commitCustomColorways(customColorways);
+    return { customColorways, selectedColorway: cw.id };
+  }),
   deleteCustomColorway: (id) => set((state) => {
     const customColorways = { ...state.customColorways };
     delete customColorways[id];

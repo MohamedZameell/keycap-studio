@@ -61,23 +61,53 @@ function ScreenSyncer() {
 }
 
 // Handle URL-encoded design state
+function decodeSharedDesign(encoded) {
+  // v2 links are UTF-8 base64url; v1 links were plain btoa, and their '+'
+  // may have arrived as a space after URL parsing.
+  const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/').replace(/ /g, '+');
+  const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+  try {
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, ch => ch.charCodeAt(0))));
+  } catch (e) {
+    return JSON.parse(bin); // v1: latin1 JSON straight out of btoa
+  }
+}
+
 function DesignLoader() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const encoded = params.get('d');
     if (!encoded) return;
     try {
-      const state = JSON.parse(atob(encoded));
-      if (state.c) useStore.getState().setGlobalColor(state.c);
-      if (state.lc) useStore.getState().setGlobalLegendColor(state.lc);
-      if (state.f) useStore.getState().setGlobalFont(state.f);
-      if (state.m) useStore.getState().setMaterialPreset(state.m);
-      if (state.ff) useStore.getState().setSelectedFormFactor(state.ff);
-      if (state.k) useStore.getState().setSelectedModel(state.k);
-      if (state.led) useStore.getState().setKeyboardLEDType(state.led);
+      const state = decodeSharedDesign(encoded);
+      const s = useStore.getState();
+      if (state.c) s.setGlobalColor(state.c);
+      if (state.lc) s.setGlobalLegendColor(state.lc);
+      if (state.f) s.setGlobalFont(state.f);
+      if (state.m) s.setMaterialPreset(state.m);
+      if (state.ff) s.setSelectedFormFactor(state.ff);
+      if (state.k) s.setSelectedModel(state.k);
+      if (state.led) s.setKeyboardLEDType(state.led);
+      if (state.p) s.setSelectedProfile(state.p);
+      if (state.ss) s.setLegendSubStyle(state.ss);
+      if (state.cs) s.setCaseStyle(state.cs);
+      if (state.cf) s.setCaseFinish(state.cf);
+      if (state.cc) s.setCaseColor(state.cc);
+      if (state.cwj) s.importCustomColorway(state.cwj);
+      if (state.cw) {
+        // Never select a custom id we don't actually hold — a broken link
+        // should degrade to global colors, not a half-rendered board.
+        const isCustom = state.cw.startsWith('custom_');
+        if (!isCustom || useStore.getState().customColorways[state.cw]) {
+          s.setSelectedColorway(state.cw);
+        }
+      }
+      if (state.pk) {
+        for (const [id, d] of Object.entries(state.pk)) s.setPerKeyDesign(id, d);
+      }
       // If a model or form factor is encoded, go straight to studio
       if (state.k || state.ff) {
-        useStore.getState().setScreen('studio');
+        s.setScreen('studio');
       }
     } catch (e) {
       console.warn('Invalid share URL:', e);
