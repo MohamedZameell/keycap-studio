@@ -75,6 +75,7 @@ export default function HeroRenderModal({ onClose }) {
   const [denoised, setDenoised] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [vignette, setVignette] = useState(true);
+  const [transparentBg, setTransparentBg] = useState(false);
 
   // Park the live viewport while the tracer owns the GPU
   useEffect(() => {
@@ -115,7 +116,9 @@ export default function HeroRenderModal({ onClose }) {
 
     try {
       const canvas = canvasRef.current;
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
+      // alpha: the drawing buffer must keep the tracer's background alpha or
+      // transparent-bg exports come out opaque
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true, alpha: true });
       // AgX: lifted blacks, soft highlight rolloff — the film-like grade of
       // the reference renders (ACES clipped the saturated colorways)
       renderer.toneMapping = THREE.AgXToneMapping;
@@ -125,8 +128,9 @@ export default function HeroRenderModal({ onClose }) {
       renderer.setSize(renderW, renderH, false);
       s.renderer = renderer;
 
-      const stage = buildHeroScene(heroBridge.scene, { aspect: renderW / renderH, angle });
+      const stage = buildHeroScene(heroBridge.scene, { aspect: renderW / renderH, angle, transparentBg });
       s.stage = stage;
+      s.transparentBg = transparentBg; // read by denoise() after async gaps
 
       const pt = new WebGLPathTracer(renderer);
       pt.bounces = 8;
@@ -159,7 +163,7 @@ export default function HeroRenderModal({ onClose }) {
       setError(e.message || String(e));
       setPhase('error');
     }
-  }, [resIdx, qualIdx, angle]);
+  }, [resIdx, qualIdx, aspIdx, angle, transparentBg]);
 
   const denoise = async (runId, target) => {
     if (runId !== sessionRef.current.runId) return;
@@ -172,13 +176,36 @@ export default function HeroRenderModal({ onClose }) {
       // weights ship with the app (public/tzas); lib requires an absolute URL
       dn.weightsUrl = new URL(`${import.meta.env.BASE_URL || '/'}tzas`, window.location.origin).href;
       dn.quality = 'balanced';
+      const raw = canvasRef.current;
+      const { w: outW, h: outH } = sessionRef.current.dims || { w: raw.width, h: raw.height };
       const out = denoiseRef.current;
-      const { w: outW, h: outH } = sessionRef.current.dims || { w: canvasRef.current.width, h: canvasRef.current.height };
       out.width = outW; out.height = outH;
-      dn.setCanvas(out);
-      dn.setInputImage('color', canvasRef.current);
+      // tfjs blows the GPU's 16k texture limit un-tiled anywhere above HD
+      // 16:9 (2.07MP passed; 2.95MP requested a 21103px texture), and the
+      // package only auto-tiles when dims aren't 16-divisible — force it.
+      // Keep the default 256 tile: 512 over-allocates GL storage and comes
+      // back black.
+      if (outW * outH > 1920 * 1080) dn.useTiling = true;
+      // The denoiser gets its own offscreen canvas; the display canvas keeps
+      // a 2d context so the raw render's alpha can be restored afterwards
+      // (tfjs fromPixels reads RGB only — denoised output comes back opaque).
+      const work = document.createElement('canvas');
+      dn.setCanvas(work);
+      dn.setInputImage('color', raw);
       await dn.execute();
       if (runId !== sessionRef.current.runId) return;
+      const octx = out.getContext('2d');
+      octx.drawImage(work, 0, 0);
+      if (sessionRef.current.transparentBg) {
+        const tmp = document.createElement('canvas');
+        tmp.width = outW; tmp.height = outH;
+        const tctx = tmp.getContext('2d');
+        tctx.drawImage(raw, 0, 0);
+        const rawData = tctx.getImageData(0, 0, outW, outH).data;
+        const outData = octx.getImageData(0, 0, outW, outH);
+        for (let i = 3; i < outData.data.length; i += 4) outData.data[i] = rawData[i];
+        octx.putImageData(outData, 0, 0);
+      }
       setDenoised(true);
       dn.dispose?.();
     } catch (e) {
@@ -202,6 +229,9 @@ export default function HeroRenderModal({ onClose }) {
     const g = ctx.createRadialGradient(cx, cy, Math.min(cx, cy) * 0.75, cx, cy, Math.hypot(cx, cy));
     g.addColorStop(0, 'rgba(0,0,0,0)');
     g.addColorStop(1, 'rgba(0,0,0,0.16)');
+    // source-atop: darken only rendered pixels, never paint over the
+    // transparent background of a transparent-bg export
+    ctx.globalCompositeOperation = 'source-atop';
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, c.width, c.height);
     return c;
@@ -286,6 +316,10 @@ export default function HeroRenderModal({ onClose }) {
               {Object.entries(HERO_PRESETS).map(([k, p]) => (
                 <button key={k} style={ui.chip(k === angle)} onClick={() => setAngle(k)}>{p.label}</button>
               ))}
+              <span style={{ ...ui.label, marginLeft: 12 }}>Background</span>
+              <button style={ui.chip(transparentBg)} onClick={() => setTransparentBg(v => !v)}>
+                {transparentBg ? 'Transparent' : 'Studio'}
+              </button>
               <div style={{ flex: 1 }} />
               <button style={ui.primaryBtn} onClick={start}>▶ Start Render</button>
             </div>

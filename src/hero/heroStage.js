@@ -92,7 +92,7 @@ function buildSweepGeometry(width, floorDepth, radius, wallHeight, segs = 32) {
   return geo;
 }
 
-export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } = {}) {
+export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero', transparentBg = false } = {}) {
   const scene = new THREE.Scene();
   const board = new THREE.Group();
   scene.add(board);
@@ -185,7 +185,9 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
   grad.exponent = 3;
   grad.update();
   scene.environment = grad;
-  scene.background = grad;
+  // A null background makes the tracer write alpha 0 where rays escape —
+  // the gradient still lights the board through scene.environment.
+  scene.background = transparentBg ? null : grad;
   scene.environmentIntensity = 0.55;
   scene.backgroundIntensity = 0.85;
 
@@ -207,14 +209,17 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
   // transparent hole — so the backdrop is real geometry instead.)
   // barely floating — the ref boards rest just off the sweep, anchored by
   // the long soft shadow rather than a gap
-  const floatGap = Math.max(0.12, size.x * 0.012);
-  const sweepMat = new THREE.MeshStandardMaterial({ color: pal.sweep, roughness: 0.96, metalness: 0 });
-  const sweep = new THREE.Mesh(
-    buildSweepGeometry(size.x * 8, size.x * 2.2, size.x * 0.9, size.x * 1.6),
-    sweepMat
-  );
-  sweep.position.set(0, -floatGap, -size.z * 1.4);
-  scene.add(sweep);
+  let sweep = null, sweepMat = null;
+  if (!transparentBg) {
+    const floatGap = Math.max(0.12, size.x * 0.012);
+    sweepMat = new THREE.MeshStandardMaterial({ color: pal.sweep, roughness: 0.96, metalness: 0 });
+    sweep = new THREE.Mesh(
+      buildSweepGeometry(size.x * 8, size.x * 2.2, size.x * 0.9, size.x * 1.6),
+      sweepMat
+    );
+    sweep.position.set(0, -floatGap, -size.z * 1.4);
+    scene.add(sweep);
+  }
 
   // Physical camera, low 3/4, slight downward tilt, focus on front edge
   const preset = HERO_PRESETS[angle] || HERO_PRESETS.hero;
@@ -241,8 +246,8 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
     size,
     dispose() {
       grad.dispose();
-      sweep.geometry.dispose();
-      sweepMat.dispose();
+      sweep?.geometry.dispose();
+      sweepMat?.dispose();
       // board geometries + untouched materials are shared with the live
       // scene; only the hero variants are ours
       ownedTextures.forEach(t => t.dispose());
