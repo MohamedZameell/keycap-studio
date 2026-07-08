@@ -39,8 +39,12 @@ function ScreenSyncer() {
     }
   }, [location.pathname]);
 
-  // When store screen changes (from setScreen calls), update URL
+  // When store screen changes (from setScreen calls), update URL.
+  // Skip the mount run: it fires with the store's default screen before the
+  // URL→store effect above has landed, and would bounce deep links to '/'.
+  const didMount = React.useRef(false);
   useEffect(() => {
+    if (!didMount.current) { didMount.current = true; return; }
     const pathMap = {
       'entry': '/',
       'selector': '/selector',
@@ -119,9 +123,11 @@ function DesignLoader() {
 
 export default function App() {
   const fallback = <div style={{background:'#0a0a0f', width:'100vw', height:'100vh'}} />;
+  // BASE_URL keeps a trailing slash, which breaks the router's path-stripping
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <ScreenSyncer />
       <DesignLoader />
       <Suspense fallback={fallback}>

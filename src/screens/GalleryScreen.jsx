@@ -108,7 +108,7 @@ export default function GalleryScreen() {
       const payload = btoa(JSON.stringify({
         c: store.globalColor, lc: store.globalLegendColor, f: store.globalFont, m: store.materialPreset, k: store.selectedModel
       }));
-      const shareUrl = `${window.location.origin}?d=${payload}`;
+      const shareUrl = `${new URL(import.meta.env.BASE_URL, window.location.origin).href}?d=${payload}`;
       navigator.clipboard.writeText(shareUrl).then(() => {
         alert("Demo Mode: Link copied! Configure Supabase to save permanently.");
       });
