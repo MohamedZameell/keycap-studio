@@ -2,7 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  // GitHub Pages serves the app from /keycap-studio/ — dev stays at /.
+  // Keyed off mode (not command) so `vite preview` serves the same base
+  // the build was made for.
+  base: mode === 'production' ? '/keycap-studio/' : '/',
   plugins: [react()],
   build: {
     rollupOptions: {
@@ -19,4 +23,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

@@ -660,7 +660,8 @@ export default function StudioScreen() {
       let bin = '';
       for (const b of bytes) bin += String.fromCharCode(b);
       const encoded = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      const url = `${window.location.origin}?d=${encoded}`;
+      // origin alone drops the /keycap-studio/ base on GitHub Pages
+      const url = `${new URL(import.meta.env.BASE_URL, window.location.origin).href}?d=${encoded}`;
       navigator.clipboard.writeText(url);
       showToast('Link copied to clipboard!');
     } catch (e) {

@@ -83,7 +83,7 @@ export default function SignInModal() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).href
       }
     });
 
@@ -99,7 +99,7 @@ export default function SignInModal() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).href
       }
     });
 
