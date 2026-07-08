@@ -633,11 +633,33 @@ export default function StudioScreen() {
     try {
       const state = useStore.getState();
       const design = {
+        v: 2,
         c: state.globalColor, lc: state.globalLegendColor, f: state.globalFont,
         m: state.materialPreset, k: state.selectedModel, ff: state.selectedFormFactor,
         led: state.keyboardLEDType,
+        p: state.selectedProfile, cw: state.selectedColorway, ss: state.legendSubStyle,
+        cs: state.caseStyle, cf: state.caseFinish, cc: state.caseColor,
       };
-      const encoded = btoa(JSON.stringify(design));
+      // A custom colorway id means nothing on another device — inline its JSON.
+      if (state.selectedColorway && state.selectedColorway.startsWith('custom_')) {
+        const cwj = state.customColorways?.[state.selectedColorway];
+        if (cwj) design.cwj = cwj;
+      }
+      // Per-key paint travels too; blob-backed image fields can't cross devices.
+      const pk = {};
+      for (const [id, d] of Object.entries(state.perKeyDesigns || {})) {
+        if (!d) continue;
+        const { imageUrl, image, ...rest } = d;
+        if (Object.keys(rest).length) pk[id] = rest;
+      }
+      if (Object.keys(pk).length) design.pk = pk;
+      Object.keys(design).forEach(key => (design[key] == null || design[key] === '') && delete design[key]);
+      // UTF-8-safe base64url: colorway labels may hold any characters, and a
+      // bare '+' in a query string decodes back as a space.
+      const bytes = new TextEncoder().encode(JSON.stringify(design));
+      let bin = '';
+      for (const b of bytes) bin += String.fromCharCode(b);
+      const encoded = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       const url = `${window.location.origin}?d=${encoded}`;
       navigator.clipboard.writeText(url);
       showToast('Link copied to clipboard!');
