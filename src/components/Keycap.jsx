@@ -746,7 +746,34 @@ function drawSaLegend(ctx, cw, ch, label, baseSize) {
 }
 
 // Plain text legend — custom text, a custom font, or a non-default position.
-function drawPlainLegend(ctx, cw, ch, label, font, legendPosition) {
+// `gmkStyle` = default typeface + position but no pre-composed glyph (custom
+// text, 'Fn'): mimic the icon font's look — top-left anchor at the glyph
+// metrics, Helvetica-family, mod-word sizing — so the cap still reads GMK
+// instead of centered bold Inter.
+function drawPlainLegend(ctx, cw, ch, label, font, legendPosition, gmkStyle = false, baseSize = 256) {
+  if (gmkStyle) {
+    const GMK_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const x = Math.round(baseSize * GLYPH_METRICS.x);
+    if (label.length === 1) {
+      // Single character = alpha-sized, like the icon font's letter glyphs.
+      ctx.font = `500 ${Math.round(baseSize * 0.30)}px ${GMK_FONT}`;
+      ctx.fillText(label, x, Math.round(baseSize * 0.40));
+    } else {
+      // Word = mod-cap sizing; shrink long words to fit the plate.
+      let fs = Math.round(baseSize * 0.148);
+      ctx.font = `600 ${fs}px ${GMK_FONT}`;
+      const maxW = cw - x * 1.5;
+      const w = ctx.measureText(label).width;
+      if (w > maxW) {
+        fs = Math.max(10, Math.floor((fs * maxW) / w));
+        ctx.font = `600 ${fs}px ${GMK_FONT}`;
+      }
+      ctx.fillText(label, x, Math.round(baseSize * 0.30));
+    }
+    return;
+  }
   const posMap = {
     'center': [cw / 2, ch / 2],
     'top-center': [cw / 2, ch * 0.31],
@@ -839,7 +866,7 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
     }
     if (!drewPrimary) {
       // Custom text / custom font / unmapped label (e.g. 'Fn').
-      drawPlainLegend(ctx, canvasWidth, canvasHeight, label, font, legendPosition);
+      drawPlainLegend(ctx, canvasWidth, canvasHeight, label, font, legendPosition, useTypeset, baseSize);
     }
 
     // Secondary (international) sub-legend — cherry-family supports it; SA does not.
@@ -879,8 +906,9 @@ async function buildFrontFaceLegendTexture({ legend, legendColor, legendFont, ke
     ctx.fillStyle = legendColor || '#ffffff';
     ctx.font = `600 ${Math.round(fontSize)}px "${fontFamily}", sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    // Upper third of the front face, where it reads first at a 3/4 angle.
-    ctx.fillText(txt, 256, 230);
+    // Near the top of the front face, like real GMK front prints — the wall
+    // flares outward toward its base, so lower placement gets swallowed.
+    ctx.fillText(txt, 256, 175);
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -1236,9 +1264,12 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             const D = spec.baseDepth * h * scale, td = spec.topDepth * h * scale;
             const H = spec.maxHeight * scale * (rowHeight || 1);
             const wallAngle = Math.atan2((D - td) / 2, H);
+            // The +0.05 z-lift must clear the rounded-fillet wall, which flares
+            // outward toward its base — at +0.004 it swallowed the legend, and
+            // at +0.03 the lower half was still clipped.
             const t = 0.45, frontY = H * t, frontZ = D/2 - ((D - td) / 2) * t;
             return (
-              <mesh geometry={frontFaceGeometry} position={[0, frontY, frontZ + 0.004]} rotation={[wallAngle, 0, 0]}>
+              <mesh geometry={frontFaceGeometry} position={[0, frontY, frontZ + 0.05]} rotation={[wallAngle, 0, 0]} userData={{ heroFrontLegend: true }}>
                 <meshBasicMaterial map={frontFaceTexture} transparent side={THREE.DoubleSide} depthWrite={false} />
               </mesh>
             );
