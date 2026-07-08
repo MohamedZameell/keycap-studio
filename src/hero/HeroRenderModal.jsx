@@ -74,6 +74,7 @@ export default function HeroRenderModal({ onClose }) {
   const [error, setError] = useState(null);
   const [denoised, setDenoised] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
+  const [vignette, setVignette] = useState(true);
 
   // Park the live viewport while the tracer owns the GPU
   useEffect(() => {
@@ -189,8 +190,26 @@ export default function HeroRenderModal({ onClose }) {
     setPhase('done');
   };
 
+  // Subtle corner falloff like the reference renders. Composited only at
+  // download time on a throwaway 2D canvas — the render canvases stay
+  // untouched (the denoiser owns its own context).
+  const composeVignette = (src) => {
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(src, 0, 0);
+    const cx = c.width / 2, cy = c.height / 2;
+    const g = ctx.createRadialGradient(cx, cy, Math.min(cx, cy) * 0.75, cx, cy, Math.hypot(cx, cy));
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.16)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, c.width, c.height);
+    return c;
+  };
+
   const download = () => {
-    const src = denoised && !showRaw ? denoiseRef.current : canvasRef.current;
+    let src = denoised && !showRaw ? denoiseRef.current : canvasRef.current;
+    if (vignette) src = composeVignette(src);
     src.toBlob(blob => {
       if (!blob) return;
       const a = document.createElement('a');
@@ -286,6 +305,9 @@ export default function HeroRenderModal({ onClose }) {
             {phase === 'done' && (
               <>
                 <button style={ui.primaryBtn} onClick={download}>⬇ Download PNG</button>
+                <button style={ui.chip(vignette)} onClick={() => setVignette(v => !v)}>
+                  {vignette ? 'Vignette on' : 'Vignette off'}
+                </button>
                 {denoised && (
                   <button style={ui.chip(showRaw)} onClick={() => setShowRaw(v => !v)}>
                     {showRaw ? 'Showing raw' : 'Showing denoised'}

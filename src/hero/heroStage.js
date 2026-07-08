@@ -142,9 +142,24 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero' } 
     if (!src.isMesh || !src.visible || !src.geometry) return;
     const mat = src.material;
     if (!mat || Array.isArray(mat)) return;
+    for (let o = src.parent; o; o = o.parent) { if (o.visible === false) return; }
+    // Front-face legends are transparent basic-material planes in the live
+    // scene — they'd be stripped with the other overlays. Rebuild them as
+    // alpha-CUTOUT standard material: the tracer resolves alphaTest reliably,
+    // while a blended (transparent:true) thin plane traces as invisible.
+    if (src.userData.heroFrontLegend && mat.map) {
+      const fl = new THREE.MeshStandardMaterial({
+        map: mat.map, alphaTest: 0.5, roughness: 0.85, metalness: 0, side: THREE.DoubleSide,
+      });
+      ownedMaterials.push(fl);
+      const mesh = new THREE.Mesh(src.geometry, fl);
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.copy(src.matrixWorld);
+      board.add(mesh);
+      return;
+    }
     if (!mat.isMeshStandardMaterial && !mat.isMeshPhysicalMaterial) return;
     if (mat.transparent || mat.side === THREE.BackSide) return;
-    for (let o = src.parent; o; o = o.parent) { if (o.visible === false) return; }
     const mesh = new THREE.Mesh(src.geometry, heroize(mat));
     mesh.matrixAutoUpdate = false;
     mesh.matrix.copy(src.matrixWorld);
