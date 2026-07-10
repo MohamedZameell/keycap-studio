@@ -1321,6 +1321,8 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
               normalScale={isABS ? NSCALE_ABS_TOP : NSCALE_PBT_TOP}
               clearcoat={isABS ? 0.4 : 0}
               clearcoatRoughness={0.5}
+              emissive={hovered && !singleKeyMode ? '#ffffff' : '#000000'}
+              emissiveIntensity={hovered && !singleKeyMode ? 0.045 : 0}
             />
             {stamps.filter(st => st.target === 'top').map(st => <StampDecal key={st.id} stamp={st} />)}
           </mesh>

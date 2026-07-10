@@ -447,9 +447,27 @@ export default function StudioScreen() {
       if (kc) setDraftOverride(kc, editorZone === 'erase' ? null : editorZone);
       return;
     }
-    // Just select the key in full view - no camera movement
     store.setSelectedKey(keyId);
-  }, [store, layoutData]);
+
+    // Gentle focus drift (P3): pan the orbit target toward the selected key,
+    // carrying the camera by the same delta — no zoom, no angle change, so it
+    // reads as a nudge, not a cut. CameraAnimator's 0.06 lerp does the easing.
+    // Paint mode returned above; stamp-arming clicks never reach onClick.
+    if (viewMode === 'single') return;
+    const { layout, minX, minZ, maxW, maxH } = layoutData();
+    const key = layout.find(k => k.id === keyId);
+    if (!key || !maxW) return;
+    const kw = Math.max(0.5, Math.min(8, Number(key.w) || 1));
+    const kh = Math.max(0.5, Math.min(3, Number(key.h) || 1));
+    const kx = Number(key.x) - minX - maxW / 2 + kw / 2;
+    const kz = Number(key.y) - minZ - maxH / 2 + kh / 2;
+    const cs = cameraStateRef.current;
+    const dx = kx - cs.target[0], dz = kz - cs.target[2];
+    cs.target = [kx, cs.target[1], kz];
+    cs.pos = [cs.pos[0] + dx, cs.pos[1], cs.pos[2] + dz];
+    cs.isAnimating = true;
+    setIsCameraFocused(true);
+  }, [store, layoutData, viewMode]);
 
   const resetCamera = useCallback(() => {
     cameraStateRef.current.pos = [...defaultCamPos];
