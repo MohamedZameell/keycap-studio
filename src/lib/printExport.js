@@ -235,6 +235,9 @@ export async function exportPNGPack({ state, layout, dpi = 600, setName = 'keyca
       apertureMm: [+mm.plateW.toFixed(2), +mm.plateH.toFixed(2)],
       fullTopMm: [+mm.fullW.toFixed(2), +mm.fullH.toFixed(2)],
       stamps: art.desc.stamps.length,
+      // Front-legend sets: the top art is intentionally blank — front-face
+      // print art isn't generated yet (front aperture needs its own masks).
+      ...(art.desc.legendPosition === 'front' ? { frontLegend: true, note: 'top art blank — front-face art not generated yet' } : {}),
     });
   }
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
