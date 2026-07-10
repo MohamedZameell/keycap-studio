@@ -135,16 +135,20 @@ const PROFILE_SPECS = {
   // cherry base 18.1mm = GMK footprint -> 0.05u gap at 19.05mm pitch (keysim GUTTER).
   // top 13.2/12.6: references/KeycapModels cross-sections measure a 12.3mm top
   // on an 18mm base (2.85mm taper/side) — 14.0 was reading slab-like.
-  cherry: { maxHeight: 9.4, dishType: 'cylindrical', dishDepth: 0.6, topWidth: 13.2, topDepth: 12.6, baseWidth: 18.1, baseDepth: 18.1, chamfer: 0.7, uniform: false, rowHeights: [1.000, 1.000, 0.904, 0.787, 0.904, 0.904], rowTilts: [0.122, 0.122, 0.087, 0, -0.105, -0.105] },
+  // base 18.16 per KeyV2's GMK-measured cherry.scad (18.16 x 18.16).
+  cherry: { maxHeight: 9.4, dishType: 'cylindrical', dishDepth: 0.6, topWidth: 13.2, topDepth: 12.6, baseWidth: 18.16, baseDepth: 18.16, chamfer: 0.7, uniform: false, rowHeights: [1.000, 1.000, 0.904, 0.787, 0.904, 0.904], rowTilts: [0.122, 0.122, 0.087, 0, -0.105, -0.105] },
   oem: { maxHeight: 11.9, dishType: 'cylindrical', dishDepth: 0.8, topWidth: 13.5, topDepth: 12.5, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.6, uniform: false, rowHeights: [1.000, 1.000, 0.924, 0.807, 0.924, 0.924], rowTilts: [0.140, 0.140, 0.100, 0, -0.120, -0.120] },
-  sa: { maxHeight: 16.5, dishType: 'spherical', dishDepth: 2.5, topWidth: 12.5, topDepth: 12.5, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.971, 0.941, 0.941, 0.941], rowTilts: [0.150, 0.150, 0.100, 0, -0.100, -0.100] },
+  sa: { maxHeight: 16.5, dishType: 'spherical', dishDepth: 2.5, topWidth: 12.5, topDepth: 12.5, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.971, 0.941, 0.941, 0.941], rowTilts: [0.150, 0.150, 0.100, 0, -0.100, -0.100], edgeFillet: 1.0, topCornerR: 2.6 },
   dsa: { maxHeight: 7.6, dishType: 'spherical', dishDepth: 1.0, topWidth: 13.0, topDepth: 13.0, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.8, uniform: true, rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000], rowTilts: [0, 0, 0, 0, 0, 0] },
-  xda: { maxHeight: 9.1, dishType: 'spherical', dishDepth: 0.5, topWidth: 13.5, topDepth: 13.5, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.8, uniform: true, rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000], rowTilts: [0, 0, 0, 0, 0, 0] },
-  kat: { maxHeight: 13.5, dishType: 'spherical', dishDepth: 1.8, topWidth: 13.0, topDepth: 12.5, baseWidth: 18.2, baseDepth: 18.2, chamfer: 0.6, uniform: false, rowHeights: [1.000, 1.000, 0.926, 0.852, 0.926, 0.926], rowTilts: [0.140, 0.140, 0.090, 0, -0.110, -0.110] },
-  mt3: { maxHeight: 16.0, dishType: 'spherical', dishDepth: 3.0, topWidth: 12.0, topDepth: 12.0, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.969, 0.906, 0.938, 0.938], rowTilts: [0.160, 0.160, 0.110, 0, -0.120, -0.120] },
+  // XDA verified vs hajimen/keycap_designer print masks (720dpi): 9.5mm tall,
+  // top print surface ~14.5mm square on an 18mm base — much wider than the
+  // 13.5 we had. dish stays shallow.
+  xda: { maxHeight: 9.5, dishType: 'spherical', dishDepth: 0.5, topWidth: 14.4, topDepth: 14.4, baseWidth: 18.0, baseDepth: 18.0, chamfer: 0.8, uniform: true, rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000], rowTilts: [0, 0, 0, 0, 0, 0], edgeFillet: 0.6 },
+  kat: { maxHeight: 13.5, dishType: 'spherical', dishDepth: 1.8, topWidth: 13.0, topDepth: 12.5, baseWidth: 18.2, baseDepth: 18.2, chamfer: 0.6, uniform: false, rowHeights: [1.000, 1.000, 0.926, 0.852, 0.926, 0.926], rowTilts: [0.140, 0.140, 0.090, 0, -0.110, -0.110], edgeFillet: 0.8, topCornerR: 2.2 },
+  mt3: { maxHeight: 16.0, dishType: 'spherical', dishDepth: 3.0, topWidth: 12.0, topDepth: 12.0, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.969, 0.906, 0.938, 0.938], rowTilts: [0.160, 0.160, 0.110, 0, -0.120, -0.120], edgeFillet: 1.1, topCornerR: 2.8 },
   asa: { maxHeight: 13.5, dishType: 'spherical', dishDepth: 1.5, topWidth: 13.2, topDepth: 12.8, baseWidth: 18.2, baseDepth: 18.2, chamfer: 0.6, uniform: false, rowHeights: [1.000, 1.000, 0.926, 0.852, 0.926, 0.926], rowTilts: [0.140, 0.140, 0.095, 0, -0.110, -0.110] },
   osa: { maxHeight: 12.0, dishType: 'spherical', dishDepth: 1.2, topWidth: 13.5, topDepth: 13.0, baseWidth: 18.2, baseDepth: 18.2, chamfer: 0.6, uniform: false, rowHeights: [1.000, 1.000, 0.920, 0.840, 0.920, 0.920], rowTilts: [0.130, 0.130, 0.090, 0, -0.110, -0.110] },
-  ksa: { maxHeight: 15.0, dishType: 'spherical', dishDepth: 2.2, topWidth: 12.5, topDepth: 12.5, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.960, 0.920, 0.940, 0.940], rowTilts: [0.150, 0.150, 0.100, 0, -0.110, -0.110] },
+  ksa: { maxHeight: 15.0, dishType: 'spherical', dishDepth: 2.2, topWidth: 12.5, topDepth: 12.5, baseWidth: 18.4, baseDepth: 18.4, chamfer: 0.5, uniform: false, rowHeights: [1.000, 1.000, 0.960, 0.920, 0.940, 0.940], rowTilts: [0.150, 0.150, 0.100, 0, -0.110, -0.110], edgeFillet: 1.0, topCornerR: 2.6 },
   'low profile': { maxHeight: 6.0, dishType: 'cylindrical', dishDepth: 0.3, topWidth: 14.5, topDepth: 14.0, baseWidth: 17.0, baseDepth: 17.0, chamfer: 0.4, uniform: true, rowHeights: [1.000, 1.000, 1.000, 1.000, 1.000, 1.000], rowTilts: [0, 0, 0, 0, 0, 0] },
 };
 
@@ -167,9 +171,15 @@ export { PROFILE_SPECS, normalizeProfile, buildKeycapTextureFallback, getTopInse
 // All normals are analytic (wall tilt, fillet arc, dish derivative):
 // no computeVertexNormals, no UV-seam shading splits.
 // ============================================================
-const CAP_FILLET_MM = 1.8;   // top-edge fillet radius
-const CAP_BASE_R_MM = 1.6;   // corner radius at the base
-const CAP_TOP_R_MM = 3.2;    // corner radius at the top plate
+// Edge sharpness verified 2026-07-10 against KeyV2 (GMK-based CAD:
+// $corner_radius = 1, minkowski smoothing 0.33) and the bundled FreeCAD
+// cross-sections (wall meets dish with no modeled fillet at all). The old
+// 1.8/1.6/3.2 read "smudged" — real injection-molded caps are crisp.
+// Per-profile overrides: spec.edgeFillet / spec.baseCornerR / spec.topCornerR
+// (SA/MT3/KSA family genuinely IS rounder — see PROFILE_SPECS).
+const CAP_FILLET_MM = 0.55;  // top-edge fillet radius (GMK-sharp)
+const CAP_BASE_R_MM = 1.0;   // corner radius at the base (KeyV2 $corner_radius)
+const CAP_TOP_R_MM = 1.8;    // corner radius at the top plate
 const CAP_CORNER_SEGS = 8;   // outline samples per corner arc
 const CAP_FILLET_SEGS = 7;   // rings along the fillet arc
 const CAP_PLATE_T = [0.08, 0.3, 0.6, 0.85]; // plate ring insets (first = old chamfer-strip width)
@@ -204,11 +214,12 @@ function buildCapFrame(widthU, heightU, profile) {
   const tw = spec.topWidth * widthU * scale;
   const td = spec.topDepth * heightU * scale;
   const H = spec.maxHeight * scale;
-  const f = CAP_FILLET_MM * scale;
-  const base = roundedOutline(W / 2, D / 2, CAP_BASE_R_MM * scale, CAP_CORNER_SEGS);
+  const filletMm = spec.edgeFillet ?? CAP_FILLET_MM;
+  const f = filletMm * scale;
+  const base = roundedOutline(W / 2, D / 2, (spec.baseCornerR ?? CAP_BASE_R_MM) * scale, CAP_CORNER_SEGS);
   // Wall outline extrapolated to y=H sits a fillet-radius outside the
   // top plate, so after the fillet inset the plate lands at topWidth.
-  const ext = roundedOutline(tw / 2 + f, td / 2 + f, (CAP_TOP_R_MM + CAP_FILLET_MM) * scale, CAP_CORNER_SEGS);
+  const ext = roundedOutline(tw / 2 + f, td / 2 + f, ((spec.topCornerR ?? CAP_TOP_R_MM) + filletMm) * scale, CAP_CORNER_SEGS);
   const pts = base.map((b, i) => {
     const e = ext[i];
     const tx = e.x - b.x, tz = e.z - b.z;
