@@ -26,9 +26,6 @@ import { getLayoutForFormFactor } from '../data/layouts';
 import { formFactorToLayoutKey } from '../data/layouts';
 import {
   exportKLEJson,
-  exportManufacturingSVG,
-  exportWASDTemplate,
-  exportFullPackage,
   runPreflightChecks,
   generateMetadataJson
 } from '../utils/exportEngine';
@@ -803,30 +800,8 @@ export default function StudioScreen() {
     }
   };
 
-  const handleExportManufacturingSVG = () => {
-    try {
-      const layout = getCurrentLayout();
-      const designState = getDesignState();
-      exportManufacturingSVG(layout, designState, { includeBleed: true, colorMode: 'cmyk-annotation' });
-      showToast('Manufacturing SVG exported!');
-    } catch (e) {
-      console.error('Manufacturing SVG export failed:', e);
-      showToast('Export failed');
-    }
-  };
-
-  const handleExportWASD = () => {
-    try {
-      const layout = getCurrentLayout();
-      const designState = getDesignState();
-      exportWASDTemplate(layout, designState);
-      showToast('WASD template exported!');
-    } catch (e) {
-      console.error('WASD export failed:', e);
-      showToast('Export failed');
-    }
-  };
-
+  // (Manufacturing SVG / WASD-template / Full-package handlers removed in the
+  // declutter pass — superseded by the real-mm print exports above.)
   const handleExportMetadata = () => {
     try {
       const layout = getCurrentLayout();
@@ -846,18 +821,6 @@ export default function StudioScreen() {
     }
   };
 
-  const handleExportFullPackage = async () => {
-    try {
-      showToast('Exporting full package...');
-      const layout = getCurrentLayout();
-      const designState = getDesignState();
-      await exportFullPackage(layout, designState);
-      showToast('Full package exported!');
-    } catch (e) {
-      console.error('Full package export failed:', e);
-      showToast('Export failed');
-    }
-  };
 
   // PRINT EXPORT (P4) — vendor-agnostic print-ready files (src/lib/printExport.js,
   // lazy so pdf-lib/jszip stay out of the studio chunk until first use)
@@ -1412,30 +1375,32 @@ export default function StudioScreen() {
                 />
 
                 <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Legend Position</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                   {LEGEND_POSITIONS.map(pos => {
                     const isActive = store.globalLegendPosition === pos.value;
                     const ledType = store.keyboardLEDType || 'None';
-                    // Determine if this position is recommended for the current LED type
+                    // Positions that suit the LED placement get a subtle dot
                     let isRecommended = false;
                     if (ledType.includes('North') && (pos.value === 'top-center' || pos.value === 'top-left' || pos.value === 'top-right')) isRecommended = true;
                     if (ledType.includes('South') && pos.value === 'front') isRecommended = true;
-                    if (ledType.includes('Per-key')) isRecommended = true; // All positions work
 
                     return (
                       <button
                         key={pos.value}
+                        title={isRecommended ? 'Suits your LED placement' : undefined}
                         style={{
-                          ...styles.pillInactive,
-                          ...(isActive ? { background: '#6c63ff', color: '#fff' } : {}),
-                          ...(isRecommended && !isActive ? { borderColor: '#0d9e7555' } : {}),
-                          borderRadius: 17, fontSize: 11,
-                          position: 'relative',
+                          padding: '8px 4px', borderRadius: 6, fontSize: 11.5, fontFamily: KT.font,
+                          fontWeight: isActive ? 600 : 500,
+                          background: isActive ? KT.accentDim : KT.card,
+                          border: `1px solid ${isActive ? KT.accentLine : KT.line}`,
+                          color: isActive ? KT.accent : KT.sub, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                          transition: 'background 0.15s, border-color 0.15s',
                         }}
                         onClick={() => store.setGlobalLegendPosition(pos.value)}
                       >
                         {pos.label}
-                        {isRecommended && <span style={{ marginLeft: 4, color: isActive ? '#fff' : '#0d9e75', fontSize: 9 }}>★</span>}
+                        {isRecommended && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />}
                       </button>
                     );
                   })}
@@ -1481,10 +1446,10 @@ export default function StudioScreen() {
                       <button
                         key={f.value}
                         style={{
-                          padding: '8px 12px', background: isActive ? '#6c63ff15' : '#1a1a2e',
-                          border: `1px solid ${isActive ? '#6c63ff' : '#2a2a3a'}`, borderRadius: 6,
-                          color: isActive ? '#a09bf5' : '#aaaacc', fontFamily: f.value, fontSize: 14,
-                          cursor: 'pointer', width: '100%', textAlign: 'left', transition: '0.15s',
+                          padding: '7px 12px', background: isActive ? KT.accentDim : KT.card,
+                          border: `1px solid ${isActive ? KT.accentLine : KT.line}`, borderRadius: 6,
+                          color: isActive ? KT.accent : '#b9b6c9', fontFamily: f.value, fontSize: 13.5,
+                          cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background 0.15s, border-color 0.15s',
                           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}
                         onClick={() => updateDesign('font', f.value)}
@@ -1517,23 +1482,33 @@ export default function StudioScreen() {
             {/* ===== IMAGE TAB ===== */}
             {activeTab === 'IMAGE' && (
               <div style={styles.section}>
-                <div style={styles.sectionLabel}>Image Mode</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {IMAGE_MODES.map(m => {
+                <div style={styles.sectionLabel}>Image mode</div>
+                <div>
+                  {[
+                    { value: 'none', icon: 'x', label: 'No image', desc: 'Solid colors only' },
+                    { value: 'wrap', icon: 'image', label: 'Wrap keyboard', desc: 'One image across all keys' },
+                    { value: 'tile', icon: 'grid', label: 'Tile all keys', desc: 'Same image on every key' },
+                    { value: 'perkey', icon: 'target', label: 'Per-key image', desc: 'Different image per key' },
+                  ].map(m => {
                     const isActive = store.keyboardImageMode === m.value;
                     return (
                       <button
                         key={m.value}
                         onClick={() => store.setKeyboardImageMode(m.value)}
                         style={{
-                          padding: '14px 10px', background: isActive ? '#6c63ff11' : '#1a1a2e',
-                          border: `1px solid ${isActive ? '#6c63ff' : '#2a2a3a'}`, borderRadius: 8,
-                          textAlign: 'center', cursor: 'pointer', transition: '0.2s',
+                          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                          padding: '9px 12px', marginBottom: 6, textAlign: 'left',
+                          background: isActive ? KT.accentDim : KT.card,
+                          border: `1px solid ${isActive ? KT.accentLine : KT.line}`, borderRadius: 8,
+                          cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s',
                         }}
                       >
-                        <div style={{ fontSize: 24, marginBottom: 4 }}>{m.icon}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>{m.label}</div>
-                        <div style={{ fontSize: 10, color: '#666680', marginTop: 2 }}>{m.desc}</div>
+                        <KIcon name={m.icon} size={15} color={isActive ? KT.accent : KT.sub} />
+                        <span style={{ flex: 1 }}>
+                          <span style={{ display: 'block', fontFamily: KT.font, fontSize: 13, fontWeight: 600, color: isActive ? KT.accent : KT.ink }}>{m.label}</span>
+                          <span style={{ display: 'block', fontFamily: KT.font, fontSize: 11, color: KT.mut, marginTop: 1 }}>{m.desc}</span>
+                        </span>
+                        {isActive && <KIcon name="check" size={14} color={KT.accent} />}
                       </button>
                     );
                   })}
@@ -1795,183 +1770,64 @@ export default function StudioScreen() {
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#d0bcff'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; }}
                 >
-                  <span style={{ fontSize: 24 }}>✨</span>
+                  <KIcon name="sparkles" size={20} color="#d0bcff" />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#d0bcff' }}>Hero Render</div>
-                    <div style={{ fontSize: 11, color: '#8a84a8' }}>Path-traced studio shot — real GI, softbox, DOF{viewMode !== 'full' ? ' (full board view only)' : ''}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#d0bcff', fontFamily: KT.font }}>Hero Render</div>
+                    <div style={{ fontSize: 11, color: '#8a84a8', fontFamily: KT.font }}>Path-traced studio shot — real GI, softbox, DOF{viewMode !== 'full' ? ' (full board view only)' : ''}</div>
                   </div>
                 </button>
 
-                {/* PRINT EXPORT — real-mm files for any print shop */}
-                <div style={{ padding: 14, background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8, marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <span style={{ fontSize: 20 }}>🖨</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Print-Ready Export</div>
-                      <div style={{ fontSize: 10, color: '#8a84a8' }}>True-mm cap art for dye-sub / UV printers — vendor-agnostic</div>
+
+                {/* QUICK SHOTS — renders of what's on screen */}
+                <Section title="Quick shots">
+                  <div style={{ marginBottom: 6 }}>
+                    <RowBtn icon="camera" title="PNG render" sub="Current view — exactly what you see" onClick={() => handleExportPNG()} />
+                    <div style={{ display: 'flex', gap: 6, marginTop: -2, marginBottom: 6 }}>
+                      {[
+                        { key: 'topDown', label: 'Top' },
+                        { key: 'isometric', label: 'Iso' },
+                        { key: 'front', label: 'Front' },
+                        { key: 'hero', label: 'Hero' },
+                      ].map(angle => (
+                        <button key={angle.key} onClick={() => handleExportPNG(angle.key)}
+                          style={{
+                            flex: 1, padding: '6px 4px', background: KT.card, border: `1px solid ${KT.line}`,
+                            borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: KT.font, fontWeight: 500, color: KT.sub,
+                            transition: 'border-color 0.15s, color 0.15s',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = KT.lineStrong; e.currentTarget.style.color = KT.ink; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = KT.line; e.currentTarget.style.color = KT.sub; }}
+                        >{angle.label}</button>
+                      ))}
                     </div>
+                  </div>
+                  <RowBtn icon="fileText" title="Presentation PDF" sub="Current view on an A4 sheet" onClick={handleExportPDF} />
+                  <RowBtn icon="upload" title="Share URL" sub="Copy a link that opens this exact design" onClick={handleShareURL} />
+                </Section>
+
+                {/* PRODUCTION FILES — consolidated (old Manufacturing SVG, WASD
+                    template and Full Package were superseded by the real-mm
+                    print exports; KLE + metadata stay) */}
+                <Section title="Production files">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontFamily: KT.font, fontSize: 12, color: KT.sub }}>Art resolution</span>
                     <select
                       value={printDpi}
                       onChange={(e) => setPrintDpi(parseInt(e.target.value, 10))}
-                      style={{ background: '#252542', color: '#d0bcff', border: '1px solid #3a3a5a', borderRadius: 4, fontSize: 11, padding: '4px 6px' }}
+                      style={{ background: KT.card, color: KT.ink, border: `1px solid ${KT.line}`, borderRadius: 6, fontSize: 12, fontFamily: KT.font, padding: '4px 8px' }}
                     >
                       <option value={300}>300 dpi</option>
                       <option value={600}>600 dpi</option>
                       <option value={720}>720 dpi</option>
                     </select>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                    {[['pdf', 'PDF Sheet', '1:1 scale + ruler'], ['png', 'PNG Pack', 'ZIP + manifest'], ['svg', 'SVG Sheet', 'vector template']].map(([k, label, sub]) => (
-                      <button
-                        key={k}
-                        onClick={() => handlePrintExport(k)}
-                        disabled={printBusy}
-                        style={{
-                          padding: '10px 6px', background: '#252542', border: '1px solid #4a4a8a', borderRadius: 6,
-                          cursor: printBusy ? 'wait' : 'pointer', textAlign: 'center', opacity: printBusy ? 0.6 : 1,
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#4a4a8a'; }}
-                      >
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#a09bf5' }}>{label}</div>
-                        <div style={{ fontSize: 9, color: '#666680', marginTop: 2 }}>{sub}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pre-flight Check Button */}
-                <button
-                  onClick={handleRunPreflight}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px',
-                    background: 'linear-gradient(135deg, #2d2d5a 0%, #1a1a3a 100%)', border: '1px solid #4a4a8a',
-                    borderRadius: 8, cursor: 'pointer', marginBottom: 16, width: '100%',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6c63ff'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#4a4a8a'; }}
-                >
-                  <span style={{ fontSize: 16 }}>✓</span>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: '#a09bf5' }}>Run Pre-flight Check</span>
-                </button>
-
-                {/* Quick Exports Section */}
-                <div style={{ fontSize: 11, color: '#666680', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Quick Exports</div>
-
-                {/* PNG Export with angle options */}
-                <div style={{ marginBottom: 10 }}>
-                  <button
-                    onClick={() => handleExportPNG()}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-                      background: '#252542', border: '1px solid #6c63ff', borderRadius: '8px 8px 0 0',
-                      cursor: 'pointer', transition: '0.2s', width: '100%', textAlign: 'left',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; e.currentTarget.style.background = '#6c63ff15'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#6c63ff'; e.currentTarget.style.background = '#252542'; }}
-                  >
-                    <span style={{ fontSize: 24 }}>🖼</span>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: '#a09bf5' }}>PNG Render (Current View)</div>
-                      <div style={{ fontSize: 11, color: '#666680' }}>Export exactly what you see</div>
-                    </div>
-                  </button>
-                  <div style={{ display: 'flex', gap: 1 }}>
-                    {[
-                      { key: 'topDown', label: 'Top' },
-                      { key: 'isometric', label: 'Iso' },
-                      { key: 'front', label: 'Front' },
-                      { key: 'hero', label: 'Hero' },
-                    ].map((angle, i, arr) => (
-                      <button
-                        key={angle.key}
-                        onClick={() => handleExportPNG(angle.key)}
-                        style={{
-                          flex: 1, padding: '8px 4px', background: '#1e1e3a', border: '1px solid #6c63ff',
-                          borderTop: 'none',
-                          borderRadius: i === 0 ? '0 0 0 8px' : i === arr.length - 1 ? '0 0 8px 0' : 0,
-                          borderLeft: i > 0 ? 'none' : undefined,
-                          cursor: 'pointer', fontSize: 11, color: '#a09bf5', transition: '0.2s',
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = '#6c63ff30'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = '#1e1e3a'; }}
-                      >
-                        {angle.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {[
-                  { icon: '📄', label: 'Print-ready PDF', desc: 'High quality PDF render', size: '~2-4MB', onClick: handleExportPDF },
-                  { icon: '🔗', label: 'Share URL', desc: 'Copy link to this design', size: '', onClick: handleShareURL },
-                ].map(btn => (
-                  <button
-                    key={btn.label}
-                    onClick={btn.disabled ? undefined : btn.onClick}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-                      background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8,
-                      cursor: btn.disabled ? 'not-allowed' : 'pointer', transition: '0.2s',
-                      opacity: btn.disabled ? 0.4 : 1, marginBottom: 10, width: '100%', textAlign: 'left',
-                    }}
-                    onMouseEnter={(e) => { if (!btn.disabled) { e.currentTarget.style.borderColor = '#8b7fff'; e.currentTarget.style.background = '#6c63ff15'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
-                  >
-                    <span style={{ fontSize: 24 }}>{btn.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{btn.label}</div>
-                      <div style={{ fontSize: 11, color: '#666680' }}>{btn.desc}</div>
-                      {btn.size && <div style={{ fontSize: 10, color: '#444460' }}>{btn.size}</div>}
-                    </div>
-                  </button>
-                ))}
-
-                {/* Manufacturing Exports Section */}
-                <div style={{ fontSize: 11, color: '#666680', marginTop: 20, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Manufacturing</div>
-                {[
-                  { icon: '⌨', label: 'KLE JSON', desc: 'Industry-standard layout format', size: '~5KB', onClick: handleExportKLE },
-                  { icon: '📐', label: 'Manufacturing SVG', desc: '1:1 scale with CMYK annotations', size: '~50KB', onClick: handleExportManufacturingSVG },
-                  { icon: '📋', label: 'Metadata JSON', desc: 'Colors, specs, RAL matching', size: '~2KB', onClick: handleExportMetadata },
-                  { icon: '🎯', label: 'WASD Template', desc: 'Ready for wasdkeyboards.com', size: '~50KB', onClick: handleExportWASD },
-                ].map(btn => (
-                  <button
-                    key={btn.label}
-                    onClick={btn.onClick}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-                      background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8,
-                      cursor: 'pointer', transition: '0.2s', marginBottom: 10, width: '100%', textAlign: 'left',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; e.currentTarget.style.background = '#6c63ff15'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.transform = 'none'; }}
-                  >
-                    <span style={{ fontSize: 24 }}>{btn.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{btn.label}</div>
-                      <div style={{ fontSize: 11, color: '#666680' }}>{btn.desc}</div>
-                      {btn.size && <div style={{ fontSize: 10, color: '#444460' }}>{btn.size}</div>}
-                    </div>
-                  </button>
-                ))}
-
-                {/* Full Package Button */}
-                <button
-                  onClick={handleExportFullPackage}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px',
-                    background: 'linear-gradient(135deg, #6c63ff 0%, #4a4090 100%)', border: 'none',
-                    borderRadius: 8, cursor: 'pointer', marginTop: 16, width: '100%',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(108, 99, 255, 0.4)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  <span style={{ fontSize: 20 }}>📦</span>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Export Full Package</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>KLE + SVG + Metadata (3 files)</div>
-                  </div>
-                </button>
+                  <RowBtn icon="printer" title="PDF Sheet" sub="Every unique cap at 1:1 mm + calibration ruler" onClick={() => handlePrintExport('pdf')} disabled={printBusy} />
+                  <RowBtn icon="pkg" title="PNG Pack" sub="Per-cap art ZIP + manifest for print shops" onClick={() => handlePrintExport('png')} disabled={printBusy} />
+                  <RowBtn icon="vector" title="SVG Sheet" sub="Real-mm vector template with embedded art" onClick={() => handlePrintExport('svg')} disabled={printBusy} />
+                  <RowBtn icon="keyboard" title="KLE JSON" sub="Industry-standard layout format" onClick={handleExportKLE} />
+                  <RowBtn icon="braces" title="Metadata JSON" sub="Colors, specs, RAL matching" onClick={handleExportMetadata} />
+                  <RowBtn icon="clipboard" title="Pre-flight check" sub="Validate the design before sending it out" onClick={handleRunPreflight} />
+                </Section>
               </div>
             )}
           </div>
