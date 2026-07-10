@@ -30,3 +30,6 @@ references/
 
 graphify-out/
 .claude/
+progress/print-out/unpacked/
+progress/print-out/*.zip
+progress/print-out/*.svg
