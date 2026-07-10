@@ -190,6 +190,37 @@ export const useStore = create((set) => ({
 
   clearPerKeyDesigns: () => set({ perKeyDesigns: {} }),
 
+  // STAMPS — decal images projected onto individual caps (adimail-style).
+  // keyId -> [{ id, imageUrl(dataURL), target('top'|'body'), pos:[x,y,z] (cap-local),
+  //             normal:[x,y,z] (cap-local, for the hero z-fight lift), aspect,
+  //             scale, rotation, opacity, visible }]
+  // Session-state like perKeyDesigns; dataURLs so hero rebuild + texture loads
+  // never race a revoked blob. Excluded from the share URL (payload too big).
+  keyStamps: {},
+  stampArming: null, // { imageUrl, aspect } armed for placement; next key click stamps it
+  armStamp: (imageUrl, aspect = 1) => set({ stampArming: { imageUrl, aspect } }),
+  cancelStampArming: () => set({ stampArming: null }),
+  placeStamp: (keyId, stamp) => set((state) => ({
+    stampArming: null,
+    keyStamps: {
+      ...state.keyStamps,
+      [keyId]: [...(state.keyStamps[keyId] || []), stamp],
+    },
+  })),
+  updateStamp: (keyId, stampId, patch) => set((state) => ({
+    keyStamps: {
+      ...state.keyStamps,
+      [keyId]: (state.keyStamps[keyId] || []).map(st => st.id === stampId ? { ...st, ...patch } : st),
+    },
+  })),
+  removeStamp: (keyId, stampId) => set((state) => {
+    const next = (state.keyStamps[keyId] || []).filter(st => st.id !== stampId);
+    const keyStamps = { ...state.keyStamps };
+    if (next.length) keyStamps[keyId] = next; else delete keyStamps[keyId];
+    return { keyStamps };
+  }),
+  clearAllStamps: () => set({ keyStamps: {}, stampArming: null }),
+
   setKeyboardImageMode: (mode) => set({ keyboardImageMode: mode }),
   setKeyboardImageUrl: (url) => set((state) => {
     if (state.keyboardImageUrl !== url) revokeBlob(state.keyboardImageUrl)
