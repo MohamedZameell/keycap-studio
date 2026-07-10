@@ -203,7 +203,19 @@ const PROFILE_SPECS = {
 };
 
 const normalizeProfile = (p) => (p || 'cherry').toLowerCase();
-export { PROFILE_SPECS, normalizeProfile, buildKeycapTextureFallback, getTopInset };
+
+// Real caps taper a CONSTANT amount per side regardless of width — KeyV2's
+// GMK-measured cherry keeps width_difference fixed (6.31mm) for EVERY size,
+// so a 2u top is ~31mm, not 2×13.2. topWidth/topDepth in the specs are 1u
+// values; wide caps extend the flat plate by the extra base millimeters.
+// (Caught 2026-07-10 by the P4 print sheet: an 82.5mm spacebar top print
+// would never fit a real ~108mm blank.)
+const capTopMm = (spec, w = 1, h = 1) => ({
+  tw: spec.topWidth + spec.baseWidth * (Math.max(w, 1) - 1),
+  td: spec.topDepth + spec.baseDepth * (Math.max(h, 1) - 1),
+});
+
+export { PROFILE_SPECS, normalizeProfile, buildKeycapTextureFallback, getTopInset, capTopMm };
 
 // ============================================================
 // ROUNDED CAP GEOMETRY (Path B part 2)
@@ -261,8 +273,9 @@ function buildCapFrame(widthU, heightU, profile) {
   const scale = 1 / 19.05;
   const W = spec.baseWidth * widthU * scale;
   const D = spec.baseDepth * heightU * scale;
-  const tw = spec.topWidth * widthU * scale;
-  const td = spec.topDepth * heightU * scale;
+  const { tw: twMm, td: tdMm } = capTopMm(spec, widthU, heightU);
+  const tw = twMm * scale;
+  const td = tdMm * scale;
   const H = spec.maxHeight * scale;
   const filletMm = spec.edgeFillet ?? CAP_FILLET_MM;
   const f = filletMm * scale;
@@ -300,8 +313,9 @@ function getTopInset(profile, w, h) {
   const F = buildCapFrame(w, h, profile);
   let mx = 0, mz = 0;
   for (const p of F.pts) { mx = Math.max(mx, Math.abs(p.wx)); mz = Math.max(mz, Math.abs(p.wz)); }
-  const tw2 = F.spec.topWidth * w * F.scale / 2;
-  const td2 = F.spec.topDepth * h * F.scale / 2;
+  const { tw: twMm0, td: tdMm0 } = capTopMm(F.spec, w, h);
+  const tw2 = twMm0 * F.scale / 2;
+  const td2 = tdMm0 * F.scale / 2;
   const inset = { ix: Math.max(0, (mx - tw2) / (2 * mx)), iy: Math.max(0, (mz - td2) / (2 * mz)) };
   topInsetCache.set(key, inset);
   return inset;
@@ -469,8 +483,9 @@ function createBodyGeometryBox(widthU = 1, heightU = 1, profile = 'cherry', uvBo
   const scale = 1 / 19.05;
   const W = spec.baseWidth * widthU * scale;
   const D = spec.baseDepth * heightU * scale;
-  const tw = spec.topWidth * widthU * scale;
-  const td = spec.topDepth * heightU * scale;
+  const { tw: twMm0, td: tdMm0 } = capTopMm(spec, widthU, heightU);
+  const tw = twMm0 * scale;
+  const td = tdMm0 * scale;
   const H = spec.maxHeight * scale;
 
   const positions = [];
@@ -572,8 +587,9 @@ function createTopFaceGeometryBox(widthU = 1, heightU = 1, profile = 'cherry', u
   const normalizedProfile = normalizeProfile(profile);
   const spec = PROFILE_SPECS[normalizedProfile] || PROFILE_SPECS.cherry;
   const scale = 1 / 19.05;
-  const tw = spec.topWidth * widthU * scale;
-  const td = spec.topDepth * heightU * scale;
+  const { tw: twMm0, td: tdMm0 } = capTopMm(spec, widthU, heightU);
+  const tw = twMm0 * scale;
+  const td = tdMm0 * scale;
   const H = spec.maxHeight * scale;
   const dishDepth = spec.dishDepth * scale;
   const chamfer = spec.chamfer * scale;
@@ -869,9 +885,11 @@ function drawSubLegend(ctx, baseSize, sub, color) {
   }
 }
 
-function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1, inset = null, shaded = true, profile = 'cherry', subStyle = null) {
-  // 256/u: enough for crisp legend glyphs, still cheap to rasterize
-  const baseSize = 256;
+function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1, inset = null, shaded = true, profile = 'cherry', subStyle = null, baseSizeOverride = null) {
+  // 256/u: enough for crisp legend glyphs, still cheap to rasterize.
+  // Print export passes a real-DPI override — every metric below is a
+  // fraction of baseSize, so the art scales losslessly.
+  const baseSize = baseSizeOverride || 256;
   const canvasWidth = Math.round(baseSize * keyWidth);
   const canvasHeight = Math.round(baseSize * keyHeight);
 
@@ -1221,7 +1239,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     if (!showFrontLegend) return null;
     const spec = PROFILE_SPECS[normalizeProfile(profile)] || PROFILE_SPECS.cherry;
     const scale = 1 / 19.05;
-    const W = spec.baseWidth * w * scale, tw = spec.topWidth * w * scale, H = spec.maxHeight * scale;
+    const W = spec.baseWidth * w * scale, tw = capTopMm(spec, w, h).tw * scale, H = spec.maxHeight * scale;
     return new THREE.PlaneGeometry((W + tw) / 2, H * 0.85);
   }, [showFrontLegend, profile, w]);
 
@@ -1230,8 +1248,9 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     if (!showLegendOverlay) return null;
     const spec = PROFILE_SPECS[normalizeProfile(profile)] || PROFILE_SPECS.cherry;
     const scale = 1 / 19.05;
-    const tw = spec.topWidth * w * scale;
-    const td = spec.topDepth * h * scale;
+    const { tw: twMm0, td: tdMm0 } = capTopMm(spec, w, h);
+    const tw = twMm0 * scale;
+    const td = tdMm0 * scale;
     return new THREE.PlaneGeometry(tw * 0.95, td * 0.95);
   }, [showLegendOverlay, profile, w, h]);
 
@@ -1360,7 +1379,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
           {showFrontLegend && frontFaceTexture && frontFaceGeometry && (() => {
             const spec = PROFILE_SPECS[normalizeProfile(profile)] || PROFILE_SPECS.cherry;
             const scale = 1 / 19.05;
-            const D = spec.baseDepth * h * scale, td = spec.topDepth * h * scale;
+            const D = spec.baseDepth * h * scale, td = capTopMm(spec, w, h).td * scale;
             const H = spec.maxHeight * scale * (rowHeight || 1);
             const wallAngle = Math.atan2((D - td) / 2, H);
             // The +0.05 z-lift must clear the rounded-fillet wall, which flares
