@@ -32,7 +32,8 @@ Keycap set designers juggle KLE for layout, Photoshop templates for color, keysi
 - **Colorway editor** — author custom colorways with alphas / mods / accent zones + per-key paint, cloud-synced when signed in
 - **72 GMK presets** — multi-color rules mapped per key group
 - **Legend engine** — profile-correct typesetting, 10 international sub-legend scripts (Hiragana, Cyrillic, Hangul, …), front-face legends, custom text per key
-- **11 profiles** — Cherry, SA, DSA, OEM, XDA, KAT, MT3, ASA, OSA, KSA, low-profile
+- **11 profiles** — Cherry, SA, DSA, OEM, XDA, KAT, MT3, ASA, OSA, KSA, low-profile — CAD-verified measurements (KeyV2 GMK data), constant-taper wide caps, crisp molded edges
+- **Sticker stamps** — project images onto any cap face; they follow the dish curvature, clip at edges, and survive into hero renders
 - **Form factors** — 60%, 65%, 75%, TKL, 100% · case style / finish / color
 
 ### Hero Render (the party trick)
@@ -40,6 +41,12 @@ Keycap set designers juggle KLE for layout, Photoshop templates for color, keysi
 - **HD / QHD / 4K** × **16:9 / 1:1 / 4:5** × 4 camera presets
 - **Transparent background** export for thumbnails and banners
 - Studio staging: softbox key light, cyclorama sweep, backdrop auto-harmonized to your colorway
+
+### Print-Ready Export (hand it to a real print shop)
+- **PDF print sheet** — every unique cap at true 1:1 mm scale with aperture outlines, dedup counts and a 100 mm calibration ruler
+- **PNG pack** — per-cap art at 300/600/720 dpi (aperture + bleed, full-top variants) with a machine-readable manifest.json
+- **SVG template** — real-mm vector outlines with embedded art, for plotters and QC
+- Vendor-agnostic: dimensions come from measured profile specs, not any one manufacturer
 
 ### Share & extras
 - **Share URLs** encode the full design — custom colorways included, they open on any device
@@ -66,6 +73,8 @@ Keycap set designers juggle KLE for layout, Photoshop templates for color, keysi
 - [x] Legend engine v2 — intl sub-legends, SA typesetting, front-face legends
 - [x] Hero render mode — path traced, denoised, 4K, transparent bg, vignette
 - [x] Share URLs that carry the entire design cross-device
+- [x] Sticker stamps — decal image projection onto caps (live + hero renders)
+- [x] Print-ready export — 1:1 PDF sheet, dpi-exact PNG pack + manifest, SVG template
 - [x] Public deploy on GitHub Pages
 - [x] Typing test with live key press animation
 
