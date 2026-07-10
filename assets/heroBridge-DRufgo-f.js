@@ -1,1 +1,0 @@
-import{r as e}from"./rolldown-runtime-Dw2cE7zH.js";import{bt as t,l as n}from"./three-BJ33ZTvf.js";var r=e(t(),1),i={scene:null,camera:null,set:null};function a(){let e=n(e=>e.scene),t=n(e=>e.camera),a=n(e=>e.set);return(0,r.useEffect)(()=>(Object.assign(i,{scene:e,camera:t,set:a}),()=>{Object.assign(i,{scene:null,camera:null,set:null})}),[e,t,a]),null}export{i as n,a as t};
