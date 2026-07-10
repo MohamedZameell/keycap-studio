@@ -147,6 +147,25 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero', t
     // scene — they'd be stripped with the other overlays. Rebuild them as
     // alpha-CUTOUT standard material: the tracer resolves alphaTest reliably,
     // while a blended (transparent:true) thin plane traces as invisible.
+    // Stamp decals — same PT rule as front legends: rebuild the blended-
+    // transparent live material as an alphaTest cutout (the tracer resolves
+    // cutouts reliably; blending traces invisible). Lift a hair along the
+    // stamp's surface normal (cap-local space == decal-local space) so the
+    // coplanar decal doesn't z-fight the cap it hugs.
+    if (src.userData.heroDecal && mat.map) {
+      const dm = new THREE.MeshStandardMaterial({
+        map: mat.map, alphaTest: 0.5, roughness: 0.75, metalness: 0,
+      });
+      ownedMaterials.push(dm);
+      const mesh = new THREE.Mesh(src.geometry, dm);
+      mesh.matrixAutoUpdate = false;
+      const n = src.userData.heroDecalNormal || [0, 1, 0];
+      const eps = 0.004;
+      mesh.matrix.copy(src.matrixWorld)
+        .multiply(new THREE.Matrix4().makeTranslation(n[0] * eps, n[1] * eps, n[2] * eps));
+      board.add(mesh);
+      return;
+    }
     if (src.userData.heroFrontLegend && mat.map) {
       const fl = new THREE.MeshStandardMaterial({
         map: mat.map, alphaTest: 0.5, roughness: 0.85, metalness: 0, side: THREE.DoubleSide,

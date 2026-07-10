@@ -175,6 +175,8 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   keyboardImageOffsetY: s.keyboardImageOffsetY,
   keyboardImageScale: s.keyboardImageScale,
   keyboardImages: s.keyboardImages,
+  keyStamps: s.keyStamps,
+  stampArming: s.stampArming,
   isExporting: s.isExporting,
   // Colorway editor (M2): subscribe to a BOOLEAN, not the draft object —
   // the draft changes identity on every color-drag tick and would re-render
@@ -223,6 +225,11 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   setIsExporting: s.setIsExporting,
   startColorwayEdit: s.startColorwayEdit,
   deleteCustomColorway: s.deleteCustomColorway,
+  armStamp: s.armStamp,
+  cancelStampArming: s.cancelStampArming,
+  updateStamp: s.updateStamp,
+  removeStamp: s.removeStamp,
+  clearAllStamps: s.clearAllStamps,
 });
 
 // ===== COLORWAY EDITOR (M2) =====
@@ -1452,6 +1459,74 @@ export default function StudioScreen() {
                       </button>
                     );
                   })}
+                </div>
+
+                {/* ===== STICKER STAMPS (independent of image mode) ===== */}
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ fontSize: 11, color: '#666680', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Sticker Stamps
+                  </div>
+                  <input
+                    type="file" id="stamp-upload" accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || file.size > 3 * 1024 * 1024) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const img = new Image();
+                        img.onload = () => store.armStamp(reader.result, img.width / img.height || 1);
+                        img.src = reader.result;
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  {store.stampArming ? (
+                    <div style={{ padding: 12, background: '#6c63ff18', border: '1px dashed #6c63ff', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img src={store.stampArming.imageUrl} alt="stamp" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 4, background: '#111120' }} />
+                      <div style={{ flex: 1, fontSize: 12, color: '#d0bcff' }}>Click any key to place the sticker</div>
+                      <button onClick={() => store.cancelStampArming()} style={{ padding: '4px 10px', background: '#252542', border: '1px solid #3a3a5a', borderRadius: 4, color: '#888899', fontSize: 11, cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => document.getElementById('stamp-upload').click()}
+                      style={{ width: '100%', padding: '10px', background: '#1a1a2e', border: '1px dashed #3a3a5a', borderRadius: 8, color: '#888899', fontSize: 12, cursor: 'pointer' }}
+                    >
+                      + Upload a sticker, then click a key to stamp it
+                    </button>
+                  )}
+
+                  {Object.entries(store.keyStamps).flatMap(([kId, arr]) => arr.map(st => [kId, st])).map(([kId, st]) => (
+                    <div key={st.id} style={{ marginTop: 8, padding: 10, background: '#1a1a2e', borderRadius: 8, border: `1px solid ${st.visible !== false ? '#2a2a3a' : '#1f1f2c'}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <input type="checkbox" checked={st.visible !== false} onChange={(e) => store.updateStamp(kId, st.id, { visible: e.target.checked })} style={{ accentColor: '#6c63ff' }} />
+                        <img src={st.imageUrl} alt="" style={{ width: 26, height: 26, objectFit: 'contain', borderRadius: 4, background: '#111120', opacity: st.visible !== false ? 1 : 0.35 }} />
+                        <span style={{ fontSize: 12, color: '#c8c2d8', flex: 1 }}>{kId} <span style={{ color: '#555570', fontSize: 10 }}>· {st.target}</span></span>
+                        <button onClick={() => store.removeStamp(kId, st.id)} style={{ padding: '3px 8px', background: '#3a2020', border: '1px solid #5a3030', borderRadius: 4, color: '#ff6666', fontSize: 10, cursor: 'pointer' }}>✕</button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                        <div>
+                          <span style={{ fontSize: 9, color: '#666680' }}>Size</span>
+                          <input type="range" min="0.1" max="1.4" step="0.02" value={st.scale} onChange={(e) => store.updateStamp(kId, st.id, { scale: parseFloat(e.target.value) })} style={{ width: '100%', accentColor: '#6c63ff' }} />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 9, color: '#666680' }}>Rotate</span>
+                          <input type="range" min="-3.14" max="3.14" step="0.05" value={st.rotation || 0} onChange={(e) => store.updateStamp(kId, st.id, { rotation: parseFloat(e.target.value) })} style={{ width: '100%', accentColor: '#6c63ff' }} />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 9, color: '#666680' }}>Opacity</span>
+                          <input type="range" min="0.1" max="1" step="0.05" value={st.opacity ?? 1} onChange={(e) => store.updateStamp(kId, st.id, { opacity: parseFloat(e.target.value) })} style={{ width: '100%', accentColor: '#6c63ff' }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {Object.keys(store.keyStamps).length > 0 && (
+                    <button onClick={() => store.clearAllStamps()} style={{ width: '100%', padding: '8px', marginTop: 8, background: '#3a2020', border: '1px solid #5a3030', borderRadius: 4, color: '#ff6666', fontSize: 11, cursor: 'pointer' }}>
+                      Clear All Stamps
+                    </button>
+                  )}
+                  <p style={styles.note}>Stickers project onto the cap surface and follow its curvature — they'll show in hero renders too</p>
                 </div>
 
                 {(store.keyboardImageMode === 'wrap' || store.keyboardImageMode === 'tile') && (

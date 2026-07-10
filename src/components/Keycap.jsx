@@ -1,5 +1,6 @@
 import React, { useRef, useMemo, useState, useEffect, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Decal } from '@react-three/drei';
 import { useShallow } from 'zustand/react/shallow';
 import * as THREE from 'three';
 import { useStore } from '../store';
@@ -30,6 +31,55 @@ const STEM_GEO_VERT = new THREE.BoxGeometry(0.07, 0.12, 0.22);
 const STEM_GEO_HORZ = new THREE.BoxGeometry(0.22, 0.12, 0.07);
 const STEM_MAT = new THREE.MeshStandardMaterial({ color: '#0a0a0a', roughness: 0.8 });
 const EMPTY_DESIGN = Object.freeze({});
+const EMPTY_STAMPS = Object.freeze([]);
+
+// ============================================================
+// STAMP DECAL — an image projected onto the cap surface (drei Decal
+// wraps three's DecalGeometry: it clips the parent mesh's triangles
+// inside the projector box, so the sticker follows the dish/fillet
+// curvature exactly). Auto-orients to the closest vertex normal;
+// `rotation` (a number) spins around it. Raycast disabled so a
+// stamped key stays clickable for paint/select/another stamp.
+// heroStage rebuilds these as alphaTest cutouts for the path tracer
+// (blended transparency traces invisible — same lesson as front
+// legends), lifted along `stamp.normal` to dodge coplanar z-fighting.
+// ============================================================
+function StampDecal({ stamp }) {
+  const [tex, setTex] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    new THREE.TextureLoader().load(stamp.imageUrl, (t) => {
+      if (cancelled) { t.dispose(); return; }
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 16;
+      setTex(t);
+    });
+    return () => { cancelled = true; };
+  }, [stamp.imageUrl]);
+  if (!tex || stamp.visible === false) return null;
+  const s = stamp.scale;
+  return (
+    <Decal
+      position={stamp.pos}
+      rotation={stamp.rotation || 0}
+      scale={[s * (stamp.aspect || 1), s, Math.max(s, 0.4)]}
+      depthTest
+      raycast={() => null}
+      userData={{ heroDecal: true, heroDecalNormal: stamp.normal }}
+    >
+      <meshStandardMaterial
+        map={tex}
+        transparent
+        opacity={stamp.opacity ?? 1}
+        polygonOffset
+        polygonOffsetFactor={-10}
+        depthWrite={false}
+        roughness={0.7}
+        metalness={0}
+      />
+    </Decal>
+  );
+}
 
 // ============================================================
 // Micro-surface normal map — injection-molded plastic grain that
@@ -965,6 +1015,37 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
 
   // Per-key design — scoped to THIS keyId so editing one key doesn't re-render every other key.
   const pkDesign = useStore(s => s.perKeyDesigns[keyId] || EMPTY_DESIGN);
+  // Stamps — scoped to THIS keyId like pkDesign. stampArming is a rare global
+  // flip (arm/place), so the whole-board re-render it causes is acceptable.
+  const stamps = useStore(s => s.keyStamps[keyId] || EMPTY_STAMPS);
+  const stampArming = useStore(s => s.stampArming);
+
+  // Armed-stamp placement: project the sticker where the raycast hit.
+  // e.object is the actual hit mesh (body or top — tagged via userData.capPart);
+  // point/normal are converted to that mesh's local space, which is also the
+  // space drei Decal builds its geometry in.
+  const handleStampPlace = (e) => {
+    const st = useStore.getState();
+    if (!st.stampArming) return false;
+    let target = e.object;
+    while (target && !target.userData?.capPart) target = target.parent;
+    if (!target) return false;
+    const local = target.worldToLocal(e.point.clone());
+    const n = e.face ? e.face.normal : { x: 0, y: 1, z: 0 };
+    st.placeStamp(keyId, {
+      id: `stamp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      imageUrl: st.stampArming.imageUrl,
+      aspect: st.stampArming.aspect || 1,
+      target: target.userData.capPart,
+      pos: [local.x, local.y, local.z],
+      normal: [n.x, n.y, n.z],
+      scale: 0.45,
+      rotation: 0,
+      opacity: 1,
+      visible: true,
+    });
+    return true;
+  };
 
   // Get colors - priority: per-key > colorway draft (editor live preview) > colorway > global
   const colorwayColors = useMemo(() => {
@@ -1177,8 +1258,11 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
 
   return (
     <group position={[px, 0, pz]} rotation={[rowTilt || 0, 0, 0]}
-      onClick={e => { if (onClick) { e.stopPropagation(); if (soundEnabled) playKeycapSound(materialPreset); onClick(); }}}
-      onPointerOver={e => { if (!isSingleView && !singleKeyMode) { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}}
+      onClick={e => {
+        if (stampArming) { e.stopPropagation(); handleStampPlace(e); return; }
+        if (onClick) { e.stopPropagation(); if (soundEnabled) playKeycapSound(materialPreset); onClick(); }
+      }}
+      onPointerOver={e => { if (!isSingleView && !singleKeyMode) { e.stopPropagation(); setHovered(true); document.body.style.cursor = stampArming ? 'crosshair' : 'pointer'; }}}
       onPointerOut={() => { if (!isSingleView && !singleKeyMode) { setHovered(false); document.body.style.cursor = 'auto'; }}}
     >
       <group scale={singleKeyMode ? [1.6, 1.6, 1.6] : [1, 1, 1]}>
@@ -1191,7 +1275,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
           )}
 
           {/* Body - sides: painted wall texture in solid mode, flat color under image wrap */}
-          <mesh geometry={bodyGeo} castShadow receiveShadow>
+          <mesh geometry={bodyGeo} castShadow receiveShadow userData={{ capPart: 'body' }}>
             <meshStandardMaterial
               color={sideTexture ? '#ffffff' : sideColor}
               map={sideTexture}
@@ -1201,6 +1285,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
               normalScale={isABS ? NSCALE_ABS_SIDE : NSCALE_PBT_SIDE}
               side={THREE.DoubleSide}
             />
+            {stamps.filter(st => st.target === 'body').map(st => <StampDecal key={st.id} stamp={st} />)}
           </mesh>
 
           {/* Body - image overlay (transparent where image doesn't cover) */}
@@ -1226,7 +1311,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
               renders color² and painted highlights get tinted).
               Physical material: clearcoat gives ABS its lacquered double-shot
               look; PBT instead gets visible molded grain via normalScale. */}
-          <mesh geometry={topGeo} castShadow receiveShadow>
+          <mesh geometry={topGeo} castShadow receiveShadow userData={{ capPart: 'top' }}>
             <meshPhysicalMaterial
               color={imageMode !== 'wrap' && activeTexture ? '#ffffff' : color}
               map={imageMode !== 'wrap' ? activeTexture : null}
@@ -1237,6 +1322,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
               clearcoat={isABS ? 0.4 : 0}
               clearcoatRoughness={0.5}
             />
+            {stamps.filter(st => st.target === 'top').map(st => <StampDecal key={st.id} stamp={st} />)}
           </mesh>
 
           {/* Top face - image overlay (transparent where image doesn't cover) */}
