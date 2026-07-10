@@ -1038,6 +1038,27 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
   const stamps = useStore(s => s.keyStamps[keyId] || EMPTY_STAMPS);
   const stampArming = useStore(s => s.stampArming);
 
+  // Ghost preview while a stamp is armed: the sticker rides the pointer on
+  // the hovered cap (semi-transparent) so you see size/landing spot before
+  // committing the click. Epsilon-gated so pointermove doesn't rebuild the
+  // DecalGeometry every frame for sub-pixel jitters.
+  const [stampGhost, setStampGhost] = useState(null);
+  const handleStampHover = (e) => {
+    if (!stampArming) return;
+    e.stopPropagation();
+    let target = e.object;
+    while (target && !target.userData?.capPart) target = target.parent;
+    if (!target) return;
+    const local = target.worldToLocal(e.point.clone());
+    setStampGhost(prev => {
+      if (prev && prev.target === target.userData.capPart) {
+        const [px, py, pz] = prev.pos;
+        if (Math.abs(px - local.x) + Math.abs(py - local.y) + Math.abs(pz - local.z) < 0.015) return prev;
+      }
+      return { pos: [local.x, local.y, local.z], target: target.userData.capPart };
+    });
+  };
+
   // Armed-stamp placement: project the sticker where the raycast hit.
   // e.object is the actual hit mesh (body or top — tagged via userData.capPart);
   // point/normal are converted to that mesh's local space, which is also the
@@ -1275,14 +1296,22 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
   const px = x !== undefined ? x * KEY_UNIT : 0;
   const pz = y !== undefined ? y * KEY_UNIT : 0;
 
+  // Drop the ghost when arming ends (placed on another key / cancelled)
+  useEffect(() => { if (!stampArming && stampGhost) setStampGhost(null); }, [stampArming]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ghostStamp = (stampArming && stampGhost) ? {
+    id: '__ghost', imageUrl: stampArming.imageUrl, aspect: stampArming.aspect || 1,
+    pos: stampGhost.pos, target: stampGhost.target, scale: 0.45, rotation: 0, opacity: 0.55, visible: true,
+  } : null;
+
   return (
     <group position={[px, 0, pz]} rotation={[rowTilt || 0, 0, 0]}
       onClick={e => {
         if (stampArming) { e.stopPropagation(); handleStampPlace(e); return; }
         if (onClick) { e.stopPropagation(); if (soundEnabled) playKeycapSound(materialPreset); onClick(); }
       }}
+      onPointerMove={stampArming ? handleStampHover : undefined}
       onPointerOver={e => { if (!isSingleView && !singleKeyMode) { e.stopPropagation(); setHovered(true); document.body.style.cursor = stampArming ? 'crosshair' : 'pointer'; }}}
-      onPointerOut={() => { if (!isSingleView && !singleKeyMode) { setHovered(false); document.body.style.cursor = 'auto'; }}}
+      onPointerOut={() => { if (!isSingleView && !singleKeyMode) { setHovered(false); document.body.style.cursor = 'auto'; if (stampGhost) setStampGhost(null); }}}
     >
       <group scale={singleKeyMode ? [1.6, 1.6, 1.6] : [1, 1, 1]}>
         <group ref={meshRef} scale={[1, rowHeight || 0.48, 1]}>
@@ -1305,6 +1334,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
               side={THREE.DoubleSide}
             />
             {stamps.filter(st => st.target === 'body').map(st => <StampDecal key={st.id} stamp={st} />)}
+            {ghostStamp?.target === 'body' && <StampDecal stamp={ghostStamp} />}
           </mesh>
 
           {/* Body - image overlay (transparent where image doesn't cover) */}
@@ -1344,6 +1374,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
               emissiveIntensity={hovered && !singleKeyMode ? 0.045 : 0}
             />
             {stamps.filter(st => st.target === 'top').map(st => <StampDecal key={st.id} stamp={st} />)}
+            {ghostStamp?.target === 'top' && <StampDecal stamp={ghostStamp} />}
           </mesh>
 
           {/* Top face - image overlay (transparent where image doesn't cover) */}
