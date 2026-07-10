@@ -7,6 +7,7 @@ import { HexColorPicker } from 'react-colorful';
 import * as THREE from 'three';
 // jsPDF loaded dynamically when needed
 import ErrorBoundary from '../components/ErrorBoundary';
+import { T as KT, Icon as KIcon, Section, Segmented, RowBtn } from '../components/ui/kit';
 import { useAuth } from '../hooks/useAuth';
 import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
 import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway, isColorwayLoaded } from '../data/colorways';
@@ -232,6 +233,30 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   clearAllStamps: s.clearAllStamps,
 });
 
+// Collapsed color control (declutter pass): a swatch row that expands its
+// picker on demand — replaces the two permanently-open 200px pickers.
+function SwatchRow({ label, hex, open, onToggle, onChange }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <button onClick={onToggle} style={{
+        display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px',
+        background: KT.card, border: `1px solid ${open ? KT.accentLine : KT.line}`, borderRadius: 8, cursor: 'pointer',
+        transition: 'border-color 0.15s',
+      }}>
+        <span style={{ width: 22, height: 22, borderRadius: 6, background: hex, border: '1px solid rgba(255,255,255,0.18)', flexShrink: 0 }} />
+        <span style={{ flex: 1, textAlign: 'left', fontFamily: KT.font, fontSize: 12.5, fontWeight: 600, color: KT.ink }}>{label}</span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: KT.sub }}>{(hex || '').toUpperCase()}</span>
+        <KIcon name="chevronDown" size={13} color={KT.mut} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }} />
+      </button>
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          <HexColorPicker color={hex} onChange={onChange} style={{ width: '100%', height: 160 }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== COLORWAY EDITOR (M2) =====
 // Swapped into the DESIGN tab while a draft is open. Own store subscription so
 // per-tick color-drag updates re-render only this panel + the affected keycaps,
@@ -397,6 +422,8 @@ export default function StudioScreen() {
   const store = useStore(useShallow(STUDIO_STORE_SELECTOR));
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('DESIGN');
+  const [topMenuOpen, setTopMenuOpen] = useState(false); // ⋯ overflow menu (declutter pass)
+  const [openPicker, setOpenPicker] = useState(null);    // which color picker is expanded ('base'|'legend'|'case'|null)
   const [heroOpen, setHeroOpen] = useState(false);
   const [viewMode, setViewMode] = useState('full');
   const [targetScope, setTargetScope] = useState('all');
@@ -1032,35 +1059,63 @@ export default function StudioScreen() {
           >{isAuthenticated ? 'SAVE' : 'SIGN IN TO SAVE'}</button>
 
           <button
-            onClick={() => store.setScreen('typing-test')}
-            title="Test your typing speed"
-            style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-              padding: '5px 12px', borderRadius: 2,
-              border: '1px solid rgba(149,142,160,0.2)',
-              background: 'transparent', color: '#cbc3d7', cursor: 'pointer',
-            }}
-          >WPM TEST</button>
-
-          <button
-            onClick={() => setActiveTab('EXPORT')}
-            style={{
-              fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 13,
-              padding: '6px 18px', borderRadius: 2,
-              background: '#d0bcff', color: '#3c0091',
-              border: 'none', cursor: 'pointer',
-            }}
-          >EXPORT CONFIG</button>
-
-          <button
             onClick={() => store.setScreen('gallery')}
             style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-              padding: '5px 12px', borderRadius: 2,
-              border: '1px solid rgba(149,142,160,0.2)',
-              background: 'transparent', color: '#cbc3d7', cursor: 'pointer',
+              fontFamily: KT.font, fontSize: 12, fontWeight: 500,
+              padding: '6px 12px', borderRadius: 6,
+              border: 'none', background: 'transparent', color: '#cbc3d7', cursor: 'pointer',
             }}
-          >GALLERY</button>
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(246,246,246,0.06)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+          >Gallery</button>
+
+          {/* ⋯ overflow — everything that isn't designing or exporting lives here */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setTopMenuOpen(o => !o)}
+              title="More"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 30, height: 30, borderRadius: 6,
+                border: `1px solid ${topMenuOpen ? KT.lineStrong : 'transparent'}`,
+                background: topMenuOpen ? 'rgba(246,246,246,0.06)' : 'transparent',
+                color: '#cbc3d7', cursor: 'pointer',
+              }}
+            ><KIcon name="more" size={16} /></button>
+            {topMenuOpen && (
+              <>
+                <div onClick={() => setTopMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 90 }} />
+                <div style={{
+                  position: 'absolute', right: 0, top: 36, zIndex: 100, minWidth: 190,
+                  background: '#17171d', border: `1px solid ${KT.lineStrong}`, borderRadius: 10,
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.5)', padding: 6,
+                }}>
+                  <button
+                    onClick={() => { setTopMenuOpen(false); store.setScreen('typing-test'); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 10px', background: 'none', border: 'none', borderRadius: 6, color: KT.ink, fontFamily: KT.font, fontSize: 12.5, cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(246,246,246,0.07)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                  ><KIcon name="keyboard" size={15} color={KT.sub} /> Typing test</button>
+                  <button
+                    onClick={() => { const v = !store.soundEnabled; store.setSoundEnabled(v); if (v) { import('../utils/soundEngine').then(m => m.playKeycapSound(store.materialPreset)); } }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 10px', background: 'none', border: 'none', borderRadius: 6, color: KT.ink, fontFamily: KT.font, fontSize: 12.5, cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(246,246,246,0.07)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                  >
+                    <KIcon name="zap" size={15} color={KT.sub} />
+                    <span style={{ flex: 1 }}>Key sounds</span>
+                    {store.soundEnabled && <KIcon name="check" size={14} color={KT.accent} />}
+                  </button>
+                  <button
+                    onClick={() => { setTopMenuOpen(false); store.setLedPreviewExpanded(true); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 10px', background: 'none', border: 'none', borderRadius: 6, color: KT.ink, fontFamily: KT.font, fontSize: 12.5, cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(246,246,246,0.07)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                  ><KIcon name="monitor" size={15} color={KT.sub} /> LED diagram</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1068,32 +1123,33 @@ export default function StudioScreen() {
         {/* CONTROL PANEL */}
         <div style={styles.sidebar}>
           <div style={{ display: 'flex', overflowX: 'auto', borderBottom: '1px solid var(--outline-variant)', justifyContent: 'space-around', alignItems: 'center', background: '#201f21' }}>
+            {/* 4 tabs (backlight folded into DESIGN). Keys unchanged so
+                automation/scripts that target tab text keep working. */}
             {[
-              { key: 'design', icon: '◉', label: 'DESIGN' },
-              { key: 'legend', icon: 'T', label: 'LEGEND' },
-              { key: 'image', icon: '⊞', label: 'IMAGE' },
-              { key: 'backlit', icon: '◌', label: 'BACKLIT' },
-              { key: 'export', icon: '↑', label: 'EXPORT' },
+              { key: 'design', icon: 'palette', label: 'DESIGN' },
+              { key: 'legend', icon: 'type', label: 'LEGENDS' },
+              { key: 'image', icon: 'sticker', label: 'ART' },
+              { key: 'export', icon: 'upload', label: 'EXPORT' },
             ].map(tab => (
               <button key={tab.key}
                 onClick={() => setActiveTab(tab.key.toUpperCase())}
                 style={{
                   flex: 1,
-                  padding: '14px 4px 10px',
+                  padding: '12px 4px 9px',
                   background: 'none',
                   border: 'none',
-                  borderBottom: `2px solid ${activeTab === tab.key.toUpperCase() ? '#d0bcff' : 'transparent'}`,
-                  color: activeTab === tab.key.toUpperCase() ? '#d0bcff' : '#958ea0',
+                  borderBottom: `2px solid ${activeTab === tab.key.toUpperCase() ? KT.accent : 'transparent'}`,
+                  color: activeTab === tab.key.toUpperCase() ? KT.accent : '#8a879c',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 4,
-                  transition: 'all 0.2s',
+                  gap: 5,
+                  transition: 'color 0.15s, border-color 0.15s',
                 }}
               >
-                <span style={{ fontSize: 16 }}>{tab.icon}</span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.08em' }}>
+                <KIcon name={tab.icon} size={16} />
+                <span style={{ fontFamily: KT.font, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em' }}>
                   {tab.label}
                 </span>
               </button>
@@ -1107,10 +1163,9 @@ export default function StudioScreen() {
             {/* ===== DESIGN TAB ===== */}
             {activeTab === 'DESIGN' && !store.colorwayEditing && (
               <div style={styles.section}>
-                <div style={styles.pillToggleContainer}>
-                  <button style={targetScope === 'all' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('all')}>ALL KEYS</button>
-                  <button style={targetScope === 'selected' ? styles.pillActive : styles.pillInactive} onClick={() => setTargetScope('selected')}>SELECTED KEY</button>
-                </div>
+                <Segmented
+                  options={[{ value: 'all', label: 'All keys' }, { value: 'selected', label: 'Selected key' }]}
+                  value={targetScope} onChange={setTargetScope} />
 
                 {targetScope === 'selected' && !targetKeyId && (
                   <div style={styles.warning}>Please select a key on the keyboard first.</div>
@@ -1237,41 +1292,8 @@ export default function StudioScreen() {
                   )}
                 </div>
 
-                {/* THEMES */}
-                <div style={{ marginBottom: 8 }}>
-                  <div style={styles.sectionLabel}>Quick Themes</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
-                    {THEMES.map(theme => (
-                      <button key={theme.name}
-                        onClick={() => { store.setGlobalColor(theme.keycap); store.setGlobalLegendColor(theme.legend); store.setMaterialPreset(theme.material); }}
-                        title={theme.name}
-                        style={{
-                          aspectRatio: '1',
-                          background: theme.keycap,
-                          border: '2px solid transparent',
-                          borderRadius: 2,
-                          cursor: 'pointer',
-                          transition: 'border 0.15s',
-                          position: 'relative',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.border = '2px solid rgba(255,255,255,0.5)'}
-                        onMouseLeave={e => e.currentTarget.style.border = '2px solid transparent'}
-                      >
-                        <div style={{
-                          position: 'absolute', bottom: 3, right: 3,
-                          width: 6, height: 6, borderRadius: '50%',
-                          background: theme.legend,
-                        }} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* PROFILE SELECTOR */}
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', color: '#958ea0', marginBottom: 8 }}>
-                    KEYCAP PROFILE
-                  </div>
+                {/* PROFILE & MATERIAL */}
+                <Section title="Profile & material">
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {[
                       { label: 'Cherry', value: 'cherry', desc: 'Low sculpted, cylindrical dish' },
@@ -1303,64 +1325,76 @@ export default function StudioScreen() {
                       >{p.label}</button>
                     ))}
                   </div>
-                </div>
-
-                {/* MATERIAL TOGGLE */}
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {[
-                      { label: 'MATTE PBT', value: 'pbt' },
-                      { label: 'GLOSSY ABS', value: 'abs' },
-                    ].map(m => (
-                      <button key={m.value}
-                        onClick={() => store.setMaterialPreset(m.value)}
-                        style={{
-                          flex: 1,
-                          padding: '10px 8px',
-                          fontFamily: 'Space Grotesk, sans-serif',
-                          fontSize: 12, fontWeight: 600,
-                          borderRadius: 2,
-                          border: '1px solid rgba(149,142,160,0.2)',
-                          background: store.materialPreset === m.value ? 'rgba(208,188,255,0.12)' : '#2a2a2c',
-                          color: store.materialPreset === m.value ? '#d0bcff' : '#cbc3d7',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
-                      >{m.label}</button>
-                    ))}
+                  <div style={{ marginTop: 10 }}>
+                    <Segmented size="sm"
+                      options={[{ value: 'pbt', label: 'Matte PBT' }, { value: 'abs', label: 'Glossy ABS' }]}
+                      value={store.materialPreset} onChange={store.setMaterialPreset} />
                   </div>
-                </div>
+                </Section>
 
-                <div style={styles.colorPickers}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', color: '#958ea0' }}>
-                        BASE COLOR
+                {/* CUSTOM COLORS — collapsed swatch rows; pickers open on demand */}
+                <Section title="Custom colors" collapsible defaultOpen={!store.selectedColorway}>
+                  <SwatchRow label="Cap color" hex={getVal('color') || '#6c63ff'}
+                    open={openPicker === 'base'} onToggle={() => setOpenPicker(p => p === 'base' ? null : 'base')}
+                    onChange={(c) => updateDesign('color', c)} />
+                  <SwatchRow label="Legend color" hex={getVal('legendColor') || '#ffffff'}
+                    open={openPicker === 'legend'} onToggle={() => setOpenPicker(p => p === 'legend' ? null : 'legend')}
+                    onChange={(c) => updateDesign('legendColor', c)} />
+                </Section>
+
+                {/* CASE — style / finish / color (UI was missing entirely since the
+                    old STYLE tab was removed; state + share URLs always carried it) */}
+                <Section title="Case" collapsible>
+                  <Segmented size="sm"
+                    options={[{ value: 'rounded', label: 'Rounded' }, { value: 'angular', label: 'Angular' }]}
+                    value={store.caseStyle} onChange={store.setCaseStyle} />
+                  <div style={{ height: 8 }} />
+                  <Segmented size="sm"
+                    options={[{ value: 'matte', label: 'Matte' }, { value: 'brushed', label: 'Brushed' }, { value: 'glossy', label: 'Glossy' }]}
+                    value={store.caseFinish} onChange={store.setCaseFinish} />
+                  <div style={{ height: 10 }} />
+                  <SwatchRow label="Case color" hex={store.caseColor || '#08080c'}
+                    open={openPicker === 'case'} onToggle={() => setOpenPicker(p => p === 'case' ? null : 'case')}
+                    onChange={store.setCaseColor} />
+                </Section>
+
+                {/* BACKLIGHT — folded in from the old BACKLIT tab */}
+                <Section title="Backlight" collapsible defaultOpen={store.backlitEnabled}>
+                  {store.selectionPath === 'beginner' || (store.selectedModel && store.selectedModel !== 'Custom Build') ? (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: KT.ink, fontWeight: 600 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: LEDTypeColor(store.keyboardLEDType) }} />
+                        {store.keyboardLEDType || 'None'}
                       </div>
-                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#d0bcff' }}>
-                        {(getVal('color') || '#6c63ff').toUpperCase()}
-                      </div>
+                      <div style={{ fontSize: 11, color: KT.mut, marginTop: 4 }}>Fixed by your keyboard's hardware</div>
                     </div>
-                    <HexColorPicker color={getVal('color') || '#6c63ff'} onChange={(c) => updateDesign('color', c)} style={{ width: '100%' }} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.1em', color: '#958ea0' }}>
-                        LEGEND COLOR
-                      </div>
-                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#d0bcff' }}>
-                        {(getVal('legendColor') || '#ffffff').toUpperCase()}
-                      </div>
+                  ) : (
+                    <div style={{ marginBottom: 12 }}>
+                      <Segmented size="sm"
+                        options={[
+                          { value: 'North-facing RGB', label: 'North' },
+                          { value: 'South-facing RGB', label: 'South' },
+                          { value: 'Per-key RGB', label: 'Per-key' },
+                          { value: 'None', label: 'None' },
+                        ]}
+                        value={store.keyboardLEDType || 'None'} onChange={store.setKeyboardLEDType} />
                     </div>
-                    <HexColorPicker color={getVal('legendColor') || '#ffffff'} onChange={(c) => updateDesign('legendColor', c)} style={{ width: '100%' }} />
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: KT.font, fontSize: 12.5, fontWeight: 600, color: KT.ink }}>RGB backlight</span>
+                    <label className="toggle-switch">
+                      <input type="checkbox" checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
+                      <span className="toggle-slider"></span>
+                    </label>
                   </div>
-                </div>
-
-                {/* SOUND TOGGLE */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                  <input type="checkbox" checked={store.soundEnabled} onChange={(e) => { store.setSoundEnabled(e.target.checked); if (e.target.checked) { import('../utils/soundEngine').then(m => m.playKeycapSound(store.materialPreset)); } }} style={{ width: 16, height: 16 }} />
-                  <span style={{ fontSize: '12px', color: '#666680' }}>Key sounds</span>
-                </div>
+                  {store.backlitEnabled && (
+                    <div style={{ marginTop: 10 }}>
+                      <SwatchRow label="LED color" hex={store.backlitColor}
+                        open={openPicker === 'led'} onToggle={() => setOpenPicker(p => p === 'led' ? null : 'led')}
+                        onChange={store.setBacklitColor} />
+                    </div>
+                  )}
+                </Section>
               </div>
             )}
 
@@ -1745,64 +1779,6 @@ export default function StudioScreen() {
             )}
 
             {/* ===== BACKLIT TAB ===== */}
-            {activeTab === 'BACKLIT' && (
-              <div style={styles.section}>
-                {store.selectionPath === 'beginner' || (store.selectedModel && store.selectedModel !== 'Custom Build') ? (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#fff', fontWeight: 600 }}>
-                      <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: LEDTypeColor(store.keyboardLEDType), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff' }}>
-                        {LEDTypeIcon(store.keyboardLEDType)}
-                      </div>
-                      {store.keyboardLEDType || 'None'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#888899', marginTop: '4px' }}>
-                      Fixed by your keyboard's hardware
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={styles.sectionLabel}>LED Type</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      {['North-facing RGB', 'South-facing RGB', 'Per-key RGB', 'None'].map(t => {
-                        const isActive = store.keyboardLEDType === t;
-                        const color = LEDTypeColor(t);
-                        return (
-                          <button key={t} style={{
-                            padding: '8px', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: 600,
-                            background: isActive ? color : 'var(--card-bg)', color: isActive ? '#fff' : 'var(--text-secondary)',
-                            border: 'none', cursor: 'pointer', transition: 'all 0.2s'
-                          }} onClick={() => store.setKeyboardLEDType(t)}>
-                            {t.replace('-facing RGB', '').replace(' RGB', '')}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div style={styles.flexRow}>
-                  <span style={styles.label}>RGB Backlight</span>
-                  <label className="toggle-switch">
-                    <input type="checkbox" checked={store.backlitEnabled} onChange={(e) => store.setBacklitEnabled(e.target.checked)} />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-
-                {store.backlitEnabled && (
-                  <div style={{ marginTop: 24 }}>
-                    <label style={styles.label}>Backlit Color</label>
-                    <HexColorPicker color={store.backlitColor} onChange={(c) => store.setBacklitColor(c)} style={{ width: '100%' }} />
-                  </div>
-                )}
-
-                <div 
-                  onClick={() => store.setLedPreviewExpanded(true)}
-                  style={{ marginTop: '24px', fontSize: '12px', color: '#6c63ff', cursor: 'pointer', textDecoration: 'underline' }}>
-                  See the LED diagram →
-                </div>
-              </div>
-            )}
-
             {/* ===== EXPORT TAB ===== */}
             {activeTab === 'EXPORT' && (
               <div style={styles.section}>
@@ -2424,7 +2400,9 @@ const styles = {
     padding: '28px 22px',
   },
   section: { display: 'flex', flexDirection: 'column', gap: '20px' },
-  sectionLabel: { fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--secondary)', marginBottom: 10, fontWeight: 500 },
+  // Declutter pass: neutral Inter section headers — one accent in the app,
+  // and it isn't teal.
+  sectionLabel: { fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8a879c', marginBottom: 10, fontWeight: 600 },
   pillToggleContainer: { display: 'flex', background: 'rgba(246, 246, 246, 0.04)', borderRadius: '10px', padding: '4px', alignSelf: 'stretch' },
   pillActive: {
     flex: 1, background: 'linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%)',
