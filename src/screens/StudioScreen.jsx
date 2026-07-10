@@ -832,6 +832,32 @@ export default function StudioScreen() {
     }
   };
 
+  // PRINT EXPORT (P4) — vendor-agnostic print-ready files (src/lib/printExport.js,
+  // lazy so pdf-lib/jszip stay out of the studio chunk until first use)
+  const [printDpi, setPrintDpi] = useState(600);
+  const [printBusy, setPrintBusy] = useState(false);
+  const handlePrintExport = async (kind) => {
+    if (printBusy) return;
+    setPrintBusy(true);
+    try {
+      showToast('Building print files…');
+      const mod = await import('../lib/printExport');
+      const state = useStore.getState();
+      const { layout } = layoutData();
+      const setName = (state.colorwayDraft?.label)
+        || (typeof state.selectedColorway === 'string' && state.selectedColorway)
+        || 'keycap-set';
+      const fn = { pdf: mod.exportPrintPDF, png: mod.exportPNGPack, svg: mod.exportSVGSheet }[kind];
+      const { uniqueCaps } = await fn({ state, layout, dpi: printDpi, setName });
+      showToast(`Print ${kind.toUpperCase()} exported — ${uniqueCaps} unique caps ✓`);
+    } catch (err) {
+      console.error('print export failed', err);
+      showToast('Print export failed — see console');
+    } finally {
+      setPrintBusy(false);
+    }
+  };
+
   // PDF export — pdf-lib (smaller bundle than jsPDF, no html2canvas dependency)
   const handleExportPDF = async () => {
     const canvas = document.querySelector('canvas');
@@ -1799,6 +1825,44 @@ export default function StudioScreen() {
                     <div style={{ fontSize: 11, color: '#8a84a8' }}>Path-traced studio shot — real GI, softbox, DOF{viewMode !== 'full' ? ' (full board view only)' : ''}</div>
                   </div>
                 </button>
+
+                {/* PRINT EXPORT — real-mm files for any print shop */}
+                <div style={{ padding: 14, background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 8, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontSize: 20 }}>🖨</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Print-Ready Export</div>
+                      <div style={{ fontSize: 10, color: '#8a84a8' }}>True-mm cap art for dye-sub / UV printers — vendor-agnostic</div>
+                    </div>
+                    <select
+                      value={printDpi}
+                      onChange={(e) => setPrintDpi(parseInt(e.target.value, 10))}
+                      style={{ background: '#252542', color: '#d0bcff', border: '1px solid #3a3a5a', borderRadius: 4, fontSize: 11, padding: '4px 6px' }}
+                    >
+                      <option value={300}>300 dpi</option>
+                      <option value={600}>600 dpi</option>
+                      <option value={720}>720 dpi</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    {[['pdf', 'PDF Sheet', '1:1 scale + ruler'], ['png', 'PNG Pack', 'ZIP + manifest'], ['svg', 'SVG Sheet', 'vector template']].map(([k, label, sub]) => (
+                      <button
+                        key={k}
+                        onClick={() => handlePrintExport(k)}
+                        disabled={printBusy}
+                        style={{
+                          padding: '10px 6px', background: '#252542', border: '1px solid #4a4a8a', borderRadius: 6,
+                          cursor: printBusy ? 'wait' : 'pointer', textAlign: 'center', opacity: printBusy ? 0.6 : 1,
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b7fff'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#4a4a8a'; }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#a09bf5' }}>{label}</div>
+                        <div style={{ fontSize: 9, color: '#666680', marginTop: 2 }}>{sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Pre-flight Check Button */}
                 <button
