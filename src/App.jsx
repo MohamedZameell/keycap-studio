@@ -2,6 +2,7 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import EntryScreen from './screens/EntryScreen';
 import { useStore } from './store';
+import { ensureFont, loadPersistedFonts } from './lib/fontManager';
 
 // Lazy load all non-entry screens
 const SelectorScreen = lazy(() => import('./screens/SelectorScreen'));
@@ -87,7 +88,14 @@ function DesignLoader() {
       const s = useStore.getState();
       if (state.c) s.setGlobalColor(state.c);
       if (state.lc) s.setGlobalLegendColor(state.lc);
-      if (state.f) s.setGlobalFont(state.f);
+      // Load the family before storing it — textures cache on the font name.
+      // Custom uploads restore from IndexedDB first so shares of your own
+      // designs resolve on this device; Google families fetch on demand.
+      if (state.f) {
+        loadPersistedFonts()
+          .then(() => ensureFont(state.f))
+          .finally(() => useStore.getState().setGlobalFont(state.f));
+      }
       if (state.m) s.setMaterialPreset(state.m);
       if (state.ff) s.setSelectedFormFactor(state.ff);
       if (state.k) s.setSelectedModel(state.k);
