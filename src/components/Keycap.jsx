@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
 import { getKeyColors } from '../data/colorways';
-import { getLegendGlyph, GLYPH_METRICS, getPrimaryLegendSet, getSaChar, getSubChar } from '../data/keysimLegends';
+import { getLegendGlyph, GLYPH_METRICS, getPrimaryLegendSet, getSaChar, getSubChar, applyOsType } from '../data/keysimLegends';
 import { KEY_UNIT } from '../data/layouts';
 
 // ============================================================
@@ -1017,6 +1017,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     selectedColorway,
     colorwayDraft,
     legendSubStyle,
+    osType,
   } = useStore(useShallow(s => ({
     globalColor: s.globalColor,
     globalLegendColor: s.globalLegendColor,
@@ -1029,6 +1030,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     selectedColorway: s.selectedColorway,
     colorwayDraft: s.colorwayDraft,
     legendSubStyle: s.legendSubStyle,
+    osType: s.osType,
   })));
 
   // Per-key design — scoped to THIS keyId so editing one key doesn't re-render every other key.
@@ -1102,7 +1104,9 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
   const legendText = pkDesign.legendText || globalLegendText;
   const font = pkDesign.font || globalFont;
   const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';
-  const displayText = legendText && legendText.trim() !== '' ? legendText : label;
+  // OS variant only rewrites the auto legend (Win→⌘ etc.); explicit custom
+  // text and colour zoning both stay keyed on the original label.
+  const displayText = legendText && legendText.trim() !== '' ? legendText : applyOsType(label, osType);
   const isSingleView = (x === undefined && y === undefined);
 
   // Static UV bounds — based on key position only (pan/zoom is on the shared canvas)

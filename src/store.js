@@ -38,6 +38,7 @@ export const useStore = create((set) => ({
   globalFont: 'Inter',
   globalLegendPosition: 'top-center',
   legendSubStyle: '',         // secondary legend alphabet ('' | 'cyrillic' | 'greek' | …)
+  osType: 'win',              // modifier legend style: 'win' | 'mac' (⌘/⌥/⌃)
   backlitEnabled: false,
   backlitColor: '#00aaff',
   perKeyDesigns: {},
@@ -167,6 +168,7 @@ export const useStore = create((set) => ({
   setGlobalFont: (font) => set({ globalFont: font }),
   setGlobalLegendPosition: (p) => set({ globalLegendPosition: p }),
   setLegendSubStyle: (v) => set({ legendSubStyle: v }),
+  setOsType: (v) => set({ osType: v }),
   setBacklitEnabled: (enabled) => set({ backlitEnabled: enabled }),
   setBacklitColor: (color) => set({ backlitColor: color }),
   setMaterialPreset: (p) => set({ materialPreset: p }),

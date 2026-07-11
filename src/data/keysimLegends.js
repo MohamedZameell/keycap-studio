@@ -106,6 +106,28 @@ export const SUB_STYLES = [
   { value: 'czech', label: 'Czech' },
 ];
 
+// ---- OS-specific modifier legends (Win vs Mac) -----------------------------
+// Only the DISPLAYED modifier legend changes; colour zoning + KC mapping stay
+// keyed on the original label. Windows is the default (labels already win-style).
+const MAC_LABELS = {
+  'Win': '⌘', 'Super': '⌘', // ⌘ Command
+  'Alt': '⌥',                    // ⌥ Option
+  'Ctrl': '⌃', 'Control': '⌃', // ⌃ Control
+  'Menu': '⌘',
+};
+export const OS_TYPES = [
+  { value: 'win', label: 'Windows' },
+  { value: 'mac', label: 'Mac' },
+];
+// Map a display label to its OS variant. Returns the label unchanged for
+// non-modifier keys or when osType is 'win'.
+export function applyOsType(label, osType) {
+  if (osType === 'mac' && Object.prototype.hasOwnProperty.call(MAC_LABELS, label)) {
+    return MAC_LABELS[label];
+  }
+  return label;
+}
+
 // Sub-legend descriptor for a label under a style, or null. `char` is a string
 // (or rarely a { top, bottom } pair); `fontFamily` is the stack to draw it in.
 export function getSubChar(style, label) {

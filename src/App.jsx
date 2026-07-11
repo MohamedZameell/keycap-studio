@@ -102,6 +102,7 @@ function DesignLoader() {
       if (state.led) s.setKeyboardLEDType(state.led);
       if (state.p) s.setSelectedProfile(state.p);
       if (state.ss) s.setLegendSubStyle(state.ss);
+      if (state.os) s.setOsType(state.os);
       if (state.cs) s.setCaseStyle(state.cs);
       if (state.cf) s.setCaseFinish(state.cf);
       if (state.cc) s.setCaseColor(state.cc);
