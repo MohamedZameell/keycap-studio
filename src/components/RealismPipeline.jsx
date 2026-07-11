@@ -92,7 +92,7 @@ export function GroundShadow({ y = -0.532, opacity = 0.28, size = 60 }) {
   );
 }
 
-export default function RealismPipeline({ envIntensity = 0.5 }) {
+export default function RealismPipeline({ envIntensity = 0.62 }) {
   return (
     <>
       <EnvLight intensity={envIntensity} />

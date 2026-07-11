@@ -1364,12 +1364,12 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
             <meshPhysicalMaterial
               color={imageMode !== 'wrap' && activeTexture ? '#ffffff' : color}
               map={imageMode !== 'wrap' ? activeTexture : null}
-              roughness={isABS ? 0.45 : 0.93}
+              roughness={isABS ? 0.42 : 0.93}
               metalness={0}
               normalMap={PLASTIC_NORMAL_TEX}
               normalScale={isABS ? NSCALE_ABS_TOP : NSCALE_PBT_TOP}
-              clearcoat={isABS ? 0.4 : 0}
-              clearcoatRoughness={0.5}
+              clearcoat={isABS ? 0.55 : 0.08}
+              clearcoatRoughness={isABS ? 0.32 : 0.6}
               emissive={hovered && !singleKeyMode ? '#ffffff' : '#000000'}
               emissiveIntensity={hovered && !singleKeyMode ? 0.045 : 0}
             />
