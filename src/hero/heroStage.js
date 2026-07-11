@@ -118,7 +118,7 @@ export function buildHeroScene(sourceScene, { aspect = 16 / 9, angle = 'hero', t
           rebuild.color, rebuild.legend, rebuild.legendColor, rebuild.font,
           rebuild.legendPosition, rebuild.w, rebuild.h,
           getTopInset(rebuild.profile, rebuild.w, rebuild.h), false,
-          rebuild.profile, rebuild.subStyle
+          rebuild.profile, rebuild.subStyle, null, rebuild.legendScale || 1
         );
         texCache.set(mat.map, t);
         ownedTextures.push(t);

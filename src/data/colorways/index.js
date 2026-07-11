@@ -242,6 +242,21 @@ export const getKeyZone = (label) => {
   return 'alphas';
 };
 
+// ---- Legend groups (per-group position + size, Mr-Snek-style) --------------
+// alphas = letters/base; modifiers = mod keys; dual = number/symbol keys that
+// carry a shifted legend. Used by store.legendGroups for independent legend
+// size + position per group.
+export const LEGEND_GROUPS = [
+  { key: 'alphas',    label: 'Alphas' },
+  { key: 'modifiers', label: 'Modifiers' },
+  { key: 'dual',      label: 'Numbers & symbols' },
+];
+export const getLegendGroup = (label) => {
+  if (getKeyType(label) === 'mod') return 'modifiers';
+  if (label && label.length === 1 && !/[A-Za-z]/.test(label)) return 'dual'; // 1-0, symbols
+  return 'alphas';
+};
+
 // Get colors for a specific key based on colorway.
 // Zone resolution order (matches keysim):
 //   1. colorway.override[keycode] — explicit per-key zone ('accent', 'accent2'..'accent8', 'mods', 'base')

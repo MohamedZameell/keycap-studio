@@ -10,7 +10,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { T as KT, Icon as KIcon, Section, Segmented, RowBtn } from '../components/ui/kit';
 import { useAuth } from '../hooks/useAuth';
 import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
-import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway, isColorwayLoaded, COLOR_ZONES } from '../data/colorways';
+import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway, isColorwayLoaded, COLOR_ZONES, LEGEND_GROUPS } from '../data/colorways';
 import { makeDraftFrom, isCustomColorwayId, CORE_ZONES, EXTRA_ZONES } from '../data/customColorways';
 import { SUB_STYLES, OS_TYPES } from '../data/keysimLegends';
 import { labelToKeyCode } from '../data/keysimLegends';
@@ -166,6 +166,9 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   setZoneColor: s.setZoneColor,
   clearZoneColor: s.clearZoneColor,
   clearAllZoneColors: s.clearAllZoneColors,
+  legendGroups: s.legendGroups,
+  setLegendGroup: s.setLegendGroup,
+  resetLegendGroups: s.resetLegendGroups,
   backlitEnabled: s.backlitEnabled,
   backlitColor: s.backlitColor,
   perKeyDesigns: s.perKeyDesigns,
@@ -725,6 +728,7 @@ export default function StudioScreen() {
         led: state.keyboardLEDType,
         p: state.selectedProfile, cw: state.selectedColorway, ss: state.legendSubStyle,
         os: state.osType,
+        lg: state.legendGroups,
         zc: Object.keys(state.zoneColors).length ? state.zoneColors : undefined,
         cs: state.caseStyle, cf: state.caseFinish, cc: state.caseColor,
       };
@@ -1596,6 +1600,36 @@ export default function StudioScreen() {
                 />
                 <div style={{ fontSize: 10, color: '#666680', marginTop: 6, lineHeight: 1.4 }}>
                   Mac swaps Win/Alt/Ctrl for ⌘ ⌥ ⌃ glyphs on the modifier keys.
+                </div>
+
+                <div style={{ ...styles.sectionLabel, marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Per-group Size & Position</span>
+                  <button onClick={() => store.resetLegendGroups()}
+                    style={{ padding: '2px 8px', background: 'transparent', border: `1px solid ${KT.line}`, borderRadius: 5, color: KT.mut, fontSize: 10, cursor: 'pointer', textTransform: 'none', letterSpacing: 0 }}>Reset</button>
+                </div>
+                {LEGEND_GROUPS.map(g => {
+                  const gv = store.legendGroups[g.key];
+                  return (
+                    <div key={g.key} style={{ padding: '8px 10px', background: '#14141f', border: `1px solid ${KT.line}`, borderRadius: 8, marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, color: '#c8c2d8', fontWeight: 600 }}>{g.label}</span>
+                        <span style={{ fontSize: 10, color: KT.mut }}>{Math.round(gv.size * 100)}%</span>
+                      </div>
+                      <input type="range" min="0.5" max="1.6" step="0.05" value={gv.size}
+                        onChange={e => store.setLegendGroup(g.key, 'size', parseFloat(e.target.value))}
+                        style={{ width: '100%', accentColor: '#6c63ff' }} />
+                      <select value={gv.pos} onChange={e => store.setLegendGroup(g.key, 'pos', e.target.value)}
+                        style={{ width: '100%', marginTop: 6, padding: '5px 8px', background: '#1a1a2e', border: '1px solid #2a2a3a', borderRadius: 5, color: '#aaaacc', fontSize: 11.5, cursor: 'pointer' }}>
+                        <option value="">Position: inherit</option>
+                        {LEGEND_POSITIONS.filter(p => p.value !== 'hidden' && p.value !== 'front').map(p => (
+                          <option key={p.value} value={p.value}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+                <div style={{ fontSize: 10, color: '#666680', marginTop: 2, marginBottom: 4, lineHeight: 1.4 }}>
+                  Size &amp; position each legend group independently (e.g. smaller modifier text).
                 </div>
 
                 <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Secondary Legend</div>

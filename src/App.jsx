@@ -103,6 +103,10 @@ function DesignLoader() {
       if (state.p) s.setSelectedProfile(state.p);
       if (state.ss) s.setLegendSubStyle(state.ss);
       if (state.os) s.setOsType(state.os);
+      if (state.lg) Object.entries(state.lg).forEach(([g, v]) => {
+        if (v.size != null) s.setLegendGroup(g, 'size', v.size);
+        if (v.pos != null) s.setLegendGroup(g, 'pos', v.pos);
+      });
       if (state.zc) Object.entries(state.zc).forEach(([z, v]) => {
         if (v.color) s.setZoneColor(z, 'color', v.color);
         if (v.legendColor) s.setZoneColor(z, 'legendColor', v.legendColor);

@@ -43,6 +43,13 @@ export const useStore = create((set) => ({
   // 'alphas'|'spacebar') -> { color?, legendColor? }. Sits between per-key
   // overrides and the colorway in Keycap's resolution.
   zoneColors: {},
+  // Per-legend-group size (multiplier) + position override. Group keys:
+  // 'alphas' | 'modifiers' | 'dual'. pos '' inherits globalLegendPosition.
+  legendGroups: {
+    alphas:    { size: 1, pos: '' },
+    modifiers: { size: 1, pos: '' },
+    dual:      { size: 1, pos: '' },
+  },
   backlitEnabled: false,
   backlitColor: '#00aaff',
   perKeyDesigns: {},
@@ -182,6 +189,12 @@ export const useStore = create((set) => ({
     return { zoneColors };
   }),
   clearAllZoneColors: () => set({ zoneColors: {} }),
+  setLegendGroup: (group, field, value) => set((state) => ({
+    legendGroups: { ...state.legendGroups, [group]: { ...state.legendGroups[group], [field]: value } },
+  })),
+  resetLegendGroups: () => set({
+    legendGroups: { alphas: { size: 1, pos: '' }, modifiers: { size: 1, pos: '' }, dual: { size: 1, pos: '' } },
+  }),
   setBacklitEnabled: (enabled) => set({ backlitEnabled: enabled }),
   setBacklitColor: (color) => set({ backlitColor: color }),
   setMaterialPreset: (p) => set({ materialPreset: p }),
