@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import * as THREE from 'three';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
-import { getKeyColors } from '../data/colorways';
+import { getKeyColors, getKeyZone } from '../data/colorways';
 import { getLegendGlyph, GLYPH_METRICS, getPrimaryLegendSet, getSaChar, getSubChar, applyOsType } from '../data/keysimLegends';
 import { KEY_UNIT } from '../data/layouts';
 
@@ -1018,6 +1018,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     colorwayDraft,
     legendSubStyle,
     osType,
+    zoneColors,
   } = useStore(useShallow(s => ({
     globalColor: s.globalColor,
     globalLegendColor: s.globalLegendColor,
@@ -1031,7 +1032,9 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     colorwayDraft: s.colorwayDraft,
     legendSubStyle: s.legendSubStyle,
     osType: s.osType,
+    zoneColors: s.zoneColors,
   })));
+  const zoneColor = zoneColors[getKeyZone(label)];
 
   // Per-key design — scoped to THIS keyId so editing one key doesn't re-render every other key.
   const pkDesign = useStore(s => s.perKeyDesigns[keyId] || EMPTY_DESIGN);
@@ -1099,8 +1102,9 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     return null;
   }, [colorwayDraft, selectedColorway, label]);
 
-  const color = pkDesign.color || (colorwayColors?.background) || globalColor;
-  const legendColor = pkDesign.legendColor || (colorwayColors?.legend) || globalLegendColor;
+  // Resolution: per-key override > zone quick-paint > colorway > global.
+  const color = pkDesign.color || zoneColor?.color || (colorwayColors?.background) || globalColor;
+  const legendColor = pkDesign.legendColor || zoneColor?.legendColor || (colorwayColors?.legend) || globalLegendColor;
   const legendText = pkDesign.legendText || globalLegendText;
   const font = pkDesign.font || globalFont;
   const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';

@@ -103,6 +103,10 @@ function DesignLoader() {
       if (state.p) s.setSelectedProfile(state.p);
       if (state.ss) s.setLegendSubStyle(state.ss);
       if (state.os) s.setOsType(state.os);
+      if (state.zc) Object.entries(state.zc).forEach(([z, v]) => {
+        if (v.color) s.setZoneColor(z, 'color', v.color);
+        if (v.legendColor) s.setZoneColor(z, 'legendColor', v.legendColor);
+      });
       if (state.cs) s.setCaseStyle(state.cs);
       if (state.cf) s.setCaseFinish(state.cf);
       if (state.cc) s.setCaseColor(state.cc);

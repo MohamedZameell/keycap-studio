@@ -39,6 +39,10 @@ export const useStore = create((set) => ({
   globalLegendPosition: 'top-center',
   legendSubStyle: '',         // secondary legend alphabet ('' | 'cyrillic' | 'greek' | …)
   osType: 'win',              // modifier legend style: 'win' | 'mac' (⌘/⌥/⌃)
+  // Zone quick-paint: zone key ('wasd'|'arrows'|'nav'|'function'|'modifiers'|
+  // 'alphas'|'spacebar') -> { color?, legendColor? }. Sits between per-key
+  // overrides and the colorway in Keycap's resolution.
+  zoneColors: {},
   backlitEnabled: false,
   backlitColor: '#00aaff',
   perKeyDesigns: {},
@@ -169,6 +173,15 @@ export const useStore = create((set) => ({
   setGlobalLegendPosition: (p) => set({ globalLegendPosition: p }),
   setLegendSubStyle: (v) => set({ legendSubStyle: v }),
   setOsType: (v) => set({ osType: v }),
+  setZoneColor: (zone, field, value) => set((state) => ({
+    zoneColors: { ...state.zoneColors, [zone]: { ...(state.zoneColors[zone] || {}), [field]: value } },
+  })),
+  clearZoneColor: (zone) => set((state) => {
+    const zoneColors = { ...state.zoneColors };
+    delete zoneColors[zone];
+    return { zoneColors };
+  }),
+  clearAllZoneColors: () => set({ zoneColors: {} }),
   setBacklitEnabled: (enabled) => set({ backlitEnabled: enabled }),
   setBacklitColor: (color) => set({ backlitColor: color }),
   setMaterialPreset: (p) => set({ materialPreset: p }),

@@ -10,7 +10,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { T as KT, Icon as KIcon, Section, Segmented, RowBtn } from '../components/ui/kit';
 import { useAuth } from '../hooks/useAuth';
 import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
-import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway, isColorwayLoaded } from '../data/colorways';
+import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway, isColorwayLoaded, COLOR_ZONES } from '../data/colorways';
 import { makeDraftFrom, isCustomColorwayId, CORE_ZONES, EXTRA_ZONES } from '../data/customColorways';
 import { SUB_STYLES, OS_TYPES } from '../data/keysimLegends';
 import { labelToKeyCode } from '../data/keysimLegends';
@@ -162,6 +162,10 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   legendSubStyle: s.legendSubStyle,
   osType: s.osType,
   setOsType: s.setOsType,
+  zoneColors: s.zoneColors,
+  setZoneColor: s.setZoneColor,
+  clearZoneColor: s.clearZoneColor,
+  clearAllZoneColors: s.clearAllZoneColors,
   backlitEnabled: s.backlitEnabled,
   backlitColor: s.backlitColor,
   perKeyDesigns: s.perKeyDesigns,
@@ -721,6 +725,7 @@ export default function StudioScreen() {
         led: state.keyboardLEDType,
         p: state.selectedProfile, cw: state.selectedColorway, ss: state.legendSubStyle,
         os: state.osType,
+        zc: Object.keys(state.zoneColors).length ? state.zoneColors : undefined,
         cs: state.caseStyle, cf: state.caseFinish, cc: state.caseColor,
       };
       // A custom colorway id means nothing on another device — inline its JSON.
@@ -1337,6 +1342,39 @@ export default function StudioScreen() {
                   <SwatchRow label="Legend color" hex={getVal('legendColor') || '#ffffff'}
                     open={openPicker === 'legend'} onToggle={() => setOpenPicker(p => p === 'legend' ? null : 'legend')}
                     onChange={(c) => updateDesign('legendColor', c)} />
+                </Section>
+
+                {/* ZONE COLOURS — quick-paint whole key groups (WASD/arrows/…).
+                    Resolves between per-key overrides and the colorway. */}
+                <Section title="Zone colors" collapsible badge={Object.keys(store.zoneColors).length || undefined}>
+                  {COLOR_ZONES.map(z => {
+                    const zc = store.zoneColors[z.key];
+                    return (
+                      <div key={z.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ flex: 1 }}>
+                          <SwatchRow
+                            label={z.label} hex={zc?.color || ''}
+                            open={openPicker === `zone-${z.key}`}
+                            onToggle={() => setOpenPicker(p => p === `zone-${z.key}` ? null : `zone-${z.key}`)}
+                            onChange={(c) => store.setZoneColor(z.key, 'color', c)}
+                          />
+                        </div>
+                        {zc && (
+                          <button title={`Reset ${z.label}`} onClick={() => store.clearZoneColor(z.key)}
+                            style={{ padding: '4px 7px', background: 'transparent', border: `1px solid ${KT.line}`, borderRadius: 5, color: KT.mut, fontSize: 11, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {Object.keys(store.zoneColors).length > 0 && (
+                    <button onClick={() => store.clearAllZoneColors()}
+                      style={{ width: '100%', marginTop: 8, padding: '7px', background: 'transparent', border: `1px solid ${KT.line}`, borderRadius: 6, color: KT.mut, fontSize: 11, cursor: 'pointer' }}>
+                      Reset all zones
+                    </button>
+                  )}
+                  <p style={{ fontSize: 10, color: '#666680', margin: '8px 0 0', lineHeight: 1.4 }}>
+                    Paints a whole key group at once. A per-key color still wins over its zone.
+                  </p>
                 </Section>
 
                 {/* CASE — style / finish / color (UI was missing entirely since the
