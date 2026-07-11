@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import * as THREE from 'three';
 import { useStore } from '../store';
 import { playKeycapSound } from '../utils/soundEngine';
-import { getKeyColors, getKeyZone } from '../data/colorways';
+import { getKeyColors, getKeyZone, getLegendGroup } from '../data/colorways';
 import { getLegendGlyph, GLYPH_METRICS, getPrimaryLegendSet, getSaChar, getSubChar, applyOsType } from '../data/keysimLegends';
 import { KEY_UNIT } from '../data/layouts';
 
@@ -32,6 +32,7 @@ const STEM_GEO_HORZ = new THREE.BoxGeometry(0.22, 0.12, 0.07);
 const STEM_MAT = new THREE.MeshStandardMaterial({ color: '#0a0a0a', roughness: 0.8 });
 const EMPTY_DESIGN = Object.freeze({});
 const EMPTY_STAMPS = Object.freeze([]);
+const EMPTY_LEGEND_GROUP = Object.freeze({ size: 1, pos: '' });
 
 // ============================================================
 // STAMP DECAL — an image projected onto the cap surface (drei Decal
@@ -803,20 +804,20 @@ function buildKeycapSideTexture(color) {
 // Varela Round face isn't installed.
 const SA_FONT = '"Varela Round", "Trebuchet MS", "Segoe UI", system-ui, sans-serif';
 
-function drawSaLegend(ctx, cw, ch, label, baseSize) {
+function drawSaLegend(ctx, cw, ch, label, baseSize, scale = 1) {
   const v = getSaChar(label);
   const val = v != null ? v : label;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   if (val && typeof val === 'object' && val.top != null) {
-    const fs = Math.round(baseSize * 0.30);
+    const fs = Math.round(baseSize * 0.30 * scale);
     ctx.font = `600 ${fs}px ${SA_FONT}`;
     ctx.fillText(String(val.top), cw / 2, ch * 0.34);
     ctx.fillText(String(val.bottom), cw / 2, ch * 0.66);
   } else {
     const str = String(typeof val === 'string' ? val : label);
     const isWord = str.length > 2;
-    const fs = Math.round(baseSize * (isWord ? 0.17 : 0.42));
+    const fs = Math.round(baseSize * (isWord ? 0.17 : 0.42) * scale);
     ctx.font = `${isWord ? '700' : '500'} ${fs}px ${SA_FONT}`;
     ctx.fillText(str, cw / 2, ch * 0.5);
   }
@@ -827,7 +828,7 @@ function drawSaLegend(ctx, cw, ch, label, baseSize) {
 // text, 'Fn'): mimic the icon font's look — top-left anchor at the glyph
 // metrics, Helvetica-family, mod-word sizing — so the cap still reads GMK
 // instead of centered bold Inter.
-function drawPlainLegend(ctx, cw, ch, label, font, legendPosition, gmkStyle = false, baseSize = 256) {
+function drawPlainLegend(ctx, cw, ch, label, font, legendPosition, gmkStyle = false, baseSize = 256, scale = 1) {
   if (gmkStyle) {
     const GMK_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
     ctx.textAlign = 'left';
@@ -835,11 +836,11 @@ function drawPlainLegend(ctx, cw, ch, label, font, legendPosition, gmkStyle = fa
     const x = Math.round(baseSize * GLYPH_METRICS.x);
     if (label.length === 1) {
       // Single character = alpha-sized, like the icon font's letter glyphs.
-      ctx.font = `500 ${Math.round(baseSize * 0.30)}px ${GMK_FONT}`;
+      ctx.font = `500 ${Math.round(baseSize * 0.30 * scale)}px ${GMK_FONT}`;
       ctx.fillText(label, x, Math.round(baseSize * 0.40));
     } else {
       // Word = mod-cap sizing; shrink long words to fit the plate.
-      let fs = Math.round(baseSize * 0.148);
+      let fs = Math.round(baseSize * 0.148 * scale);
       ctx.font = `600 ${fs}px ${GMK_FONT}`;
       const maxW = cw - x * 1.5;
       const w = ctx.measureText(label).width;
@@ -861,9 +862,9 @@ function drawPlainLegend(ctx, cw, ch, label, font, legendPosition, gmkStyle = fa
   };
   const [tx, ty] = posMap[legendPosition] || posMap['center'];
   const baseFont = ch * 0.35;
-  const fontSize = label.length > 5 ? baseFont * 0.5 :
+  const fontSize = (label.length > 5 ? baseFont * 0.5 :
                    label.length > 3 ? baseFont * 0.65 :
-                   label.length > 1 ? baseFont * 0.85 : baseFont;
+                   label.length > 1 ? baseFont * 0.85 : baseFont) * scale;
   ctx.font = `bold ${Math.round(fontSize)}px "${font || 'Inter'}", sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(label, tx, ty);
@@ -885,7 +886,7 @@ function drawSubLegend(ctx, baseSize, sub, color) {
   }
 }
 
-function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1, inset = null, shaded = true, profile = 'cherry', subStyle = null, baseSizeOverride = null) {
+function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosition, keyWidth = 1, keyHeight = 1, inset = null, shaded = true, profile = 'cherry', subStyle = null, baseSizeOverride = null, legendScale = 1) {
   // 256/u: enough for crisp legend glyphs, still cheap to rasterize.
   // Print export passes a real-DPI override — every metric below is a
   // fraction of baseSize, so the art scales losslessly.
@@ -929,14 +930,14 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
     let drewPrimary = false;
     if (useTypeset && legendSet.id === 'sa') {
       // SA profile: centered text legends (stacked top/bottom on symbol keys).
-      drawSaLegend(ctx, canvasWidth, canvasHeight, label, baseSize);
+      drawSaLegend(ctx, canvasWidth, canvasHeight, label, baseSize, legendScale);
       drewPrimary = true;
     } else if (useTypeset && legendSet.id === 'cherry' && legendsFontLoaded) {
       // Cherry icon font: one pre-composed glyph at keysim's metrics (absolute
       // per-1u — wide keys keep the same size and top-left anchor like real GMK).
       const glyph = getLegendGlyph(label);
       if (glyph) {
-        ctx.font = `${Math.round(baseSize * GLYPH_METRICS.fontSize)}px legends`;
+        ctx.font = `${Math.round(baseSize * GLYPH_METRICS.fontSize * legendScale)}px legends`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(glyph, Math.round(baseSize * GLYPH_METRICS.x), Math.round(baseSize * GLYPH_METRICS.baseline));
@@ -945,7 +946,7 @@ function buildKeycapTextureFallback(color, legend, legendColor, font, legendPosi
     }
     if (!drewPrimary) {
       // Custom text / custom font / unmapped label (e.g. 'Fn').
-      drawPlainLegend(ctx, canvasWidth, canvasHeight, label, font, legendPosition, useTypeset, baseSize);
+      drawPlainLegend(ctx, canvasWidth, canvasHeight, label, font, legendPosition, useTypeset, baseSize, legendScale);
     }
 
     // Secondary (international) sub-legend — cherry-family supports it; SA does not.
@@ -1019,6 +1020,7 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     legendSubStyle,
     osType,
     zoneColors,
+    legendGroups,
   } = useStore(useShallow(s => ({
     globalColor: s.globalColor,
     globalLegendColor: s.globalLegendColor,
@@ -1033,8 +1035,10 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
     legendSubStyle: s.legendSubStyle,
     osType: s.osType,
     zoneColors: s.zoneColors,
+    legendGroups: s.legendGroups,
   })));
   const zoneColor = zoneColors[getKeyZone(label)];
+  const legendGroup = legendGroups[getLegendGroup(label)] || EMPTY_LEGEND_GROUP;
 
   // Per-key design — scoped to THIS keyId so editing one key doesn't re-render every other key.
   const pkDesign = useStore(s => s.perKeyDesigns[keyId] || EMPTY_DESIGN);
@@ -1107,7 +1111,10 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
   const legendColor = pkDesign.legendColor || zoneColor?.legendColor || (colorwayColors?.legend) || globalLegendColor;
   const legendText = pkDesign.legendText || globalLegendText;
   const font = pkDesign.font || globalFont;
-  const legendPosition = pkDesign.legendPosition || globalLegendPosition || 'top-center';
+  // Legend group (alphas/modifiers/dual) can override position + scale size.
+  // Per-key position still wins; group pos '' inherits the global position.
+  const legendPosition = pkDesign.legendPosition || legendGroup.pos || globalLegendPosition || 'top-center';
+  const legendScale = legendGroup.size || 1;
   // OS variant only rewrites the auto legend (Win→⌘ etc.); explicit custom
   // text and colour zoning both stay keyed on the original label.
   const displayText = legendText && legendText.trim() !== '' ? legendText : applyOsType(label, osType);
@@ -1160,15 +1167,15 @@ function Keycap({ keyId, label, x, y, w = 1, h = 1, rowHeight, rowTilt, uvOffset
 
   // Solid color texture - use simple sync version for speed.
   // profile is in the key because the legend inset (fillet fraction) depends on it.
-  const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${font}-${legendFontV}-${w}-${h}-${profile}-${legendSubStyle}`;
+  const textureKey = `${color}-${displayText}-${legendColor}-${legendPosition}-${font}-${legendFontV}-${w}-${h}-${profile}-${legendSubStyle}-${legendScale}`;
   const solidTexture = useMemo(() => {
     if (imageMode === 'wrap') return null;
     const tex = getCachedTexture(textureKey, () =>
-      buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h, getTopInset(profile, w, h), true, profile, legendSubStyle)
+      buildKeycapTextureFallback(color, displayText, legendColor, font, legendPosition, w, h, getTopInset(profile, w, h), true, profile, legendSubStyle, null, legendScale)
     );
     // hero render rebuilds this texture unshaded (real GI replaces the
     // painted highlights) — stash the recipe on the shared texture
-    tex.userData.heroRebuild = { color, legend: displayText, legendColor, font, legendPosition, w, h, profile, subStyle: legendSubStyle };
+    tex.userData.heroRebuild = { color, legend: displayText, legendColor, font, legendPosition, w, h, profile, subStyle: legendSubStyle, legendScale };
     return tex;
   }, [color, displayText, legendColor, font, legendPosition, imageMode, w, h, profile, textureKey, legendSubStyle]);
 
