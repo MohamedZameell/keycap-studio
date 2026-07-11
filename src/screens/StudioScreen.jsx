@@ -12,7 +12,7 @@ import { useAuth } from '../hooks/useAuth';
 import { saveUserDesign, isSupabaseConfigured } from '../lib/supabase';
 import { COLORWAYS, COLORWAY_LIST, colorwayToTheme, warmupExtraColorways, getColorway, isColorwayLoaded } from '../data/colorways';
 import { makeDraftFrom, isCustomColorwayId, CORE_ZONES, EXTRA_ZONES } from '../data/customColorways';
-import { SUB_STYLES } from '../data/keysimLegends';
+import { SUB_STYLES, OS_TYPES } from '../data/keysimLegends';
 import { labelToKeyCode } from '../data/keysimLegends';
 import TypingTest from '../components/TypingTest';
 import KeyboardRenderer from '../components/KeyboardRenderer';
@@ -160,6 +160,8 @@ const STUDIO_STORE_SELECTOR = (s) => ({
   globalFont: s.globalFont,
   globalLegendPosition: s.globalLegendPosition,
   legendSubStyle: s.legendSubStyle,
+  osType: s.osType,
+  setOsType: s.setOsType,
   backlitEnabled: s.backlitEnabled,
   backlitColor: s.backlitColor,
   perKeyDesigns: s.perKeyDesigns,
@@ -718,6 +720,7 @@ export default function StudioScreen() {
         m: state.materialPreset, k: state.selectedModel, ff: state.selectedFormFactor,
         led: state.keyboardLEDType,
         p: state.selectedProfile, cw: state.selectedColorway, ss: state.legendSubStyle,
+        os: state.osType,
         cs: state.caseStyle, cf: state.caseFinish, cc: state.caseColor,
       };
       // A custom colorway id means nothing on another device — inline its JSON.
@@ -1546,6 +1549,16 @@ export default function StudioScreen() {
                     Remove "{getVal('font')}" from your fonts
                   </button>
                 )}
+
+                <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Modifier Style</div>
+                <Segmented
+                  options={OS_TYPES}
+                  value={store.osType}
+                  onChange={(v) => store.setOsType(v)}
+                />
+                <div style={{ fontSize: 10, color: '#666680', marginTop: 6, lineHeight: 1.4 }}>
+                  Mac swaps Win/Alt/Ctrl for ⌘ ⌥ ⌃ glyphs on the modifier keys.
+                </div>
 
                 <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Secondary Legend</div>
                 <select
