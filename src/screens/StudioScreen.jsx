@@ -20,6 +20,8 @@ import RealismPipeline, { GroundShadow } from '../components/RealismPipeline';
 import { HeroBridge } from '../hero/heroBridge';
 // Path tracer + denoiser live in this lazy chunk — only fetched on first use
 const HeroRenderModal = lazy(() => import('../hero/HeroRenderModal'));
+// fabric.js draw bar — lazy so fabric only loads when the bar is opened
+const DrawBoardModal = lazy(() => import('../components/DrawBoardModal'));
 import Keycap from '../components/Keycap';
 import LEDPreviewWidget from '../components/LEDPreviewWidget';
 import { getLayoutForFormFactor } from '../data/layouts';
@@ -446,6 +448,7 @@ export default function StudioScreen() {
   const [showTypingTest, setShowTypingTest] = useState(false);
   const [customFonts, setCustomFonts] = useState([]);
   const [fontBusy, setFontBusy] = useState(false);
+  const [drawOpen, setDrawOpen] = useState(false);
   const [iconsOpen, setIconsOpen] = useState(false);
   const [iconSearch, setIconSearch] = useState('');
   const [iconBusy, setIconBusy] = useState(null);
@@ -1653,6 +1656,23 @@ export default function StudioScreen() {
             {/* ===== IMAGE TAB ===== */}
             {activeTab === 'IMAGE' && (
               <div style={styles.section}>
+                {/* DRAW ON KEYBOARD — fabric.js 2D canvas -> live wrap texture */}
+                <button
+                  onClick={() => setDrawOpen(true)}
+                  style={{
+                    width: '100%', padding: '12px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 11,
+                    background: 'linear-gradient(90deg, rgba(108,99,255,0.18), rgba(108,99,255,0.06))',
+                    border: `1px solid ${KT.accentLine}`, borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <KIcon name="vector" size={18} color={KT.accent} />
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontFamily: KT.font, fontSize: 13.5, fontWeight: 700, color: KT.accent }}>Draw on keyboard</span>
+                    <span style={{ display: 'block', fontFamily: KT.font, fontSize: 11, color: KT.sub, marginTop: 1 }}>Paint art across the board — projects on live</span>
+                  </span>
+                  <KIcon name="chevronRight" size={15} color={KT.accent} />
+                </button>
+
                 <div style={styles.sectionLabel}>Image mode</div>
                 <div>
                   {[
@@ -2223,6 +2243,12 @@ export default function StudioScreen() {
           {heroOpen && (
             <Suspense fallback={null}>
               <HeroRenderModal onClose={() => setHeroOpen(false)} />
+            </Suspense>
+          )}
+
+          {drawOpen && (
+            <Suspense fallback={null}>
+              <DrawBoardModal onClose={() => setDrawOpen(false)} />
             </Suspense>
           )}
 
