@@ -29,6 +29,8 @@ import {
   runPreflightChecks,
   generateMetadataJson
 } from '../utils/exportEngine';
+import { EXTRA_GOOGLE_FONTS, ensureFont, loadPersistedFonts, addCustomFont, deleteCustomFont } from '../lib/fontManager';
+import { ICON_STAMPS, iconSvgUrl, iconToDataUrl } from '../data/iconStamps';
 
 const KEY_UNIT = 1.05;
 
@@ -433,6 +435,11 @@ export default function StudioScreen() {
   const [saveName, setSaveName] = useState('');
   const [saveLoading, setSaveLoading] = useState(false);
   const [showTypingTest, setShowTypingTest] = useState(false);
+  const [customFonts, setCustomFonts] = useState([]);
+  const [fontBusy, setFontBusy] = useState(false);
+  const [iconsOpen, setIconsOpen] = useState(false);
+  const [iconSearch, setIconSearch] = useState('');
+  const [iconBusy, setIconBusy] = useState(null);
   const fileInputRef = useRef(null);
   const orbitRef = useRef(null);
 
@@ -562,6 +569,30 @@ export default function StudioScreen() {
       return store.perKeyDesigns[targetKeyId][key] || store[`global${key.charAt(0).toUpperCase() + key.slice(1)}`];
     }
     return store[`global${key.charAt(0).toUpperCase() + key.slice(1)}`];
+  };
+
+  // Restore uploaded legend fonts (IndexedDB) once so the picker lists them.
+  useEffect(() => { loadPersistedFonts().then(setCustomFonts); }, []);
+
+  // Load the family into document.fonts BEFORE storing it — the keycap
+  // texture cache keys on the font name, so a texture rendered against the
+  // fallback font would be cached under the real name and never repainted.
+  const pickFont = async (fam) => {
+    setFontBusy(true);
+    try { await ensureFont(fam); } finally { setFontBusy(false); }
+    updateDesign('font', fam);
+  };
+
+  const stampIcon = async (name) => {
+    setIconBusy(name);
+    try {
+      const url = await iconToDataUrl(name, store.globalLegendColor || '#ffffff');
+      store.armStamp(url, 1);
+    } catch (e) {
+      showToast('Icon failed to load — check your connection');
+    } finally {
+      setIconBusy(null);
+    }
   };
 
   // Keyboard shortcuts — Escape also resets camera
@@ -1461,6 +1492,61 @@ export default function StudioScreen() {
                   })}
                 </div>
 
+                <select
+                  value={[...EXTRA_GOOGLE_FONTS.map(f => f.value), ...customFonts].includes(getVal('font')) ? getVal('font') : ''}
+                  onChange={e => e.target.value && pickFont(e.target.value)}
+                  style={{
+                    width: '100%', marginTop: 8, padding: '8px 10px', background: '#1a1a2e',
+                    border: '1px solid #2a2a3a', borderRadius: 6, color: '#aaaacc',
+                    fontSize: 13, cursor: 'pointer', opacity: fontBusy ? 0.6 : 1,
+                  }}
+                >
+                  <option value="">{fontBusy ? 'Loading font…' : 'More fonts…'}</option>
+                  <optgroup label="Google Fonts">
+                    {EXTRA_GOOGLE_FONTS.map(f => <option key={f.value} value={f.value}>{f.value} — {f.tag}</option>)}
+                  </optgroup>
+                  {customFonts.length > 0 && (
+                    <optgroup label="Your fonts">
+                      {customFonts.map(f => <option key={f} value={f}>{f}</option>)}
+                    </optgroup>
+                  )}
+                </select>
+                <input
+                  type="file" id="font-upload" accept=".ttf,.otf,.woff,.woff2" style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    if (file.size > 8 * 1024 * 1024) { showToast('Font file too large (8MB max)'); return; }
+                    try {
+                      const fam = await addCustomFont(file);
+                      setCustomFonts(cs => cs.includes(fam) ? cs : [...cs, fam]);
+                      updateDesign('font', fam);
+                    } catch (err) {
+                      showToast('Could not read that font file');
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => document.getElementById('font-upload').click()}
+                  style={{ width: '100%', marginTop: 6, padding: '8px', background: 'transparent', border: `1px dashed ${KT.line}`, borderRadius: 6, color: KT.mut, fontSize: 11.5, cursor: 'pointer' }}
+                >
+                  + Upload font (.ttf / .otf / .woff2)
+                </button>
+                {customFonts.includes(getVal('font')) && (
+                  <button
+                    onClick={async () => {
+                      const fam = getVal('font');
+                      await deleteCustomFont(fam);
+                      setCustomFonts(cs => cs.filter(c => c !== fam));
+                      updateDesign('font', 'Inter');
+                    }}
+                    style={{ width: '100%', marginTop: 6, padding: '6px', background: 'transparent', border: '1px solid #5a303055', borderRadius: 6, color: '#ff6666', fontSize: 10.5, cursor: 'pointer' }}
+                  >
+                    Remove "{getVal('font')}" from your fonts
+                  </button>
+                )}
+
                 <div style={{ ...styles.sectionLabel, marginTop: 20 }}>Secondary Legend</div>
                 <select
                   value={store.legendSubStyle || ''}
@@ -1548,6 +1634,56 @@ export default function StudioScreen() {
                     >
                       + Upload a sticker, then click a key to stamp it
                     </button>
+                  )}
+
+                  {/* Icon library — curated Material Symbols, tinted with the legend colour */}
+                  <button
+                    onClick={() => setIconsOpen(o => !o)}
+                    style={{
+                      width: '100%', marginTop: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
+                      background: iconsOpen ? KT.accentDim : KT.card, border: `1px solid ${iconsOpen ? KT.accentLine : KT.line}`,
+                      borderRadius: 8, color: iconsOpen ? KT.accent : KT.sub, fontSize: 12, cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <KIcon name="grid" size={13} color={iconsOpen ? KT.accent : KT.sub} />
+                    <span style={{ flex: 1 }}>Icon library</span>
+                    <span style={{ fontSize: 10, color: KT.mut }}>{iconsOpen ? 'Hide' : `${ICON_STAMPS.length} icons`}</span>
+                  </button>
+                  {iconsOpen && (
+                    <div style={{ marginTop: 6, padding: 10, background: '#14141f', border: `1px solid ${KT.line}`, borderRadius: 8 }}>
+                      <input
+                        placeholder="Search icons…" value={iconSearch}
+                        onChange={e => setIconSearch(e.target.value)}
+                        style={{
+                          width: '100%', padding: '6px 10px', boxSizing: 'border-box', background: '#1a1a2e',
+                          border: '1px solid #2a2a3a', borderRadius: 6, color: '#c8c2d8', fontSize: 12, outline: 'none',
+                        }}
+                      />
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 5, marginTop: 8, maxHeight: 190, overflowY: 'auto' }}>
+                        {ICON_STAMPS.filter(ic => {
+                          const q = iconSearch.trim().toLowerCase();
+                          return !q || ic.name.includes(q) || ic.label.includes(q);
+                        }).map(ic => (
+                          <button
+                            key={ic.name} title={ic.name.replace(/_/g, ' ')} disabled={!!iconBusy}
+                            onClick={() => stampIcon(ic.name)}
+                            style={{
+                              aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              background: '#1a1a2e', border: `1px solid ${iconBusy === ic.name ? KT.accentLine : '#23233a'}`,
+                              borderRadius: 6, cursor: iconBusy ? 'wait' : 'pointer', padding: 0,
+                            }}
+                          >
+                            <img
+                              src={iconSvgUrl(ic.name)} alt="" loading="lazy"
+                              style={{ width: 18, height: 18, filter: 'invert(0.82)', opacity: iconBusy && iconBusy !== ic.name ? 0.3 : 1 }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: 10, color: '#666680', margin: '8px 0 0', lineHeight: 1.4 }}>
+                        Icons stamp in your legend colour — click one, then click a key.
+                      </p>
+                    </div>
                   )}
 
                   {Object.entries(store.keyStamps).flatMap(([kId, arr]) => arr.map(st => [kId, st])).map(([kId, st]) => (
