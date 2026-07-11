@@ -212,6 +212,36 @@ export const getKeyType = (label) => {
   return 'base';
 };
 
+// ---- Finer paint zones (Mr-Snek-style) -------------------------------------
+// Classify a key by its display label into one paintable zone. Order matters:
+// WASD/arrows/nav are subsets of alphas/mods, so the most specific wins. Used
+// by the DESIGN-tab "Zone colours" quick-paint (store.zoneColors), resolved in
+// Keycap between per-key overrides and the colorway.
+export const COLOR_ZONES = [
+  { key: 'alphas',   label: 'Alphas' },
+  { key: 'modifiers',label: 'Modifiers' },
+  { key: 'wasd',     label: 'WASD' },
+  { key: 'arrows',   label: 'Arrows' },
+  { key: 'nav',      label: 'Nav cluster' },
+  { key: 'function', label: 'Function row' },
+  { key: 'spacebar', label: 'Spacebar' },
+];
+
+const WASD = ['W', 'A', 'S', 'D'];
+const ARROWS = ['←', '→', '↑', '↓', 'Left', 'Right', 'Up', 'Down'];
+const NAV = ['PgUp', 'PgDn', 'Home', 'End', 'Ins', 'Del', 'Insert', 'Delete', 'PrtSc', 'ScrLk', 'Pause', 'NumLk'];
+
+export const getKeyZone = (label) => {
+  if (label === '' || label === 'Space') return 'spacebar';
+  if (label === 'Esc' || label === 'Escape') return 'function';
+  if (label && label.length > 1 && label[0] === 'F' && !isNaN(label.slice(1))) return 'function'; // F1-F12
+  if (WASD.includes(label)) return 'wasd';
+  if (ARROWS.includes(label)) return 'arrows';
+  if (NAV.includes(label)) return 'nav';
+  if (getKeyType(label) === 'mod') return 'modifiers';
+  return 'alphas';
+};
+
 // Get colors for a specific key based on colorway.
 // Zone resolution order (matches keysim):
 //   1. colorway.override[keycode] — explicit per-key zone ('accent', 'accent2'..'accent8', 'mods', 'base')
