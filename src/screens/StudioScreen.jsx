@@ -2052,7 +2052,7 @@ export default function StudioScreen() {
                 preserveDrawingBuffer: true,
                 powerPreference: "high-performance",
                 toneMapping: THREE.ACESFilmicToneMapping,
-                toneMappingExposure: 0.85,
+                toneMappingExposure: 0.92,
                 outputColorSpace: THREE.SRGBColorSpace,
               }}
               dpr={[1, 2]}
